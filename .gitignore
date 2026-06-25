@@ -1,0 +1,5 @@
+products.db
+data.json
+images/
+__pycache__/
+*.pyc

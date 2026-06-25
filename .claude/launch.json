@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "product-catalog",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "3333", "."],
+      "port": 3333
+    }
+  ]
+}
