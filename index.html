@@ -545,6 +545,7 @@ async function openScanner() {
   document.getElementById('scanner-overlay').classList.add('open');
   setStatus('카메라를 시작하는 중...', '');
   try {
+    await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
     codeReader = new ZXing.BrowserMultiFormatReader();
     const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
     const deviceId = devices.length > 0 ? devices[devices.length - 1].deviceId : undefined;
@@ -553,7 +554,11 @@ async function openScanner() {
     });
     setStatus('인식 대기 중...', '');
   } catch(e) {
-    setStatus('카메라를 사용할 수 없습니다', 'notfound');
+    if (e.name === 'NotAllowedError') {
+      setStatus('카메라 권한을 허용해주세요', 'notfound');
+    } else {
+      setStatus('카메라를 사용할 수 없습니다: ' + e.message, 'notfound');
+    }
   }
 }
 
