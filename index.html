@@ -402,7 +402,7 @@ function showListResult(products, total, append) {
     el.innerHTML = `
       <div style="flex:1; min-width:0;">
         <div class="row-name">${esc(p.name)}</div>
-        <div class="row-sub">${esc([p.author, p.publisher].filter(Boolean).join(' · '))}</div>
+        <div class="row-sub">${esc([p.author, p.publisher].filter(Boolean).join(' · '))}${p.category ? ' <span style="color:#b4b2a9">('+esc(p.category)+')</span>' : ''}</div>
       </div>
       <div class="row-price">${p.price > 0 ? '₩' + p.price.toLocaleString() : '—'}</div>
     `;
