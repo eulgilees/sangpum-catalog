@@ -547,7 +547,7 @@ async function openScanner() {
   try {
     await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
     codeReader = new ZXing.BrowserMultiFormatReader();
-    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+    const devices = await codeReader.listVideoInputDevices();
     const deviceId = devices.length > 0 ? devices[devices.length - 1].deviceId : undefined;
     await codeReader.decodeFromVideoDevice(deviceId, 'scanner-video', (result, err) => {
       if (result) onBarcodeScanned(result.getText());
