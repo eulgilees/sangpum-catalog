@@ -545,7 +545,8 @@ async function openScanner() {
   document.getElementById('scanner-overlay').classList.add('open');
   setStatus('카메라를 시작하는 중...', '');
   try {
-    await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const permStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    permStream.getTracks().forEach(t => t.stop());
     codeReader = new ZXing.BrowserMultiFormatReader();
     const devices = await codeReader.listVideoInputDevices();
     const deviceId = devices.length > 0 ? devices[devices.length - 1].deviceId : undefined;
