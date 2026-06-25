@@ -138,6 +138,9 @@
     .scanner-status { text-align: center; font-size: 14px; color: #888780; min-height: 20px; }
     .scanner-status.found { color: #3b6d11; font-weight: 500; }
     .scanner-status.notfound { color: #a32d2d; }
+    #scanner-loading { position: absolute; inset: 0; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 10px; }
+    .scanner-spinner { width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* 라이트박스 */
 
@@ -285,6 +288,10 @@
       <video id="scanner-video" autoplay playsinline muted></video>
       <div class="scan-frame"></div>
       <div class="scan-line"></div>
+      <div id="scanner-loading">
+        <div class="scanner-spinner"></div>
+        <div style="color:#fff; font-size:13px; margin-top:12px;">카메라 시작 중...</div>
+      </div>
     </div>
     <p class="scanner-status" id="scanner-status">인식 대기 중...</p>
   </div>
@@ -631,6 +638,10 @@ async function openScanner() {
   setStatus('카메라를 시작하는 중...', '');
   try {
     codeReader = new ZXing.BrowserMultiFormatReader();
+    const video = document.getElementById('scanner-video');
+    video.addEventListener('playing', () => {
+      document.getElementById('scanner-loading').style.display = 'none';
+    }, { once: true });
     await codeReader.decodeFromConstraints(
       { video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } },
       'scanner-video',
@@ -670,6 +681,7 @@ async function onBarcodeScanned(code) {
 
 function closeScanner() {
   document.getElementById('scanner-overlay').classList.remove('open');
+  document.getElementById('scanner-loading').style.display = 'flex';
   if (codeReader) { codeReader.reset(); codeReader = null; }
 }
 
