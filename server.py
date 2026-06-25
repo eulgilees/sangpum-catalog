@@ -202,6 +202,12 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    # 볼륨에 DB가 없으면 배포된 파일에서 복사
+    if DB_PATH != 'products.db' and not os.path.exists(DB_PATH) and os.path.exists('products.db'):
+        import shutil
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+        shutil.copy('products.db', DB_PATH)
+        print(f'DB 복사 완료: products.db → {DB_PATH}')
     port = int(os.environ.get('PORT', 8747))
     print(f'서버 시작: http://localhost:{port}')
     HTTPServer(('', port), Handler).serve_forever()
