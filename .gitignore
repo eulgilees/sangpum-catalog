@@ -2,3 +2,4 @@ data.json
 images/
 __pycache__/
 *.pyc
+products.db

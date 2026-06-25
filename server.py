@@ -202,12 +202,14 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    # 볼륨에 DB가 없으면 배포된 파일에서 복사
-    if DB_PATH != 'products.db' and not os.path.exists(DB_PATH) and os.path.exists('products.db'):
-        import shutil
+    # 볼륨에 DB가 없으면 GitHub Releases에서 다운로드
+    if not os.path.exists(DB_PATH):
+        import urllib.request
+        DB_URL = 'https://github.com/eulgilees/sangpum-catalog/releases/download/v1.0/products.db'
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-        shutil.copy('products.db', DB_PATH)
-        print(f'DB 복사 완료: products.db → {DB_PATH}')
+        print(f'DB 다운로드 중... ({DB_URL})')
+        urllib.request.urlretrieve(DB_URL, DB_PATH)
+        print('DB 다운로드 완료!')
     port = int(os.environ.get('PORT', 8747))
     print(f'서버 시작: http://localhost:{port}')
     HTTPServer(('', port), Handler).serve_forever()
