@@ -481,7 +481,7 @@ async function submitComment() {
   const input = document.getElementById('comment-input');
   const content = input.value.trim();
   if (!content || !currentBarcode) return;
-  const created_at = new Date().toLocaleString('ko-KR');
+  const d = new Date(); const created_at = `${String(d.getFullYear()).slice(2)}.${d.getMonth()+1}.${d.getDate()}`;
   await fetch('/api/comments', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -496,7 +496,7 @@ async function submitReply(parentId) {
   const textarea = wrap.querySelector('textarea');
   const content = textarea.value.trim();
   if (!content || !currentBarcode) return;
-  const created_at = new Date().toLocaleString('ko-KR');
+  const d = new Date(); const created_at = `${String(d.getFullYear()).slice(2)}.${d.getMonth()+1}.${d.getDate()}`;
   await fetch('/api/comments', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
