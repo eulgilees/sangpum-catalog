@@ -548,11 +548,11 @@ async function openScanner() {
     const permStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
     permStream.getTracks().forEach(t => t.stop());
     codeReader = new ZXing.BrowserMultiFormatReader();
-    const devices = await codeReader.listVideoInputDevices();
-    const deviceId = devices.length > 0 ? devices[devices.length - 1].deviceId : undefined;
-    await codeReader.decodeFromVideoDevice(deviceId, 'scanner-video', (result, err) => {
-      if (result) onBarcodeScanned(result.getText());
-    });
+    await codeReader.decodeFromConstraints(
+      { video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } },
+      'scanner-video',
+      (result, err) => { if (result) onBarcodeScanned(result.getText()); }
+    );
     setStatus('인식 대기 중...', '');
   } catch(e) {
     if (e.name === 'NotAllowedError') {
