@@ -140,6 +140,25 @@
     .scanner-status.notfound { color: #a32d2d; }
 
     /* 라이트박스 */
+
+    /* 시작 가이드 */
+    .guide-btn { background: none; border: none; cursor: pointer; color: #888780; font-size: 20px; display: flex; align-items: center; padding: 4px; }
+    .guide-btn:hover { color: #185fa5; }
+    .guide-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1100; align-items: flex-end; justify-content: center; }
+    .guide-overlay.open { display: flex; }
+    .guide-box { background: #fff; border-radius: 20px 20px 0 0; padding: 28px 24px 36px; width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; }
+    .guide-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .guide-header h2 { font-size: 17px; font-weight: 600; color: #1a1a18; }
+    .guide-close { background: none; border: none; cursor: pointer; color: #888780; font-size: 22px; display: flex; }
+    .guide-step { display: flex; gap: 16px; margin-bottom: 24px; }
+    .guide-step:last-child { margin-bottom: 0; }
+    .guide-num { width: 32px; height: 32px; border-radius: 50%; background: #185fa5; color: #fff; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+    .guide-step-body { flex: 1; }
+    .guide-step-title { font-size: 15px; font-weight: 600; color: #1a1a18; margin-bottom: 6px; }
+    .guide-step-desc { font-size: 14px; color: #5f5e5a; line-height: 1.7; }
+    .guide-step-desc b { color: #1a1a18; }
+    .guide-step-sub { font-size: 13px; color: #888780; margin-top: 6px; line-height: 1.6; }
+    .guide-divider { border: none; border-top: 1px solid #f0f0ec; margin: 0 0 24px; }
   </style>
 </head>
 <body>
@@ -149,10 +168,73 @@
     <i class="ti ti-barcode"></i>
     <span>상품 조회</span>
   </div>
-  <button class="comment-search-btn" onclick="openCommentPanel()">
-    <i class="ti ti-message-search"></i> 특이사항 검색
-  </button>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <button class="comment-search-btn" onclick="openCommentPanel()">
+      <i class="ti ti-message-search"></i> 특이사항 검색
+    </button>
+    <button class="guide-btn" onclick="openGuide()" title="시작 가이드">
+      <i class="ti ti-help-circle"></i>
+    </button>
+  </div>
 </header>
+
+<!-- 시작 가이드 모달 -->
+<div class="guide-overlay" id="guide-overlay" onclick="if(event.target===this)closeGuide()">
+  <div class="guide-box">
+    <div class="guide-header">
+      <h2>📋 시작 가이드</h2>
+      <button class="guide-close" onclick="closeGuide()"><i class="ti ti-x"></i></button>
+    </div>
+    <hr class="guide-divider">
+
+    <div class="guide-step">
+      <div class="guide-num">1</div>
+      <div class="guide-step-body">
+        <div class="guide-step-title">홈 화면에 앱 추가</div>
+        <div class="guide-step-desc">
+          Safari에서 이 페이지를 열고, 하단 <b>공유 버튼(□↑)</b>을 탭하세요.<br>
+          스크롤을 내려 <b>홈 화면에 추가</b>를 선택한 후 <b>추가</b>를 탭하면 홈 화면에 앱 아이콘이 생깁니다.
+        </div>
+        <div class="guide-step-sub">※ 반드시 Safari에서만 가능합니다. Chrome 등 다른 브라우저는 지원하지 않습니다.</div>
+      </div>
+    </div>
+
+    <div class="guide-step">
+      <div class="guide-num">2</div>
+      <div class="guide-step-body">
+        <div class="guide-step-title">카메라 권한 영구 허용</div>
+        <div class="guide-step-desc">
+          iPhone <b>설정</b> 앱 → 스크롤 내려 <b>Safari</b> → <b>카메라</b> → <b>허용</b> 선택<br>
+          이렇게 설정하면 앱을 껐다 켜도 카메라 승인을 다시 묻지 않습니다.
+        </div>
+        <div class="guide-step-sub">※ 이 설정을 하지 않으면 바코드 스캔 버튼을 누를 때마다 카메라 허용을 물어봅니다.</div>
+      </div>
+    </div>
+
+    <div class="guide-step">
+      <div class="guide-num">3</div>
+      <div class="guide-step-body">
+        <div class="guide-step-title">바코드 스캔으로 상품 조회</div>
+        <div class="guide-step-desc">
+          홈 화면 앱 아이콘으로 실행 후 <b>바코드 스캔</b> 버튼을 탭하세요.<br>
+          카메라에 바코드를 가져다 대면 자동으로 상품 정보가 표시됩니다.
+        </div>
+        <div class="guide-step-sub">※ 바코드 번호나 상품명을 직접 입력해서 검색할 수도 있습니다.</div>
+      </div>
+    </div>
+
+    <div class="guide-step">
+      <div class="guide-num">4</div>
+      <div class="guide-step-body">
+        <div class="guide-step-title">특이사항 작성 및 검색</div>
+        <div class="guide-step-desc">
+          상품 조회 후 하단 <b>특이사항</b> 란에 메모를 남길 수 있습니다.<br>
+          대댓글도 가능하며, 상단 <b>특이사항 검색</b> 버튼으로 내용 전체를 검색할 수 있습니다.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <main>
   <button class="scan-btn" onclick="openScanner()">
@@ -537,6 +619,10 @@ async function uploadImage(input, barcode) {
     document.getElementById('img-upload-area').style.display = 'none';
   }
 }
+
+/* 시작 가이드 */
+function openGuide() { document.getElementById('guide-overlay').classList.add('open'); }
+function closeGuide() { document.getElementById('guide-overlay').classList.remove('open'); }
 
 /* 라이트박스 */
 function openImg(url) {
