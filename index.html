@@ -225,6 +225,10 @@
       <input class="order-input" id="of-name" placeholder="상품명 입력">
     </div>
     <div class="order-field">
+      <div class="order-label">주문일</div>
+      <input class="order-input" id="of-order-date" type="date">
+    </div>
+    <div class="order-field">
       <div class="order-label">수량</div>
       <input class="order-input" id="of-qty" type="number" min="1" value="1" placeholder="수량 입력">
     </div>
@@ -842,6 +846,8 @@ function openOrderForm(barcode, name, order=null) {
   document.getElementById('order-form-title').textContent = order ? '주문 수정' : '주문 등록';
   document.getElementById('of-name').value = order ? order.name : name;
   document.getElementById('of-qty').value = order ? order.qty : 1;
+  const today = new Date(); const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  document.getElementById('of-order-date').value = order ? (order.order_date||'') : todayStr;
   document.getElementById('of-pickup').value = order ? order.pickup_date : '';
   document.getElementById('of-staff').value = order ? order.staff : '';
   document.getElementById('of-note').value = order ? order.note : '';
@@ -853,17 +859,18 @@ function closeOrderForm() { document.getElementById('order-form-overlay').classL
 
 async function submitOrder() {
   const qty = parseInt(document.getElementById('of-qty').value) || 1;
+  const order_date = document.getElementById('of-order-date').value;
   const pickup_date = document.getElementById('of-pickup').value;
   const staff = document.getElementById('of-staff').value.trim();
   const note = document.getElementById('of-note').value.trim();
   const d = new Date(); const created_at = `${String(d.getFullYear()).slice(2)}.${d.getMonth()+1}.${d.getDate()}`;
   if (orderFormId) {
     await fetch('/api/orders/update', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ id:orderFormId, qty, payment:orderPayVal, ordered:orderOrdVal, pickup_date, staff, note }) });
+      body: JSON.stringify({ id:orderFormId, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, staff, note }) });
   } else {
     const name = document.getElementById('of-name').value;
     await fetch('/api/orders', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ barcode:orderFormBarcode, name, qty, payment:orderPayVal, ordered:orderOrdVal, pickup_date, staff, note, created_at }) });
+      body: JSON.stringify({ barcode:orderFormBarcode, name, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, staff, note, created_at }) });
   }
   closeOrderForm();
   if (document.getElementById('order-list-overlay').classList.contains('open')) loadOrderList();
@@ -888,7 +895,7 @@ async function loadOrderList() {
         <span class="order-badge ${o.ordered==='완료'?'badge-done':'badge-pending'}">발주 ${esc(o.ordered)}</span>
       </div>
       <div class="order-item-detail">
-        수량 ${esc(String(o.qty))}부 · 수령 희망일 ${o.pickup_date||'미정'} · 담당 ${esc(o.staff||'—')}
+        주문일 ${o.order_date||'—'} · 수량 ${esc(String(o.qty))}부 · 수령 희망일 ${o.pickup_date||'미정'} · 담당 ${esc(o.staff||'—')}
       </div>
       ${o.note ? `<div class="order-item-note">📝 ${esc(o.note)}</div>` : ''}
       <div style="font-size:11px;color:#b4b2a9;margin-top:6px;">${esc(o.created_at||'')}</div>
