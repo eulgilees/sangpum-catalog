@@ -253,28 +253,32 @@ function showSingleResult(p) {
   const area = document.getElementById('result-area');
   area.style.display = 'block';
   area.innerHTML = `
-    <div class="result-card" style="display:flex; gap:20px; align-items:flex-start; margin-bottom:12px;">
-      <div style="width:140px; flex-shrink:0;">
-        <img id="product-img" src="/api/image?barcode=${esc(p.barcode)}" alt="상품 이미지"
-          onclick="openImg(this.src)"
-          onerror="handleImgError(this, '${imgUrl}')"
-          style="width:140px; border-radius:6px; display:block; cursor:zoom-in;">
-        <div id="img-upload-area" style="display:none; margin-top:8px;">
-          <label style="display:flex; align-items:center; justify-content:center; gap:6px; width:100%; padding:8px; border:1px dashed #b4b2a9; border-radius:8px; font-size:12px; color:#888780; cursor:pointer; background:#f5f5f3;">
-            <i class="ti ti-camera-plus" style="font-size:16px;"></i> 사진 업로드
-            <input type="file" accept="image/*" capture="environment" style="display:none" onchange="uploadImage(this, '${esc(p.barcode)}')">
-          </label>
+    <div class="result-card" style="margin-bottom:12px;">
+      <div style="display:flex; gap:16px; align-items:flex-start; margin-bottom:16px;">
+        <div style="flex-shrink:0;">
+          <img id="product-img" src="/api/image?barcode=${esc(p.barcode)}" alt="상품 이미지"
+            onclick="openImg(this.src)"
+            onerror="handleImgError(this, '${imgUrl}')"
+            style="width:100px; border-radius:8px; display:block; cursor:zoom-in; box-shadow:0 2px 8px rgba(0,0,0,0.12);">
+          <div id="img-upload-area" style="display:none; margin-top:8px;">
+            <label style="display:flex; align-items:center; justify-content:center; gap:4px; width:100px; padding:6px; border:1px dashed #b4b2a9; border-radius:8px; font-size:11px; color:#888780; cursor:pointer; background:#f5f5f3;">
+              <i class="ti ti-camera-plus" style="font-size:14px;"></i> 업로드
+              <input type="file" accept="image/*" capture="environment" style="display:none" onchange="uploadImage(this, '${esc(p.barcode)}')">
+            </label>
+          </div>
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:17px; font-weight:600; color:#1a1a18; line-height:1.4; margin-bottom:6px;">${esc(p.name)}</div>
+          <div style="font-size:14px; color:#555; margin-bottom:4px;">${esc(p.author || '—')}</div>
+          <div style="font-size:13px; color:#888; margin-bottom:8px;">${esc(p.publisher || '—')}</div>
+          <div style="font-size:20px; font-weight:700; color:#185fa5;">${p.price > 0 ? '₩' + p.price.toLocaleString() : '—'}</div>
         </div>
       </div>
-      <div style="flex:1; min-width:0;">
+      <div style="border-top:1px solid #f0f0ec; padding-top:12px;">
         ${row('조코드', p.category)}
         ${row('바코드', p.barcode)}
-        ${row('상품명', p.name)}
-        ${row('저자', p.author, true)}
-        ${row('출판사', p.publisher)}
         ${row('출간일', formatDate(p.date))}
-        ${row('가격', p.price > 0 ? '₩' + p.price.toLocaleString() : '—')}
-        ${row('문화누리', p.cultural === 'Y' ? '가능' : p.cultural === 'N' ? '불가' : p.cultural || '—')}
+        ${row('문화누리', p.cultural === 'Y' ? '✓ 가능' : p.cultural === 'N' ? '불가' : p.cultural || '—')}
       </div>
     </div>
     <div class="comment-section">
