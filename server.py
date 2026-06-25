@@ -69,6 +69,58 @@ def delete_comment(comment_id):
     conn.commit()
     conn.close()
 
+def init_orders_table():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('''CREATE TABLE IF NOT EXISTS orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        barcode TEXT, name TEXT, qty INTEGER DEFAULT 1,
+        payment TEXT DEFAULT '미불', ordered TEXT DEFAULT '미완료',
+        pickup_date TEXT, staff TEXT, note TEXT, created_at TEXT
+    )''')
+    conn.commit()
+    conn.close()
+
+def get_orders(barcode=''):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    if barcode:
+        c.execute('SELECT * FROM orders WHERE barcode=? ORDER BY id DESC', (barcode,))
+    else:
+        c.execute('SELECT * FROM orders ORDER BY id DESC')
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+def add_order(data):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''INSERT INTO orders(barcode,name,qty,payment,ordered,pickup_date,staff,note,created_at)
+                 VALUES(?,?,?,?,?,?,?,?,?)''',
+              (data.get('barcode',''), data.get('name',''), data.get('qty',1),
+               data.get('payment','미불'), data.get('ordered','미완료'),
+               data.get('pickup_date',''), data.get('staff',''),
+               data.get('note',''), data.get('created_at','')))
+    new_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return new_id
+
+def update_order(data):
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('''UPDATE orders SET qty=?,payment=?,ordered=?,pickup_date=?,staff=?,note=?
+                    WHERE id=?''',
+                 (data.get('qty',1), data.get('payment','미불'), data.get('ordered','미완료'),
+                  data.get('pickup_date',''), data.get('staff',''), data.get('note',''), data['id']))
+    conn.commit()
+    conn.close()
+
+def delete_order(order_id):
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('DELETE FROM orders WHERE id=?', (order_id,))
+    conn.commit()
+    conn.close()
+
 def search_comments(query):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -112,6 +164,10 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/comments':
             barcode = params.get('barcode', [''])[0]
             self.send_json(get_comments(barcode))
+
+        elif parsed.path == '/api/orders':
+            barcode = params.get('barcode', [''])[0]
+            self.send_json(get_orders(barcode))
 
         elif parsed.path == '/api/comments/search':
             query = params.get('q', [''])[0]
@@ -165,6 +221,18 @@ class Handler(BaseHTTPRequestHandler):
             delete_comment(body['id'])
             self.send_json({'ok': True})
 
+        elif self.path == '/api/orders':
+            new_id = add_order(body)
+            self.send_json({'ok': True, 'id': new_id})
+
+        elif self.path == '/api/orders/update':
+            update_order(body)
+            self.send_json({'ok': True})
+
+        elif self.path == '/api/orders/delete':
+            delete_order(body['id'])
+            self.send_json({'ok': True})
+
         else:
             self.send_response(404)
             self.end_headers()
@@ -210,6 +278,7 @@ if __name__ == '__main__':
         print(f'DB 다운로드 중... ({DB_URL})')
         urllib.request.urlretrieve(DB_URL, DB_PATH)
         print('DB 다운로드 완료!')
+    init_orders_table()
     port = int(os.environ.get('PORT', 8747))
     print(f'서버 시작: http://localhost:{port}')
     HTTPServer(('', port), Handler).serve_forever()
