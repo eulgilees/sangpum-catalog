@@ -482,7 +482,7 @@ function showSingleResult(p) {
         ${row('조코드', p.category)}
         ${row('바코드', p.barcode)}
         ${row('출간일', formatDate(p.date))}
-        ${row('문화누리', p.cultural === 'Y' ? '✓ 가능' : p.cultural === 'N' ? '불가' : p.cultural || '—')}
+        ${row('문화누리', p.cultural === 'Y' ? 'Y' : p.cultural === 'N' ? 'N' : p.cultural || '—')}
       </div>
     </div>
     <button onclick="openOrderForm('${esc(p.barcode)}','${esc(p.name)}')" style="width:100%;background:#fff;border:1px solid #185fa5;color:#185fa5;border-radius:10px;padding:12px;font-size:14px;font-weight:500;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px;"><i class="ti ti-plus"></i> 주문 등록</button>
