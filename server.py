@@ -75,7 +75,8 @@ def init_orders_table():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         barcode TEXT, name TEXT, qty INTEGER DEFAULT 1,
         order_date TEXT, payment TEXT DEFAULT '미불', ordered TEXT DEFAULT '미완료',
-        pickup_date TEXT, staff TEXT, note TEXT, created_at TEXT
+        pickup_date TEXT, customer TEXT, phone TEXT, delivery TEXT DEFAULT '없음',
+        address TEXT, staff TEXT, note TEXT, created_at TEXT
     )''')
     conn.commit()
     conn.close()
@@ -95,12 +96,13 @@ def get_orders(barcode=''):
 def add_order(data):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('''INSERT INTO orders(barcode,name,qty,order_date,payment,ordered,pickup_date,staff,note,created_at)
-                 VALUES(?,?,?,?,?,?,?,?,?,?)''',
+    c.execute('''INSERT INTO orders(barcode,name,qty,order_date,payment,ordered,pickup_date,customer,phone,delivery,address,staff,note,created_at)
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
               (data.get('barcode',''), data.get('name',''), data.get('qty',1),
                data.get('order_date',''), data.get('payment','미불'), data.get('ordered','미완료'),
-               data.get('pickup_date',''), data.get('staff',''),
-               data.get('note',''), data.get('created_at','')))
+               data.get('pickup_date',''), data.get('customer',''), data.get('phone',''),
+               data.get('delivery','없음'), data.get('address',''),
+               data.get('staff',''), data.get('note',''), data.get('created_at','')))
     new_id = c.lastrowid
     conn.commit()
     conn.close()
@@ -108,10 +110,12 @@ def add_order(data):
 
 def update_order(data):
     conn = sqlite3.connect(DB_PATH)
-    conn.execute('''UPDATE orders SET qty=?,order_date=?,payment=?,ordered=?,pickup_date=?,staff=?,note=?
+    conn.execute('''UPDATE orders SET qty=?,order_date=?,payment=?,ordered=?,pickup_date=?,customer=?,phone=?,delivery=?,address=?,staff=?,note=?
                     WHERE id=?''',
                  (data.get('qty',1), data.get('order_date',''), data.get('payment','미불'), data.get('ordered','미완료'),
-                  data.get('pickup_date',''), data.get('staff',''), data.get('note',''), data['id']))
+                  data.get('pickup_date',''), data.get('customer',''), data.get('phone',''),
+                  data.get('delivery','없음'), data.get('address',''),
+                  data.get('staff',''), data.get('note',''), data['id']))
     conn.commit()
     conn.close()
 

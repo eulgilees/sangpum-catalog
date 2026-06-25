@@ -251,6 +251,25 @@
       <input class="order-input" id="of-pickup" type="date">
     </div>
     <div class="order-field">
+      <div class="order-label">고객명</div>
+      <input class="order-input" id="of-customer" placeholder="고객 이름">
+    </div>
+    <div class="order-field">
+      <div class="order-label">연락처</div>
+      <input class="order-input" id="of-phone" type="tel" placeholder="010-0000-0000">
+    </div>
+    <div class="order-field">
+      <div class="order-label">택배 발송</div>
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="of-delivery-0" onclick="selectDelivery(0)">없음</button>
+        <button class="toggle-btn" id="of-delivery-1" onclick="selectDelivery(1)">발송</button>
+      </div>
+    </div>
+    <div class="order-field" id="of-address-wrap" style="display:none;">
+      <div class="order-label">배송 주소</div>
+      <input class="order-input" id="of-address" placeholder="주소를 입력하세요">
+    </div>
+    <div class="order-field">
       <div class="order-label">담당자</div>
       <input class="order-input" id="of-staff" placeholder="담당자 이름">
     </div>
@@ -827,6 +846,14 @@ let orderFormBarcode = '';
 let orderFormId = null;
 let orderPayVal = '미불';
 let orderOrdVal = '미완료';
+let orderDeliveryVal = '없음';
+
+function selectDelivery(idx) {
+  orderDeliveryVal = idx === 1 ? '발송' : '없음';
+  document.getElementById('of-delivery-0').classList.toggle('active', idx===0);
+  document.getElementById('of-delivery-1').classList.toggle('active', idx===1);
+  document.getElementById('of-address-wrap').style.display = idx===1 ? 'block' : 'none';
+}
 
 function selectToggle(type, idx, val) {
   if (type === 'pay') {
@@ -849,10 +876,14 @@ function openOrderForm(barcode, name, order=null) {
   const today = new Date(); const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   document.getElementById('of-order-date').value = order ? (order.order_date||'') : todayStr;
   document.getElementById('of-pickup').value = order ? order.pickup_date : '';
+  document.getElementById('of-customer').value = order ? (order.customer||'') : '';
+  document.getElementById('of-phone').value = order ? (order.phone||'') : '';
+  document.getElementById('of-address').value = order ? (order.address||'') : '';
   document.getElementById('of-staff').value = order ? order.staff : '';
   document.getElementById('of-note').value = order ? order.note : '';
   selectToggle('pay', order && order.payment==='완불' ? 1 : 0, order ? order.payment : '미불');
   selectToggle('ord', order && order.ordered==='완료' ? 1 : 0, order ? order.ordered : '미완료');
+  selectDelivery(order && order.delivery==='발송' ? 1 : 0);
   document.getElementById('order-form-overlay').classList.add('open');
 }
 function closeOrderForm() { document.getElementById('order-form-overlay').classList.remove('open'); }
@@ -861,16 +892,19 @@ async function submitOrder() {
   const qty = parseInt(document.getElementById('of-qty').value) || 1;
   const order_date = document.getElementById('of-order-date').value;
   const pickup_date = document.getElementById('of-pickup').value;
+  const customer = document.getElementById('of-customer').value.trim();
+  const phone = document.getElementById('of-phone').value.trim();
+  const address = document.getElementById('of-address').value.trim();
   const staff = document.getElementById('of-staff').value.trim();
   const note = document.getElementById('of-note').value.trim();
   const d = new Date(); const created_at = `${String(d.getFullYear()).slice(2)}.${d.getMonth()+1}.${d.getDate()}`;
   if (orderFormId) {
     await fetch('/api/orders/update', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ id:orderFormId, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, staff, note }) });
+      body: JSON.stringify({ id:orderFormId, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, customer, phone, delivery:orderDeliveryVal, address, staff, note }) });
   } else {
     const name = document.getElementById('of-name').value;
     await fetch('/api/orders', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ barcode:orderFormBarcode, name, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, staff, note, created_at }) });
+      body: JSON.stringify({ barcode:orderFormBarcode, name, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, customer, phone, delivery:orderDeliveryVal, address, staff, note, created_at }) });
   }
   closeOrderForm();
   if (document.getElementById('order-list-overlay').classList.contains('open')) loadOrderList();
@@ -896,6 +930,8 @@ async function loadOrderList() {
       </div>
       <div class="order-item-detail">
         주문일 ${o.order_date||'—'} · 수량 ${esc(String(o.qty))}부 · 수령 희망일 ${o.pickup_date||'미정'} · 담당 ${esc(o.staff||'—')}
+        ${o.customer ? `<br>고객 ${esc(o.customer)}${o.phone ? ' · ' + esc(o.phone) : ''}` : ''}
+        ${o.delivery==='발송' ? `<br>택배 발송${o.address ? ' · ' + esc(o.address) : ''}` : ''}
       </div>
       ${o.note ? `<div class="order-item-note">📝 ${esc(o.note)}</div>` : ''}
       <div style="font-size:11px;color:#b4b2a9;margin-top:6px;">${esc(o.created_at||'')}</div>
