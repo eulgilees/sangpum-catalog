@@ -26,7 +26,7 @@
 
     main { padding: 28px 24px; max-width: 640px; margin: 0 auto; }
 
-    .scan-btn { width: 100%; background: #185fa5; color: #fff; border: none; border-radius: 12px; padding: 18px; font-size: 16px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 14px; transition: background 0.15s; }
+    .scan-btn { width: 100%; background: #185fa5; color: #fff; border: none; border-radius: 12px; padding: 18px; font-size: 16px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; transition: background 0.15s; }
     .scan-btn i { font-size: 22px; }
     .scan-btn:hover { background: #0c447c; }
 
@@ -360,13 +360,13 @@
     바코드 스캔
   </button>
 
-  <div class="search-wrap">
+  <div class="search-wrap" style="margin-bottom:12px;">
     <i class="ti ti-search"></i>
     <input type="text" id="search-input" placeholder="상품명 또는 바코드 번호 입력..."
       oninput="onSearch()" onkeydown="if(event.key==='Enter'){ clearTimeout(searchTimer); currentOffset=0; currentQuery=this.value.trim(); doSearch(false); }">
   </div>
 
-  <div class="search-wrap" style="margin-bottom: 32px;">
+  <div class="search-wrap" style="margin-bottom:24px;">
     <i class="ti ti-message-search"></i>
     <input type="text" id="note-search-input" placeholder="특이사항 내용으로 검색..."
       oninput="onNoteSearch()" onkeydown="if(event.key==='Enter'){ clearTimeout(noteSearchTimer); doNoteSearch(); }">
