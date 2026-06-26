@@ -2206,6 +2206,8 @@ function hideAuthScreen() {
   document.getElementById('logout-btn').style.display = 'flex';
   document.getElementById('push-btn').style.display = 'flex';
   linkPushToUser();
+  // 채팅 목록 미리 로드 (백그라운드)
+  loadChatRooms();
   const btn = document.getElementById('profile-btn');
   btn.style.display = 'block';
   btn.textContent = (currentUser?.display_name || '') + (currentUser?.store ? ' · ' + currentUser.store : '');
@@ -2366,12 +2368,18 @@ let chatLastMsgId = 0;
 let chatAllUsers = [];
 let chatSending = false;
 const chatMsgCache = {}; // room_id → {msgs: [], lastId: 0}
+let chatRoomsCache = null; // 마지막으로 받은 방 목록
+let chatRoomsBgTimer = null; // 백그라운드 목록 갱신 타이머
 
 function openChat() {
   lockScroll();
   const el = document.getElementById('chat-overlay');
   el.style.display = 'flex';
   showChatList();
+  // 캐시 있으면 즉시 표시, 없으면 로딩
+  if (chatRoomsCache) {
+    renderChatRooms(chatRoomsCache);
+  }
   loadChatRooms();
 }
 function closeChat() {
@@ -2389,19 +2397,13 @@ function showChatList() {
 }
 function backToChatList() { showChatList(); }
 
-async function loadChatRooms() {
-  const token = localStorage.getItem('authToken');
-  if (!token) return;
-  const res = await fetch('/api/chat/rooms', { headers: { 'X-Token': token } });
-  const data = await res.json();
-  if (!data.ok) return;
-  updateChatBadge(data.unread);
+function renderChatRooms(rooms) {
   const el = document.getElementById('chat-rooms-list');
-  if (!data.rooms.length) {
+  if (!rooms.length) {
     el.innerHTML = '<div style="text-align:center;color:#aaa;padding:48px 16px;font-size:14px;">채팅방이 없습니다.<br>새 채팅을 시작해보세요.</div>';
     return;
   }
-  el.innerHTML = data.rooms.map(r => {
+  el.innerHTML = rooms.map(r => {
     const ts = r.last_ts ? formatChatTime(r.last_ts) : '';
     const unread = r.unread > 0 ? `<span style="background:#e03131;color:#fff;font-size:11px;font-weight:700;border-radius:10px;padding:2px 7px;min-width:18px;text-align:center;">${r.unread}</span>` : '';
     const sub = r.other_store ? `<div style="font-size:12px;color:#aaa;">${r.other_store}</div>` : '';
@@ -2421,6 +2423,17 @@ async function loadChatRooms() {
       </div>
     </div>`;
   }).join('');
+}
+
+async function loadChatRooms() {
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  const res = await fetch('/api/chat/rooms', { headers: { 'X-Token': token } });
+  const data = await res.json();
+  if (!data.ok) return;
+  updateChatBadge(data.unread);
+  chatRoomsCache = data.rooms;
+  renderChatRooms(data.rooms);
 }
 
 async function openNewChat() {
