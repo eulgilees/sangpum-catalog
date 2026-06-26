@@ -1130,19 +1130,24 @@ function renderScheduleCal() {
   for (let i = 0; i < firstDay; i++) html += '<div></div>';
   for (let d = 1; d <= daysInMonth; d++) {
     const has = dayMap[d];
-    let isOff = false, isMatch = false;
+    let tags = [], bg = 'transparent', border = 'transparent', color = '#bbb', fw = '400';
     if (has) {
+      color = '#222'; fw = '600'; border = '#ddd';
       if (filter) {
-        isOff = has['휴무'].some(p => p.includes(filter));
-        isMatch = isOff;
+        const inAm  = has['오전'].includes(filter);
+        const inPm  = has['오후'].includes(filter);
+        const inOff = has['휴무'].some(p => p.includes(filter));
+        if (inAm)  tags.push('<span style="font-size:9px;color:#185fa5;font-weight:700;">오전</span>');
+        if (inPm)  tags.push('<span style="font-size:9px;color:#1a7a4a;font-weight:700;">오후</span>');
+        if (inOff) { tags.push('<span style="font-size:9px;color:#e03131;font-weight:700;">휴무</span>'); bg = '#fff0f0'; }
+        if (!inAm && !inPm && !inOff) { color = '#ccc'; fw = '400'; border = 'transparent'; }
       } else {
-        isOff = has['휴무'].length > 0;
+        if (has['휴무'].length) { tags.push('<span style="font-size:9px;color:#e03131;">휴무</span>'); bg = '#fff0f0'; }
       }
     }
-    const dim = filter && has && !isMatch;
-    html += `<div onclick="showScheduleDay(${d})" style="padding:6px 2px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:${has&&!dim?'600':'400'};color:${dim?'#ccc':has?'#222':'#bbb'};background:${isOff?'#fff0f0':'transparent'};border:1px solid ${has&&!dim?'#ddd':'transparent'};min-height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+    html += `<div onclick="showScheduleDay(${d})" style="padding:4px 2px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:${fw};color:${color};background:${bg};border:1px solid ${border};min-height:38px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;">
       ${d}
-      ${isOff ? `<span style="font-size:9px;color:#e03131;">${filter?'휴무✓':'휴무'}</span>` : ''}
+      ${tags.join('')}
     </div>`;
   }
   grid.innerHTML = html;
