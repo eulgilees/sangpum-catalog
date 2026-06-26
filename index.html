@@ -21,8 +21,10 @@
     header { background: #fff; border-bottom: 1px solid #e5e5e0; padding: 0 20px; display: flex; flex-direction: column; }
     .header-top { display: flex; align-items: center; justify-content: space-between; height: 50px; }
     .header-logo { display: flex; align-items: center; gap: 10px; }
-    .header-logo i { font-size: 20px; color: #185fa5; }
-    .header-logo span { font-size: 16px; font-weight: 600; color: #1a1a18; }
+    .header-logo i { font-size: 20px; color: #185fa5; transition: color 0.3s; }
+    .header-logo span { font-size: 16px; font-weight: 600; color: #1a1a18; transition: color 0.3s; }
+    .header-logo.issue-alert i { color: #e03131; }
+    .header-logo.issue-alert span { color: #e03131; }
     .header-refresh { background: none; border: none; cursor: pointer; padding: 6px; color: #aaa; font-size: 20px; line-height: 1; }
     .header-refresh:hover { color: #185fa5; }
     .header-nav { display: flex; border-top: 1px solid #f0f0ec; }
@@ -1009,6 +1011,9 @@ checkUpcomingOrders();
 async function checkActiveIssues() {
   try {
     const issues = await fetch('/api/issues').then(r => r.json());
+    const hasActive = issues.some(issue => issue.status === '진행중');
+    document.querySelector('.header-logo').classList.toggle('issue-alert', hasActive);
+
     const today = new Date(); today.setHours(0,0,0,0);
     const urgent = issues.filter(issue => {
       if (issue.status !== '진행중') return false;
