@@ -30,8 +30,7 @@
     .header-nav { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid #f0f0ec; }
     .header-nav-btn { background: none; border: none; border-right: 1px solid #f0f0ec; border-bottom: 1px solid #f0f0ec; cursor: pointer; padding: 10px 4px; font-size: 13px; color: #5f5e5a; display: flex; flex-direction: column; align-items: center; gap: 3px; font-weight: 400; }
     .header-nav-btn:nth-child(3n) { border-right: none; }
-    .header-nav-btn:last-child { border-right: none; border-bottom: none; }
-    .header-nav-btn:nth-last-child(-n+3):nth-child(3n+1):last-child { grid-column: 1 / -1; }
+    .header-nav-btn:nth-child(3n):last-child, .header-nav-btn:last-child { border-bottom: none; }
     .header-nav-btn i { font-size: 18px; color: #888; }
     .header-nav-btn:hover { color: #185fa5; }
     .header-nav-btn:hover i { color: #185fa5; }
@@ -256,15 +255,16 @@
       <i class="ti ti-barcode"></i>
       <span>상품 조회</span>
     </div>
-    <button class="header-refresh" onclick="location.reload()" title="새로고침">
-      <i class="ti ti-refresh"></i>
-    </button>
+    <div style="display:flex;align-items:center;gap:2px;">
+      <button id="push-btn" class="header-refresh" onclick="requestPush()" title="알림">
+        <i class="ti ti-bell-off" id="push-icon"></i>
+      </button>
+      <button class="header-refresh" onclick="location.reload()" title="새로고침">
+        <i class="ti ti-refresh"></i>
+      </button>
+    </div>
   </div>
   <div class="header-nav">
-    <button id="push-btn" class="header-nav-btn" onclick="requestPush()">
-      <i class="ti ti-bell-off" id="push-icon"></i>
-      알림
-    </button>
     <button class="header-nav-btn" onclick="openOrderList()">
       <i class="ti ti-clipboard-list"></i>
       주문 목록
