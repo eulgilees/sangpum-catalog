@@ -16,25 +16,22 @@ VAPID_PUBLIC_KEY  = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
 VAPID_EMAIL       = os.environ.get('VAPID_EMAIL', 'mailto:admin@example.com')
 
+NEON_HOST = 'ep-muddy-firefly-atf2x9hz.c-9.us-east-1.aws.neon.tech'
+NEON_DB   = 'neondb'
+NEON_USER = 'neondb_owner'
+NEON_PASS = 'npg_FudX2Rp4iYOw'
+
 def data_db():
     import pg8000.dbapi as pg
-    url = PG_URL
+    url = PG_URL if PG_URL.startswith('postgresql') else ''
     if url:
         r = urllib.parse.urlparse(url)
         host, port, database, user, password = r.hostname, r.port or 5432, r.path[1:], r.username, r.password
-    elif os.environ.get('PGHOST'):
-        host = os.environ['PGHOST']
-        port = int(os.environ.get('PGPORT', 5432))
-        database = os.environ.get('PGDATABASE', 'railway')
-        user = os.environ.get('PGUSER', 'postgres')
-        password = os.environ.get('PGPASSWORD', '')
     else:
-        print('=== 전체 환경변수 키 ===', sorted(os.environ.keys()))
-        raise Exception('DB 연결 정보가 없습니다')
+        host, port, database, user, password = NEON_HOST, 5432, NEON_DB, NEON_USER, NEON_PASS
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
-    print(f'DB 연결: {host}:{port}/{database}')
     return pg.connect(host=host, port=port, database=database, user=user, password=password, ssl_context=ctx)
 
 def rows_to_dicts(cursor):
