@@ -475,7 +475,8 @@
     </div>
     <div class="order-field">
       <div class="order-label">주문일</div>
-      <input class="order-input" id="of-order-date" type="date">
+      <input type="hidden" id="of-order-date">
+      <button type="button" id="of-order-date-btn" onclick="showDatePicker('of-order-date','주문일')" class="order-input" style="text-align:left;cursor:pointer;color:#aaa;">주문일 선택</button>
     </div>
     <div class="order-field">
       <div class="order-label">수량</div>
@@ -497,7 +498,8 @@
     </div>
     <div class="order-field">
       <div class="order-label">수령 희망일</div>
-      <input class="order-input" id="of-pickup" type="date">
+      <input type="hidden" id="of-pickup">
+      <button type="button" id="of-pickup-btn" onclick="showDatePicker('of-pickup','수령희망일')" class="order-input" style="text-align:left;cursor:pointer;color:#aaa;">수령희망일 선택</button>
     </div>
     <div class="order-field">
       <div class="order-label">고객명</div>
@@ -543,11 +545,13 @@
     </div>
     <div class="order-field">
       <div class="order-label">발생일</div>
-      <input class="order-input" type="date" id="if-date" style="width:100%;box-sizing:border-box;">
+      <input type="hidden" id="if-date">
+      <button type="button" id="if-date-btn" onclick="showDatePicker('if-date','발생일')" class="order-input" style="text-align:left;cursor:pointer;color:#aaa;width:100%;">발생일 선택</button>
     </div>
     <div class="order-field">
       <div class="order-label">종료일</div>
-      <input class="order-input" type="date" id="if-end-date" style="width:100%;box-sizing:border-box;">
+      <input type="hidden" id="if-end-date">
+      <button type="button" id="if-end-date-btn" onclick="showDatePicker('if-end-date','종료일')" class="order-input" style="text-align:left;cursor:pointer;color:#aaa;width:100%;">종료일 선택</button>
     </div>
     <div class="order-field">
       <div class="order-label">내용</div>
@@ -580,7 +584,8 @@
     </div>
     <div class="order-field">
       <div class="order-label">접수일</div>
-      <input type="date" id="as-date" class="order-input">
+      <input type="hidden" id="as-date">
+      <button type="button" id="as-date-btn" onclick="showDatePicker('as-date','접수일')" class="order-input" style="text-align:left;cursor:pointer;color:#aaa;">접수일 선택</button>
     </div>
     <div class="order-field">
       <div class="order-label">상품명</div>
@@ -619,6 +624,32 @@
   </div>
 </div>
 
+<!-- 커스텀 날짜 선택기 -->
+<div id="datepicker-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.5);align-items:flex-end;justify-content:center;" onclick="if(event.target===this)closeDatePicker()">
+  <div style="background:#fff;border-radius:20px 20px 0 0;padding:20px 16px 36px;width:100%;max-width:480px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <span id="dp-label" style="font-size:15px;font-weight:700;color:#222;"></span>
+      <button onclick="closeDatePicker()" style="background:none;border:none;font-size:22px;color:#aaa;cursor:pointer;">✕</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <button onclick="dpMoveMonth(-1)" style="background:none;border:none;font-size:24px;color:#185fa5;cursor:pointer;padding:8px 16px;">‹</button>
+      <span id="dp-month-title" style="font-size:17px;font-weight:700;color:#1a1a18;"></span>
+      <button onclick="dpMoveMonth(1)" style="background:none;border:none;font-size:24px;color:#185fa5;cursor:pointer;padding:8px 16px;">›</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px;">
+      <div style="text-align:center;font-size:12px;font-weight:600;color:#e03131;padding:4px;">일</div>
+      <div style="text-align:center;font-size:12px;font-weight:600;color:#555;padding:4px;">월</div>
+      <div style="text-align:center;font-size:12px;font-weight:600;color:#555;padding:4px;">화</div>
+      <div style="text-align:center;font-size:12px;font-weight:600;color:#555;padding:4px;">수</div>
+      <div style="text-align:center;font-size:12px;font-weight:600;color:#555;padding:4px;">목</div>
+      <div style="text-align:center;font-size:12px;font-weight:600;color:#555;padding:4px;">금</div>
+      <div style="text-align:center;font-size:12px;font-weight:600;color:#185fa5;padding:4px;">토</div>
+    </div>
+    <div id="dp-days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
+    <button onclick="dpClear()" style="margin-top:16px;width:100%;background:#f5f5f3;border:none;border-radius:10px;padding:12px;font-size:14px;color:#888;cursor:pointer;">날짜 지우기</button>
+  </div>
+</div>
+
 <!-- 건의사항 모달 -->
 <div class="order-overlay" id="suggestion-overlay" onclick="if(event.target===this)closeSuggestionList()">
   <div class="order-box" style="min-height:67vh; display:flex; flex-direction:column;">
@@ -629,7 +660,8 @@
     <div style="background:#f5f5f3;border-radius:12px;padding:16px;margin-bottom:16px;">
       <div class="order-field">
         <div class="order-label">날짜</div>
-        <input type="date" id="sg-date" class="order-input">
+        <input type="hidden" id="sg-date">
+        <button type="button" id="sg-date-btn" onclick="showDatePicker('sg-date','날짜')" class="order-input" style="text-align:left;cursor:pointer;color:#aaa;">날짜 선택</button>
       </div>
       <div class="order-field">
         <div class="order-label">건의 내용</div>
@@ -1506,6 +1538,83 @@ async function checkActiveIssues() {
 }
 checkActiveIssues();
 
+/* ── 커스텀 날짜 선택기 ── */
+let _dpTargetId = null, _dpYear, _dpMonth;
+
+function showDatePicker(inputId, label) {
+  _dpTargetId = inputId;
+  const val = document.getElementById(inputId).value;
+  const now = val ? new Date(val + 'T00:00:00') : new Date();
+  _dpYear = now.getFullYear();
+  _dpMonth = now.getMonth();
+  document.getElementById('dp-label').textContent = label;
+  dpRender();
+  document.getElementById('datepicker-overlay').style.display = 'flex';
+  lockScroll();
+}
+function closeDatePicker() {
+  document.getElementById('datepicker-overlay').style.display = 'none';
+  unlockScroll();
+}
+function dpMoveMonth(dir) {
+  _dpMonth += dir;
+  if (_dpMonth > 11) { _dpMonth = 0; _dpYear++; }
+  if (_dpMonth < 0)  { _dpMonth = 11; _dpYear--; }
+  dpRender();
+}
+function dpClear() {
+  if (_dpTargetId) {
+    document.getElementById(_dpTargetId).value = '';
+    const btn = document.getElementById(_dpTargetId + '-btn');
+    if (btn) { const lbl = document.getElementById('dp-label').textContent; btn.textContent = lbl + ' 선택'; btn.style.color='#aaa'; }
+  }
+  closeDatePicker();
+}
+function dpSelect(y, m, d) {
+  const val = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  if (_dpTargetId) {
+    document.getElementById(_dpTargetId).value = val;
+    const btn = document.getElementById(_dpTargetId + '-btn');
+    if (btn) { btn.textContent = `${y}년 ${m+1}월 ${d}일`; btn.style.color='#1a1a18'; }
+  }
+  closeDatePicker();
+}
+function setDateValue(inputId, val, label) {
+  document.getElementById(inputId).value = val || '';
+  const btn = document.getElementById(inputId + '-btn');
+  if (!btn) return;
+  if (val) {
+    const [y, m, d] = val.split('-');
+    btn.textContent = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
+    btn.style.color = '#1a1a18';
+  } else {
+    btn.textContent = label + ' 선택';
+    btn.style.color = '#aaa';
+  }
+}
+
+function dpRender() {
+  const months = ['1','2','3','4','5','6','7','8','9','10','11','12'];
+  document.getElementById('dp-month-title').textContent = `${_dpYear}년 ${months[_dpMonth]}월`;
+  const firstDay = new Date(_dpYear, _dpMonth, 1).getDay();
+  const daysInMonth = new Date(_dpYear, _dpMonth + 1, 0).getDate();
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const selectedVal = _dpTargetId ? document.getElementById(_dpTargetId).value : '';
+  let html = '';
+  for (let i = 0; i < firstDay; i++) html += '<div></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${_dpYear}-${String(_dpMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isSelected = dateStr === selectedVal;
+    const isToday = dateStr === todayStr;
+    const col = (firstDay + d - 1) % 7;
+    const bg = isSelected ? '#185fa5' : isToday ? '#e8f0fa' : '#f8f8f6';
+    const color = isSelected ? '#fff' : col===0 ? '#e03131' : col===6 ? '#185fa5' : '#1a1a18';
+    html += `<button onclick="dpSelect(${_dpYear},${_dpMonth},${d})" style="background:${bg};color:${color};font-weight:${isSelected||isToday?'700':'400'};border:none;border-radius:10px;padding:13px 2px;font-size:16px;cursor:pointer;width:100%;">${d}</button>`;
+  }
+  document.getElementById('dp-days').innerHTML = html;
+}
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(async reg => {
 
@@ -1748,8 +1857,8 @@ function openOrderForm(barcode, name, order=null) {
   closeOrderDropdown();
   document.getElementById('of-qty').value = order ? order.qty : 1;
   const today = new Date(); const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-  document.getElementById('of-order-date').value = order ? (order.order_date||'') : todayStr;
-  document.getElementById('of-pickup').value = order ? order.pickup_date : '';
+  setDateValue('of-order-date', order ? (order.order_date||'') : todayStr, '주문일');
+  setDateValue('of-pickup', order ? (order.pickup_date||'') : '', '수령희망일');
   document.getElementById('of-customer').value = order ? (order.customer||'') : '';
   document.getElementById('of-phone').value = order ? (order.phone||'') : '';
   document.getElementById('of-address').value = order ? (order.address||'') : '';
@@ -1882,7 +1991,7 @@ function openAsForm(as=null) {
   asFormId = as ? as.id : null;
   document.getElementById('as-form-title').textContent = as ? 'AS 수정' : 'AS 접수 등록';
   const today = new Date().toISOString().slice(0,10);
-  document.getElementById('as-date').value = as ? as.received_date : today;
+  setDateValue('as-date', as ? as.received_date : today, '접수일');
   document.getElementById('as-product').value = as ? as.product_name : '';
   document.getElementById('as-content').value = as ? as.content : '';
   document.getElementById('as-customer').value = as ? as.customer : '';
@@ -1964,7 +2073,7 @@ async function openSuggestionList() {
   lockScroll();
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-  document.getElementById('sg-date').value = todayStr;
+  setDateValue('sg-date', todayStr, '날짜');
   document.getElementById('sg-content').value = '';
   document.getElementById('suggestion-overlay').classList.add('open');
   await loadSuggestionList();
@@ -2086,8 +2195,8 @@ function openIssueForm(issue=null) {
   document.getElementById('if-content').value = issue ? issue.content : '';
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-  document.getElementById('if-date').value = issue ? issue.occurred_at : todayStr;
-  document.getElementById('if-end-date').value = issue ? (issue.ended_at || '') : '';
+  setDateValue('if-date', issue ? issue.occurred_at : todayStr, '발생일');
+  setDateValue('if-end-date', issue ? (issue.ended_at || '') : '', '종료일');
   document.getElementById('issue-form-overlay').classList.add('open');
 }
 function closeIssueForm() { document.getElementById('issue-form-overlay').classList.remove('open'); }
