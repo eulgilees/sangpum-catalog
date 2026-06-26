@@ -1789,7 +1789,8 @@ async function openOrderList() {
   lockScroll();
   document.getElementById('order-list-overlay').classList.add('open');
   document.getElementById('order-search-input').value = '';
-  await loadOrderList();
+  if (window._orders) renderOrderList(window._orders);
+  loadOrderList();
 }
 function closeOrderList() { unlockScroll(); document.getElementById('order-list-overlay').classList.remove('open'); }
 
@@ -1872,7 +1873,8 @@ function setAsDelivery(val) {
 async function openAsList() {
   lockScroll();
   document.getElementById('as-list-overlay').classList.add('open');
-  await loadAsList();
+  if (window._asRequests) loadAsList_render(window._asRequests);
+  loadAsList();
 }
 function closeAsList() { unlockScroll(); document.getElementById('as-list-overlay').classList.remove('open'); }
 
@@ -1914,11 +1916,9 @@ async function submitAs() {
   await loadAsList();
 }
 
-async function loadAsList() {
-  const list = await fetch('/api/as').then(r => r.json());
+function loadAsList_render(list) {
   const container = document.getElementById('as-list-container');
   if (!list.length) { container.innerHTML = '<div class="order-empty">AS 접수 내역이 없습니다</div>'; return; }
-  window._asRequests = list;
   container.innerHTML = list.map(a => `
     <div class="order-list-item${a.status==='완료' ? ' completed' : ''}">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
@@ -1941,6 +1941,11 @@ async function loadAsList() {
       </div>
     </div>
   `).join('');
+}
+async function loadAsList() {
+  const list = await fetch('/api/as').then(r => r.json());
+  window._asRequests = list;
+  loadAsList_render(list);
 }
 
 async function setAsStatus(id, status) {
@@ -2068,6 +2073,7 @@ let issueFormId = null;
 function openIssueList() {
   lockScroll();
   document.getElementById('issue-list-overlay').classList.add('open');
+  if (window._issues) loadIssueList_render(window._issues);
   loadIssueList();
 }
 function closeIssueList() { unlockScroll(); document.getElementById('issue-list-overlay').classList.remove('open'); checkActiveIssues(); }
@@ -2102,11 +2108,7 @@ async function submitIssue() {
   openIssueList();
 }
 
-async function loadIssueList() {
-  const issues = await fetch('/api/issues').then(r => r.json());
-  // 진행중 이슈 전부 읽음 처리 → 헤더 로고 원래 색으로
-  const activeIds = issues.filter(i => i.status === '진행중').map(i => String(i.id));
-  if (activeIds.length) { markIssuesViewed(activeIds); checkActiveIssues(); }
+function loadIssueList_render(issues) {
   const container = document.getElementById('issue-list-container');
   if (!issues.length) { container.innerHTML = '<div class="order-empty">이슈사항이 없습니다</div>'; return; }
   container.innerHTML = issues.map(is => `
@@ -2126,7 +2128,15 @@ async function loadIssueList() {
       </div>
     </div>
   `).join('');
+}
+
+async function loadIssueList() {
+  const issues = await fetch('/api/issues').then(r => r.json());
   window._issues = issues;
+  loadIssueList_render(issues);
+  // 진행중 이슈 읽음 처리
+  const activeIds = issues.filter(i => i.status === '진행중').map(i => String(i.id));
+  if (activeIds.length) { markIssuesViewed(activeIds); checkActiveIssues(); }
 }
 
 function openIssueFormById(id) {
@@ -2259,8 +2269,11 @@ function hideAuthScreen() {
   document.getElementById('push-btn').style.display = 'flex';
   linkPushToUser();
   checkActiveIssues();
-  // 채팅 목록 미리 로드 (백그라운드)
+  // 로그인 후 백그라운드 프리로드
   loadChatRooms();
+  fetch('/api/orders').then(r=>r.json()).then(d=>{ window._orders=d; }).catch(()=>{});
+  fetch('/api/issues').then(r=>r.json()).then(d=>{ window._issues=d; }).catch(()=>{});
+  fetch('/api/as').then(r=>r.json()).then(d=>{ window._asRequests=d; }).catch(()=>{});
   const btn = document.getElementById('profile-btn');
   btn.style.display = 'block';
   btn.textContent = (currentUser?.display_name || '') + (currentUser?.store ? ' · ' + currentUser.store : '');
