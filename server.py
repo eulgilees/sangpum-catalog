@@ -30,6 +30,7 @@ def data_db():
         user = os.environ.get('PGUSER', 'postgres')
         password = os.environ.get('PGPASSWORD', '')
     else:
+        print('=== 전체 환경변수 키 ===', sorted(os.environ.keys()))
         raise Exception('DB 연결 정보가 없습니다')
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
