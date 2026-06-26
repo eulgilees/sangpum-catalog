@@ -1574,20 +1574,24 @@ function showToast(msg, ok) {
   t._timer = setTimeout(() => { t.style.opacity = '0'; }, 3000);
 }
 
-async function requestPush() {
+async function requestPush(autoMode = false) {
   const btn = document.getElementById('push-btn');
   if (btn.disabled) return;
   btn.disabled = true;
   btn.style.opacity = '0.5';
   try {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      showToast('❌ 홈 화면 앱에서만 알림을 사용할 수 있습니다', false);
+      if (!autoMode) showToast('❌ 홈 화면 앱에서만 알림을 사용할 수 있습니다', false);
       return;
     }
     const reg = swReg || await navigator.serviceWorker.ready;
-    // 캐시된 구독 상태 사용 (없으면 조회)
     const existing = cachedSub !== undefined ? cachedSub : await reg.pushManager.getSubscription();
     if (existing) {
+      if (autoMode) {
+        // 이미 구독 중 — 아이콘만 갱신하고 끝
+        setPushIcon(true);
+        return;
+      }
       await existing.unsubscribe();
       cachedSub = null;
       setPushIcon(false);
@@ -1597,7 +1601,7 @@ async function requestPush() {
     // 구독 시작
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      showToast('❌ 알림 권한이 거부됨. 설정 > Safari > 알림 확인', false);
+      if (!autoMode) showToast('❌ 알림 권한이 거부됨. 설정 > Safari > 알림 확인', false);
       return;
     }
     const publicKey = cachedVapidKey || await fetch('/api/push/key').then(r => r.json()).then(d => d.publicKey);
@@ -2152,10 +2156,29 @@ async function initAuth() {
   if (data.ok) {
     currentUser = data.user;
     hideAuthScreen();
+    autoRequestPushIfStandalone();
   } else {
     localStorage.removeItem('authToken');
     showAuthScreen();
   }
+}
+
+function isStandaloneMode() {
+  return window.matchMedia('(display-mode: standalone)').matches ||
+         window.navigator.standalone === true;
+}
+
+async function autoRequestPushIfStandalone() {
+  if (!isStandaloneMode()) return;
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+  if (Notification.permission === 'granted') {
+    // 이미 허용 — 구독만 확인해서 없으면 등록
+    requestPush(true);
+    return;
+  }
+  if (Notification.permission === 'denied') return;
+  // 아직 묻지 않은 상태 → 자동 요청
+  requestPush(true);
 }
 
 function showAuthScreen() {
