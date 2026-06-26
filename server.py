@@ -201,18 +201,19 @@ def get_subscriptions(user_id=None):
         c.execute('SELECT * FROM push_subscriptions WHERE user_id IS NOT NULL')
     rows = rows_to_dicts(c); conn.close(); return rows
 
-def send_push_notification(title, body, target_user_id=None):
+def send_push_notification(title, body, target_user_id=None, tag='sangpum'):
     if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
         print('VAPID 키 없음'); return
     try:
         from pywebpush import webpush, WebPushException
         subs = get_subscriptions(target_user_id)
         print(f'푸시 발송: {len(subs)}명')
+        payload = json.dumps({'title': title, 'body': body, 'tag': tag}, ensure_ascii=False)
         for sub in subs:
             try:
                 webpush(subscription_info={'endpoint': sub['endpoint'],
                                            'keys': {'p256dh': sub['p256dh'], 'auth': sub['auth']}},
-                        data=json.dumps({'title': title, 'body': body}, ensure_ascii=False),
+                        data=payload,
                         vapid_private_key=VAPID_PRIVATE_KEY, vapid_claims={'sub': VAPID_EMAIL})
             except WebPushException as e:
                 print(f'푸시 실패: {e}')
@@ -720,7 +721,7 @@ class Handler(BaseHTTPRequestHandler):
             if other_uid:
                 import threading
                 threading.Thread(target=send_push_notification,
-                    args=(f'💬 {user["display_name"]}', content, other_uid), daemon=True).start()
+                    args=(f'💬 {user["display_name"]}', content, other_uid, 'chat'), daemon=True).start()
             self.send_json({'ok': True, 'message': msg})
         elif self.path == '/api/chat/read':
             token = self.headers.get('X-Token','')
@@ -743,7 +744,8 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == '/api/orders':
             new_id = add_order(body)
             send_push_notification('새 고객 주문',
-                f"{body.get('name','')}{' · '+body.get('customer','') if body.get('customer') else ''}")
+                f"{body.get('name','')}{' · '+body.get('customer','') if body.get('customer') else ''}",
+                tag='order')
             self.send_json({'ok': True, 'id': new_id})
         elif self.path == '/api/orders/update':
             update_order(body); self.send_json({'ok': True})

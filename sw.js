@@ -19,13 +19,26 @@ self.addEventListener('push', e => {
       body: data.body,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
+      vibrate: [200, 100, 200, 100, 200],
+      tag: data.tag || 'sangpum',
+      renotify: true,
+      requireInteraction: false,
+      silent: false,
+      data: { url: data.url || '/' }
     })
   );
 });
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  e.waitUntil(clients.openWindow('/'));
+  const url = (e.notification.data && e.notification.data.url) || '/';
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      const existing = list.find(c => c.url.includes(self.location.origin));
+      if (existing) return existing.focus();
+      return clients.openWindow(url);
+    })
+  );
 });
 
 self.addEventListener('fetch', e => {
