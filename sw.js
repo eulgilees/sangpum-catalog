@@ -1,4 +1,4 @@
-const CACHE = 'sangpum-v1';
+const CACHE = 'sangpum-v2';
 const STATIC = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', e => {
