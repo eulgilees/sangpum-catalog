@@ -551,8 +551,8 @@
         <button id="sch-tab-cal" onclick="switchScheduleTab('cal')" style="background:none;color:#555;border:none;padding:6px 14px;font-size:13px;cursor:pointer;">달력</button>
       </div>
     </div>
-    <div id="schedule-list-view" style="overflow-y:auto;flex:1;padding:14px 16px;"></div>
-    <div id="schedule-cal-view" style="display:none;padding:14px 16px;overflow-y:auto;flex:1;">
+    <div id="schedule-list-view" style="overflow-y:auto;flex:1;padding:14px 16px;overscroll-behavior:contain;"></div>
+    <div id="schedule-cal-view" style="display:none;padding:14px 16px;overflow-y:auto;flex:1;overscroll-behavior:contain;">
       <input id="schedule-person-filter" type="text" placeholder="이름 검색 (예: 슬기)" oninput="renderScheduleCal()" style="width:100%;box-sizing:border-box;border:1px solid #d4d4ce;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:12px;outline:none;">
       <div id="schedule-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;text-align:center;margin-bottom:12px;"></div>
       <div id="schedule-day-detail" style="margin-top:8px;"></div>
@@ -1974,6 +1974,7 @@ function renderIssueCalendar() {
 
 // ── 모달 커스텀 당겨서 새로고침 ──
 function initPTR(scrollEl, refreshFn) {
+  scrollEl.style.overscrollBehavior = 'contain';
   let startY = 0, pulling = false;
   const THRESHOLD = 64;
   const ind = document.createElement('div');
