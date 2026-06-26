@@ -2460,7 +2460,7 @@ async function openNewChat() {
 }
 function filterChatUsers() {
   const q = document.getElementById('chat-user-search').value.trim().toLowerCase();
-  renderChatUsers(q ? chatAllUsers.filter(u => u.display_name.toLowerCase().includes(q) || (u.store||'').includes(q)) : chatAllUsers);
+  renderChatUsers(q ? chatAllUsers.filter(u => u.display_name.toLowerCase().includes(q) || (u.store||'').toLowerCase().includes(q)) : chatAllUsers);
 }
 function renderChatUsers(users) {
   const el = document.getElementById('chat-users-list');
@@ -2750,7 +2750,7 @@ window.addEventListener('load', () => {
       <div style="font-size:17px;font-weight:700;color:#222;">대화 상대 선택</div>
     </div>
     <div style="flex-shrink:0;padding:12px 16px;">
-      <input id="chat-user-search" type="text" placeholder="이름으로 검색..." oninput="filterChatUsers()"
+      <input id="chat-user-search" type="text" placeholder="이름 또는 점포로 검색..." oninput="filterChatUsers()"
         style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #d4d4ce;border-radius:10px;font-size:14px;outline:none;">
     </div>
     <div id="chat-users-list" style="flex:1;overflow-y:auto;min-height:0;"></div>
