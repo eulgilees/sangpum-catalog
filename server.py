@@ -312,8 +312,8 @@ def chat_total_unread(user_id):
 
 def get_orders(barcode=''):
     conn = data_db(); c = conn.cursor()
-    if barcode: c.execute('SELECT * FROM orders WHERE barcode=%s ORDER BY id DESC', (barcode,))
-    else: c.execute('SELECT * FROM orders ORDER BY id DESC')
+    if barcode: c.execute('SELECT * FROM orders WHERE barcode=%s ORDER BY CASE WHEN status=\'완료\' THEN 1 ELSE 0 END, id DESC', (barcode,))
+    else: c.execute('SELECT * FROM orders ORDER BY CASE WHEN status=\'완료\' THEN 1 ELSE 0 END, id DESC')
     rows = rows_to_dicts(c); conn.close(); return rows
 
 def add_order(data):
@@ -344,7 +344,7 @@ def delete_order(order_id):
 
 def get_issues():
     conn = data_db(); c = conn.cursor()
-    c.execute('SELECT * FROM issues ORDER BY id DESC')
+    c.execute("SELECT * FROM issues ORDER BY CASE WHEN status='종료' THEN 1 ELSE 0 END, id DESC")
     rows = rows_to_dicts(c); conn.close(); return rows
 
 def add_issue(data):
@@ -373,7 +373,7 @@ def delete_issue(issue_id):
 
 def get_as_requests():
     conn = data_db(); c = conn.cursor()
-    c.execute('SELECT * FROM as_requests ORDER BY id DESC')
+    c.execute("SELECT * FROM as_requests ORDER BY CASE WHEN status='완료' THEN 1 ELSE 0 END, id DESC")
     rows = rows_to_dicts(c); conn.close(); return rows
 
 def add_as_request(data):
