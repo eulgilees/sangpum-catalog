@@ -2442,17 +2442,7 @@ async function loadChatMessages(initial = false) {
   const atBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 60;
   data.messages.forEach(m => {
     chatLastMsgId = Math.max(chatLastMsgId, m.id);
-    const mine = m.user_id === currentUser?.id;
-    const timeStr = formatChatTime(m.created_at);
-    const div = document.createElement('div');
-    div.style.cssText = `display:flex;flex-direction:column;align-items:${mine?'flex-end':'flex-start'};gap:2px;`;
-    div.innerHTML = `
-      ${!mine ? `<div style="font-size:11px;color:#aaa;padding:0 4px;">${m.display_name}</div>` : ''}
-      <div style="display:flex;align-items:flex-end;gap:6px;flex-direction:${mine?'row-reverse':'row'};">
-        <div style="max-width:70%;background:${mine?'#185fa5':'#fff'};color:${mine?'#fff':'#222'};border-radius:${mine?'16px 4px 16px 16px':'4px 16px 16px 16px'};padding:10px 14px;font-size:14px;line-height:1.5;word-break:break-word;box-shadow:0 1px 4px rgba(0,0,0,0.08);">${escHtml(m.content)}</div>
-        <div style="font-size:10px;color:#bbb;white-space:nowrap;">${timeStr}</div>
-      </div>`;
-    area.appendChild(div);
+    appendChatBubble(m);
   });
   if (initial || atBottom) area.scrollTop = area.scrollHeight;
 }
@@ -2461,12 +2451,32 @@ async function chatSend() {
   const content = input.value.trim();
   if (!content || !chatRoomId) return;
   input.value = '';
+  // 즉시 화면에 렌더링
+  appendChatBubble({ id: 0, user_id: currentUser?.id, display_name: currentUser?.display_name, content, created_at: Math.floor(Date.now()/1000) });
+  // 서버 전송 + 실제 id 반영
   const token = localStorage.getItem('authToken');
-  await fetch('/api/chat/message', {
+  const res = await fetch('/api/chat/message', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token },
     body: JSON.stringify({ room_id: chatRoomId, content })
   });
-  loadChatMessages();
+  const data = await res.json();
+  if (data.ok) chatLastMsgId = Math.max(chatLastMsgId, data.message.id);
+}
+
+function appendChatBubble(m) {
+  const area = document.getElementById('chat-messages-area');
+  const mine = m.user_id === currentUser?.id;
+  const timeStr = formatChatTime(m.created_at);
+  const div = document.createElement('div');
+  div.style.cssText = `display:flex;flex-direction:column;align-items:${mine?'flex-end':'flex-start'};gap:2px;`;
+  div.innerHTML = `
+    ${!mine ? `<div style="font-size:11px;color:#aaa;padding:0 4px;">${m.display_name}</div>` : ''}
+    <div style="display:flex;align-items:flex-end;gap:6px;flex-direction:${mine?'row-reverse':'row'};">
+      <div style="max-width:70%;background:${mine?'#185fa5':'#fff'};color:${mine?'#fff':'#222'};border-radius:${mine?'16px 4px 16px 16px':'4px 16px 16px 16px'};padding:10px 14px;font-size:14px;line-height:1.5;word-break:break-word;box-shadow:0 1px 4px rgba(0,0,0,0.08);">${escHtml(m.content)}</div>
+      <div style="font-size:10px;color:#bbb;white-space:nowrap;">${timeStr}</div>
+    </div>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
 }
 function startChatPoll() {
   stopChatPoll();
