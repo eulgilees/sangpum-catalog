@@ -345,8 +345,12 @@
       <input class="order-input" id="if-title" placeholder="이슈 제목을 입력하세요">
     </div>
     <div class="order-field">
-      <div class="order-label">발생일</div>
-      <input class="order-input" type="date" id="if-date">
+      <div class="order-label">발생일 — 종료일</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input class="order-input" type="date" id="if-date" style="flex:1;">
+        <span style="color:#888;font-size:14px;">—</span>
+        <input class="order-input" type="date" id="if-end-date" style="flex:1;">
+      </div>
     </div>
     <div class="order-field">
       <div class="order-label">내용</div>
@@ -1360,6 +1364,7 @@ function openIssueForm(issue=null) {
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   document.getElementById('if-date').value = issue ? issue.occurred_at : todayStr;
+  document.getElementById('if-end-date').value = issue ? (issue.ended_at || '') : '';
   document.getElementById('issue-form-overlay').classList.add('open');
 }
 function closeIssueForm() { document.getElementById('issue-form-overlay').classList.remove('open'); }
@@ -1370,6 +1375,7 @@ async function submitIssue() {
   const body = {
     title,
     occurred_at: document.getElementById('if-date').value,
+    ended_at: document.getElementById('if-end-date').value,
     content: document.getElementById('if-content').value.trim()
   };
   if (issueFormId) body.id = issueFormId;
@@ -1390,7 +1396,7 @@ async function loadIssueList() {
         <span class="${is.status==='종료' ? 'issue-badge-closed' : 'issue-badge-active'}">${esc(is.status)}</span>
         <span class="issue-title">${esc(is.title)}</span>
       </div>
-      <div class="issue-meta">발생일 ${esc(is.occurred_at||'—')}</div>
+      <div class="issue-meta">발생일 ${esc(is.occurred_at||'—')}${is.ended_at ? ' — ' + esc(is.ended_at) : ''}</div>
       ${is.content ? `<div class="issue-content">${esc(is.content)}</div>` : ''}
       <div class="issue-actions">
         ${is.status==='종료'

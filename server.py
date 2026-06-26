@@ -32,8 +32,8 @@ def init_tables():
     )''')
     conn.execute('''CREATE TABLE IF NOT EXISTS issues (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT, occurred_at TEXT DEFAULT '', content TEXT DEFAULT '',
-        status TEXT DEFAULT '진행중', created_at TEXT DEFAULT ''
+        title TEXT, occurred_at TEXT DEFAULT '', ended_at TEXT DEFAULT '',
+        content TEXT DEFAULT '', status TEXT DEFAULT '진행중', created_at TEXT DEFAULT ''
     )''')
     conn.execute('''CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -176,14 +176,14 @@ def get_issues():
 
 def add_issue(data):
     conn = data_db(); c = conn.cursor()
-    c.execute('INSERT INTO issues(title,occurred_at,content,status,created_at) VALUES(?,?,?,?,?)',
-              (data.get('title',''), data.get('occurred_at',''), data.get('content',''), '진행중', data.get('created_at','')))
+    c.execute('INSERT INTO issues(title,occurred_at,ended_at,content,status,created_at) VALUES(?,?,?,?,?,?)',
+              (data.get('title',''), data.get('occurred_at',''), data.get('ended_at',''), data.get('content',''), '진행중', data.get('created_at','')))
     new_id = c.lastrowid; conn.commit(); conn.close(); return new_id
 
 def update_issue(data):
     conn = data_db()
-    conn.execute('UPDATE issues SET title=?,occurred_at=?,content=? WHERE id=?',
-                 (data.get('title',''), data.get('occurred_at',''), data.get('content',''), data['id']))
+    conn.execute('UPDATE issues SET title=?,occurred_at=?,ended_at=?,content=? WHERE id=?',
+                 (data.get('title',''), data.get('occurred_at',''), data.get('ended_at',''), data.get('content',''), data['id']))
     conn.commit(); conn.close()
 
 def set_issue_status(issue_id, status):
