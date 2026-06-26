@@ -2144,15 +2144,36 @@ let currentUser = null;
 async function initAuth() {
   const token = localStorage.getItem('authToken');
   if (!token) { showAuthScreen(); return; }
+
+  // 저장된 유저 정보가 있으면 즉시 UI 표시 (서버 확인은 백그라운드)
+  const cached = localStorage.getItem('cachedUser');
+  if (cached) {
+    try {
+      currentUser = JSON.parse(cached);
+      hideAuthScreen();
+      autoRequestPushIfStandalone();
+    } catch(e) {}
+  }
+
+  // 백그라운드에서 토큰 검증 + 최신 유저 정보 동기화
   const res = await fetch('/api/auth/me', { headers: { 'X-Token': token } }).catch(() => null);
-  if (!res) { showAuthScreen(); return; }
+  if (!res) {
+    if (!currentUser) showAuthScreen();
+    return;
+  }
   const data = await res.json();
   if (data.ok) {
     currentUser = data.user;
-    hideAuthScreen();
+    localStorage.setItem('cachedUser', JSON.stringify(data.user));
+    if (!cached) hideAuthScreen(); // 처음 로그인 시
     autoRequestPushIfStandalone();
+    // 헤더 이름 업데이트 (최신 정보 반영)
+    const btn = document.getElementById('profile-btn');
+    if (btn) btn.textContent = (currentUser.display_name || '') + (currentUser.store ? ' · ' + currentUser.store : '');
   } else {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('cachedUser');
+    currentUser = null;
     showAuthScreen();
   }
 }
@@ -2225,6 +2246,7 @@ async function doUpdateProfile() {
   const data = await res.json();
   if (!data.ok) { errEl.textContent = data.error || '오류가 발생했습니다'; errEl.style.display = 'block'; return; }
   currentUser = data.user;
+  localStorage.setItem('cachedUser', JSON.stringify(data.user));
   document.getElementById('profile-btn').textContent = (currentUser.display_name || '') + (currentUser.store ? ' · ' + currentUser.store : '');
   closeProfile();
   showToast('✅ 정보가 저장되었습니다', true);
@@ -2237,6 +2259,7 @@ async function doLogout() {
     localStorage.removeItem('authToken');
   }
   currentUser = null;
+  localStorage.removeItem('cachedUser');
   document.getElementById('logout-btn').style.display = 'none';
   document.getElementById('push-btn').style.display = 'none';
   showAuthScreen();
