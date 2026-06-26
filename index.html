@@ -1550,8 +1550,9 @@ let _dpTargetId = null, _dpYear, _dpMonth;
 
 function showDatePicker(inputId, label) {
   _dpTargetId = inputId;
-  const val = document.getElementById(inputId).value;
-  const now = val ? new Date(val + 'T00:00:00') : new Date();
+  const el = document.getElementById(inputId);
+  const isoVal = el.dataset.isoVal || el.value;
+  const now = (isoVal && /^\d{4}-\d{2}-\d{2}$/.test(isoVal)) ? new Date(isoVal + 'T00:00:00') : new Date();
   _dpYear = now.getFullYear();
   _dpMonth = now.getMonth();
   document.getElementById('dp-label').textContent = label;
