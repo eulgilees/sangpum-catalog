@@ -551,11 +551,11 @@
       <div class="order-label">발생일 — 종료일</div>
       <div style="display:flex;gap:8px;">
         <div style="flex:1;display:flex;gap:4px;">
-          <input class="order-input" id="if-date" type="text" placeholder="YYYY-MM-DD" style="flex:1;min-width:0;">
+          <input class="order-input" id="if-date" type="text" readonly placeholder="발생일 선택" onclick="showDatePicker('if-date','발생일')" style="flex:1;min-width:0;cursor:pointer;caret-color:transparent;">
           <button type="button" onclick="showDatePicker('if-date','발생일')" style="background:#f0f0ec;border:1px solid #d4d4ce;border-radius:10px;padding:0 10px;font-size:18px;cursor:pointer;flex-shrink:0;">📅</button>
         </div>
         <div style="flex:1;display:flex;gap:4px;">
-          <input class="order-input" id="if-end-date" type="text" placeholder="YYYY-MM-DD" style="flex:1;min-width:0;">
+          <input class="order-input" id="if-end-date" type="text" readonly placeholder="종료일 선택" onclick="showDatePicker('if-end-date','종료일')" style="flex:1;min-width:0;cursor:pointer;caret-color:transparent;">
           <button type="button" onclick="showDatePicker('if-end-date','종료일')" style="background:#f0f0ec;border:1px solid #d4d4ce;border-radius:10px;padding:0 10px;font-size:18px;cursor:pointer;flex-shrink:0;">📅</button>
         </div>
       </div>
@@ -2238,8 +2238,8 @@ async function submitIssue() {
   if (!title) { alert('제목을 입력해주세요.'); return; }
   const body = {
     title,
-    occurred_at: document.getElementById('if-date').value,
-    ended_at: document.getElementById('if-end-date').value,
+    occurred_at: document.getElementById('if-date').dataset.isoVal || '',
+    ended_at: document.getElementById('if-end-date').dataset.isoVal || '',
     content: document.getElementById('if-content').value.trim()
   };
   if (issueFormId) body.id = issueFormId;
