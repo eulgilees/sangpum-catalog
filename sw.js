@@ -12,6 +12,22 @@ self.addEventListener('activate', e => {
   );
 });
 
+self.addEventListener('push', e => {
+  const data = e.data ? e.data.json() : { title: '상품조회', body: '새 알림' };
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+    })
+  );
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(clients.openWindow('/'));
+});
+
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   // API 요청은 항상 네트워크로

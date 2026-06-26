@@ -7,8 +7,10 @@ import re
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 IMAGES_DIR = 'images'
-
 DB_PATH = os.environ.get('DB_PATH', 'products.db')
+VAPID_PUBLIC_KEY  = os.environ.get('VAPID_PUBLIC_KEY', '')
+VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
+VAPID_EMAIL       = os.environ.get('VAPID_EMAIL', 'mailto:admin@example.com')
 
 def search_products(query='', barcode='', limit=50, offset=0):
     conn = sqlite3.connect(DB_PATH)
@@ -68,6 +70,52 @@ def delete_comment(comment_id):
     conn.execute('DELETE FROM comments WHERE id=?', (comment_id,))
     conn.commit()
     conn.close()
+
+def init_push_table():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('''CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        endpoint TEXT UNIQUE, p256dh TEXT, auth TEXT
+    )''')
+    conn.commit()
+    conn.close()
+
+def save_subscription(endpoint, p256dh, auth):
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('INSERT OR REPLACE INTO push_subscriptions(endpoint,p256dh,auth) VALUES(?,?,?)',
+                 (endpoint, p256dh, auth))
+    conn.commit()
+    conn.close()
+
+def get_subscriptions():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    rows = [dict(r) for r in conn.execute('SELECT * FROM push_subscriptions')]
+    conn.close()
+    return rows
+
+def send_push_notification(title, body):
+    if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
+        return
+    try:
+        import base64
+        from pywebpush import webpush, WebPushException
+        priv_pem = base64.urlsafe_b64decode(VAPID_PRIVATE_KEY + '==')
+        for sub in get_subscriptions():
+            try:
+                webpush(
+                    subscription_info={
+                        'endpoint': sub['endpoint'],
+                        'keys': {'p256dh': sub['p256dh'], 'auth': sub['auth']}
+                    },
+                    data=json.dumps({'title': title, 'body': body}, ensure_ascii=False),
+                    vapid_private_key=priv_pem,
+                    vapid_claims={'sub': VAPID_EMAIL}
+                )
+            except WebPushException:
+                pass
+    except Exception:
+        pass
 
 def init_orders_table():
     conn = sqlite3.connect(DB_PATH)
@@ -182,6 +230,9 @@ class Handler(BaseHTTPRequestHandler):
             barcode = params.get('barcode', [''])[0]
             self.send_json(get_comments(barcode))
 
+        elif parsed.path == '/api/push/key':
+            self.send_json({'publicKey': VAPID_PUBLIC_KEY})
+
         elif parsed.path == '/api/orders':
             barcode = params.get('barcode', [''])[0]
             self.send_json(get_orders(barcode))
@@ -238,8 +289,18 @@ class Handler(BaseHTTPRequestHandler):
             delete_comment(body['id'])
             self.send_json({'ok': True})
 
+        elif self.path == '/api/push/subscribe':
+            save_subscription(body['endpoint'], body['keys']['p256dh'], body['keys']['auth'])
+            self.send_json({'ok': True})
+
         elif self.path == '/api/orders':
             new_id = add_order(body)
+            name = body.get('name', '상품')
+            customer = body.get('customer', '')
+            send_push_notification(
+                '새 고객 주문',
+                f"{name}{' · ' + customer if customer else ''}"
+            )
             self.send_json({'ok': True, 'id': new_id})
 
         elif self.path == '/api/orders/update':
@@ -302,6 +363,7 @@ if __name__ == '__main__':
         print(f'DB 다운로드 중... ({DB_URL})')
         urllib.request.urlretrieve(DB_URL, DB_PATH)
         print('DB 다운로드 완료!')
+    init_push_table()
     init_orders_table()
     port = int(os.environ.get('PORT', 8747))
     print(f'서버 시작: http://localhost:{port}')
