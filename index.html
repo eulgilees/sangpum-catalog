@@ -1611,9 +1611,10 @@ async function requestPush(autoMode = false) {
       applicationServerKey: urlBase64ToUint8Array(publicKey)
     });
     cachedSub = sub;
+    const token = localStorage.getItem('authToken') || '';
     const res = await fetch('/api/push/subscribe', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Token': token },
       body: JSON.stringify(sub)
     });
     const data = await res.json();
@@ -2508,7 +2509,7 @@ function appendChatBubble(m) {
 }
 function startChatPoll() {
   stopChatPoll();
-  chatPollTimer = setInterval(loadChatMessages, 1000);
+  chatPollTimer = setInterval(loadChatMessages, 500);
 }
 function stopChatPoll() {
   if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; }
