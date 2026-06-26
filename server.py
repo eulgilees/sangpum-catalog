@@ -108,6 +108,9 @@ def init_tables():
         c2.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
         c2.execute("ALTER TABLE issues ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
         c2.execute("ALTER TABLE as_requests ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
+        c2.execute("UPDATE orders SET store='잠실점' WHERE store=''")
+        c2.execute("UPDATE issues SET store='잠실점' WHERE store=''")
+        c2.execute("UPDATE as_requests SET store='잠실점' WHERE store=''")
         conn2.commit(); conn2.close()
     except: pass
     c.execute('''CREATE TABLE IF NOT EXISTS sessions (
