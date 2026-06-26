@@ -923,7 +923,7 @@ async function checkAppVersion() {
   } catch(e) {}
 }
 checkAppVersion();
-setInterval(checkAppVersion, 30 * 1000);
+setInterval(checkAppVersion, 10 * 1000);
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(async reg => {
