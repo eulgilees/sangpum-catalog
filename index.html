@@ -211,6 +211,9 @@
     <button class="comment-search-btn" onclick="openOrderList()">
       <i class="ti ti-clipboard-list"></i> 주문 목록
     </button>
+    <button id="push-btn" class="comment-search-btn" onclick="requestPush()" title="주문 알림 켜기/끄기">
+      <i class="ti ti-bell-off" id="push-icon"></i>
+    </button>
     <button class="comment-search-btn" onclick="openGuide()">
       <i class="ti ti-help-circle"></i> 설치 후 가이드
     </button>
@@ -372,8 +375,7 @@
           반드시 <b>홈 화면 앱</b>에서 아래 버튼을 눌러 알림을 켜주세요.
         </div>
         <div class="guide-step-sub">※ Safari 브라우저에서는 알림이 동작하지 않습니다. 홈 화면 앱으로 실행해야 합니다.</div>
-        <button id="push-btn" onclick="requestPush()" style="margin-top:12px; padding:10px 20px; background:#185fa5; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer;">🔔 알림 켜기</button>
-        <div id="push-status" style="margin-top:8px; font-size:13px; color:#555;"></div>
+        <div class="guide-step-sub" style="margin-top:6px;">우측 상단 <b>🔔 버튼</b>으로 알림을 켜고 끌 수 있습니다.</div>
       </div>
     </div>
   </div>
@@ -872,33 +874,50 @@ document.addEventListener('click', e => {
 
 let swReg = null;
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then(reg => { swReg = reg; });
+  navigator.serviceWorker.register('/sw.js').then(async reg => {
+    swReg = reg;
+    // 이미 구독 중이면 아이콘 켜진 상태로
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) setPushIcon(true);
+  });
+}
+
+function setPushIcon(on) {
+  const icon = document.getElementById('push-icon');
+  if (!icon) return;
+  icon.className = on ? 'ti ti-bell' : 'ti ti-bell-off';
+  icon.parentElement.style.color = on ? '#185fa5' : '';
+  icon.parentElement.title = on ? '알림 켜짐 (탭하면 끄기)' : '알림 끄기 상태 (탭하면 켜기)';
 }
 
 async function requestPush() {
   const btn = document.getElementById('push-btn');
-  const status = document.getElementById('push-status');
   btn.disabled = true;
-  btn.textContent = '처리 중...';
-  status.textContent = '';
-
   try {
-    if (!('serviceWorker' in navigator)) throw new Error('서비스워커 미지원 브라우저');
-    if (!('PushManager' in window)) throw new Error('이 환경에서는 푸시 알림을 지원하지 않습니다. 홈 화면 앱으로 실행해주세요.');
-
+    if (!('PushManager' in window)) {
+      alert('푸시 알림 미지원 환경입니다.\n홈 화면에 추가한 앱에서 실행해주세요.');
+      return;
+    }
     const reg = swReg || await navigator.serviceWorker.ready;
+    // 이미 구독 중이면 해제
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) {
+      await existing.unsubscribe();
+      setPushIcon(false);
+      return;
+    }
+    // 구독 시작
     const permission = await Notification.requestPermission();
-    if (permission !== 'granted') throw new Error(`알림 권한 거부됨 (${permission}). 설정에서 허용해주세요.`);
-
-    const keyRes = await fetch('/api/push/key');
-    const { publicKey } = await keyRes.json();
-    if (!publicKey) throw new Error('서버에서 VAPID 키를 받지 못했습니다.');
-
+    if (permission !== 'granted') {
+      alert('알림 권한이 거부되었습니다.\n설정 > Safari > 알림에서 허용해주세요.');
+      return;
+    }
+    const { publicKey } = await fetch('/api/push/key').then(r => r.json());
+    if (!publicKey) { alert('서버 오류: VAPID 키 없음'); return; }
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicKey)
     });
-
     const res = await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -906,16 +925,11 @@ async function requestPush() {
     });
     const data = await res.json();
     if (!data.ok) throw new Error('서버 저장 실패');
-
-    btn.textContent = '✅ 알림 켜짐';
-    btn.style.background = '#2d7a1f';
-    status.style.color = '#2d7a1f';
-    status.textContent = '알림이 정상적으로 설정되었습니다.';
+    setPushIcon(true);
   } catch(e) {
+    alert('알림 설정 오류: ' + e.message);
+  } finally {
     btn.disabled = false;
-    btn.textContent = '🔔 알림 켜기';
-    status.style.color = '#c0392b';
-    status.textContent = '오류: ' + e.message;
   }
 }
 
