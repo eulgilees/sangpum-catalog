@@ -8,6 +8,8 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 IMAGES_DIR = 'images'
 DB_PATH = os.environ.get('DB_PATH', 'products.db')
+# 주문·댓글·알림 데이터는 별도 파일에 저장 (배포해도 절대 안 날아감)
+DATA_DB_PATH = os.environ.get('DATA_DB_PATH', '/data/orders.db')
 VAPID_PUBLIC_KEY  = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
 VAPID_EMAIL       = os.environ.get('VAPID_EMAIL', 'mailto:admin@example.com')
@@ -39,7 +41,7 @@ def search_products(query='', barcode='', limit=50, offset=0):
     return result, total
 
 def get_comments(barcode):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DATA_DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute('SELECT id, content, created_at, parent_id FROM comments WHERE barcode=? ORDER BY id ASC', (barcode,))
@@ -56,7 +58,7 @@ def get_comments(barcode):
     return top
 
 def add_comment(barcode, content, created_at, parent_id=None):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DATA_DB_PATH)
     c = conn.cursor()
     c.execute('INSERT INTO comments(barcode, content, created_at, parent_id) VALUES(?,?,?,?)',
               (barcode, content, created_at, parent_id))
@@ -66,13 +68,13 @@ def add_comment(barcode, content, created_at, parent_id=None):
     return new_id
 
 def delete_comment(comment_id):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DATA_DB_PATH)
     conn.execute('DELETE FROM comments WHERE id=?', (comment_id,))
     conn.commit()
     conn.close()
 
 def init_push_table():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DATA_DB_PATH)
     conn.execute('''CREATE TABLE IF NOT EXISTS push_subscriptions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         endpoint TEXT UNIQUE, p256dh TEXT, auth TEXT
@@ -81,14 +83,14 @@ def init_push_table():
     conn.close()
 
 def save_subscription(endpoint, p256dh, auth):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DATA_DB_PATH)
     conn.execute('INSERT OR REPLACE INTO push_subscriptions(endpoint,p256dh,auth) VALUES(?,?,?)',
                  (endpoint, p256dh, auth))
     conn.commit()
     conn.close()
 
 def get_subscriptions():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DATA_DB_PATH)
     conn.row_factory = sqlite3.Row
     rows = [dict(r) for r in conn.execute('SELECT * FROM push_subscriptions')]
     conn.close()
@@ -120,7 +122,7 @@ def send_push_notification(title, body):
         print(f'푸시 오류: {e}')
 
 def init_orders_table():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DATA_DB_PATH)
     conn.execute('''CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         barcode TEXT, name TEXT, qty INTEGER DEFAULT 1,
@@ -145,7 +147,7 @@ def init_orders_table():
     conn.close()
 
 def get_orders(barcode=''):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DATA_DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     if barcode:
@@ -157,7 +159,7 @@ def get_orders(barcode=''):
     return rows
 
 def add_order(data):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DATA_DB_PATH)
     c = conn.cursor()
     c.execute('''INSERT INTO orders(barcode,name,qty,order_date,payment,ordered,pickup_date,customer,phone,delivery,address,staff,note,created_at)
                  VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
@@ -172,7 +174,7 @@ def add_order(data):
     return new_id
 
 def update_order(data):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DATA_DB_PATH)
     conn.execute('''UPDATE orders SET qty=?,order_date=?,payment=?,ordered=?,pickup_date=?,customer=?,phone=?,delivery=?,address=?,staff=?,note=?
                     WHERE id=?''',
                  (data.get('qty',1), data.get('order_date',''), data.get('payment','미불'), data.get('ordered','미완료'),
@@ -183,21 +185,22 @@ def update_order(data):
     conn.close()
 
 def delete_order(order_id):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DATA_DB_PATH)
     conn.execute('DELETE FROM orders WHERE id=?', (order_id,))
     conn.commit()
     conn.close()
 
 def search_comments(query):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DATA_DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute(f"ATTACH DATABASE '{DB_PATH}' AS products_db")
     c = conn.cursor()
     like = f"%{query.lower().replace(' ', '')}%"
     c.execute('''
         SELECT c.id, c.barcode, c.content, c.created_at,
                p.name, p.author, p.publisher, p.price
         FROM comments c
-        LEFT JOIN products p ON p.barcode = c.barcode
+        LEFT JOIN products_db.products p ON p.barcode = c.barcode
         WHERE replace(lower(c.content), ' ', '') LIKE ?
         ORDER BY c.id DESC
         LIMIT 100
@@ -318,7 +321,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'ok': True})
 
         elif self.path == '/api/orders/complete':
-            conn = sqlite3.connect(DB_PATH)
+            conn = sqlite3.connect(DATA_DB_PATH)
             conn.execute('UPDATE orders SET completed=1-completed WHERE id=?', (body['id'],))
             conn.commit()
             conn.close()
@@ -361,6 +364,8 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    # 주문 데이터 디렉토리 확보
+    os.makedirs(os.path.dirname(os.path.abspath(DATA_DB_PATH)), exist_ok=True)
     # 볼륨에 DB가 없으면 GitHub Releases에서 다운로드
     if not os.path.exists(DB_PATH):
         import urllib.request
