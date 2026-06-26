@@ -1103,6 +1103,7 @@ document.addEventListener('click', e => {
 });
 
 let swReg = null;
+let cachedSub = undefined; // undefined=미확인, null=없음, object=구독중
 // 버전 체크: 앱 열 때마다 + 30초마다 감지
 async function checkAppVersion() {
   try {
@@ -1181,6 +1182,7 @@ if ('serviceWorker' in navigator) {
     swReg = reg;
     try {
       let sub = await reg.pushManager.getSubscription();
+      cachedSub = sub || null;
       if (sub) {
         // 기존 구독 있으면 서버에 재등록 (DB 초기화돼도 복구)
         setPushIcon(true);
@@ -1199,6 +1201,7 @@ if ('serviceWorker' in navigator) {
               userVisibleOnly: true,
               applicationServerKey: urlBase64ToUint8Array(publicKey)
             });
+            cachedSub = sub;
             await fetch('/api/push/subscribe', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -1237,17 +1240,20 @@ function showToast(msg, ok) {
 
 async function requestPush() {
   const btn = document.getElementById('push-btn');
+  if (btn.disabled) return;
   btn.disabled = true;
+  btn.style.opacity = '0.5';
   try {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       showToast('❌ 홈 화면 앱에서만 알림을 사용할 수 있습니다', false);
       return;
     }
     const reg = swReg || await navigator.serviceWorker.ready;
-    // 이미 구독 중이면 해제
-    const existing = await reg.pushManager.getSubscription();
+    // 캐시된 구독 상태 사용 (없으면 조회)
+    const existing = cachedSub !== undefined ? cachedSub : await reg.pushManager.getSubscription();
     if (existing) {
       await existing.unsubscribe();
+      cachedSub = null;
       setPushIcon(false);
       showToast('🔕 알림을 껐습니다', false);
       return;
@@ -1264,6 +1270,7 @@ async function requestPush() {
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicKey)
     });
+    cachedSub = sub;
     const res = await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1277,6 +1284,7 @@ async function requestPush() {
     showToast('❌ 오류: ' + e.message, false);
   } finally {
     btn.disabled = false;
+    btn.style.opacity = '';
   }
 }
 
