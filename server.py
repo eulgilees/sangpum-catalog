@@ -17,18 +17,24 @@ VAPID_EMAIL       = os.environ.get('VAPID_EMAIL', 'mailto:admin@example.com')
 
 def data_db():
     import pg8000.dbapi as pg
-    url = os.environ.get('DATABASE_URL', '')
-    if not url:
-        raise Exception('DATABASE_URL 환경변수가 없습니다')
-    r = urllib.parse.urlparse(url)
+    url = (os.environ.get('DATABASE_URL') or
+           os.environ.get('DATABASE_PUBLIC_URL') or '')
+    if url:
+        r = urllib.parse.urlparse(url)
+        host, port, database, user, password = r.hostname, r.port or 5432, r.path[1:], r.username, r.password
+    elif os.environ.get('PGHOST'):
+        host = os.environ['PGHOST']
+        port = int(os.environ.get('PGPORT', 5432))
+        database = os.environ.get('PGDATABASE', 'railway')
+        user = os.environ.get('PGUSER', 'postgres')
+        password = os.environ.get('PGPASSWORD', '')
+    else:
+        raise Exception('DB 연결 정보가 없습니다')
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
-    return pg.connect(
-        host=r.hostname, port=r.port or 5432,
-        database=r.path[1:], user=r.username, password=r.password,
-        ssl_context=ctx
-    )
+    print(f'DB 연결: {host}:{port}/{database}')
+    return pg.connect(host=host, port=port, database=database, user=user, password=password, ssl_context=ctx)
 
 def rows_to_dicts(cursor):
     cols = [d[0] for d in cursor.description]
