@@ -1055,6 +1055,8 @@ setInterval(checkAppVersion, 10 * 1000);
 
 // 수령희망일 임박 주문 체크
 async function checkUpcomingOrders() {
+  const todayStr = new Date().toISOString().slice(0,10);
+  if (localStorage.getItem('orderAlertDate') === todayStr) return;
   try {
     const orders = await fetch('/api/orders').then(r => r.json());
     const today = new Date(); today.setHours(0,0,0,0);
@@ -1070,6 +1072,7 @@ async function checkUpcomingOrders() {
       return `• ${o.name || '(상품미정)'}${o.customer ? ' / ' + o.customer : ''} — 수령희망일 ${label}`;
     });
     if (!urgent.length) return;
+    localStorage.setItem('orderAlertDate', todayStr);
     const msg = `⚠️ 처리가 필요한 주문이 있습니다!\n\n${urgent.join('\n')}\n\n주문 목록을 확인해주세요.`;
     alert(msg);
   } catch(e) {}
