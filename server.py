@@ -30,6 +30,11 @@ def init_tables():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         endpoint TEXT UNIQUE, p256dh TEXT, auth TEXT
     )''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS issues (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT, occurred_at TEXT DEFAULT '', content TEXT DEFAULT '',
+        status TEXT DEFAULT '진행중', created_at TEXT DEFAULT ''
+    )''')
     conn.execute('''CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         barcode TEXT, name TEXT, qty INTEGER DEFAULT 1,
@@ -164,6 +169,33 @@ def delete_order(order_id):
     conn.execute('DELETE FROM orders WHERE id=?', (order_id,))
     conn.commit(); conn.close()
 
+def get_issues():
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT * FROM issues ORDER BY id DESC')
+    rows = [dict(r) for r in c.fetchall()]; conn.close(); return rows
+
+def add_issue(data):
+    conn = data_db(); c = conn.cursor()
+    c.execute('INSERT INTO issues(title,occurred_at,content,status,created_at) VALUES(?,?,?,?,?)',
+              (data.get('title',''), data.get('occurred_at',''), data.get('content',''), '진행중', data.get('created_at','')))
+    new_id = c.lastrowid; conn.commit(); conn.close(); return new_id
+
+def update_issue(data):
+    conn = data_db()
+    conn.execute('UPDATE issues SET title=?,occurred_at=?,content=? WHERE id=?',
+                 (data.get('title',''), data.get('occurred_at',''), data.get('content',''), data['id']))
+    conn.commit(); conn.close()
+
+def set_issue_status(issue_id, status):
+    conn = data_db()
+    conn.execute('UPDATE issues SET status=? WHERE id=?', (status, issue_id))
+    conn.commit(); conn.close()
+
+def delete_issue(issue_id):
+    conn = data_db()
+    conn.execute('DELETE FROM issues WHERE id=?', (issue_id,))
+    conn.commit(); conn.close()
+
 def toggle_complete(order_id):
     conn = data_db()
     conn.execute('UPDATE orders SET completed=1-completed WHERE id=?', (order_id,))
@@ -196,6 +228,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'publicKey': VAPID_PUBLIC_KEY})
         elif parsed.path == '/api/push/debug':
             self.send_json({'count': len(get_subscriptions()), 'vapid_key_set': bool(VAPID_PUBLIC_KEY)})
+        elif parsed.path == '/api/issues':
+            self.send_json(get_issues())
         elif parsed.path == '/api/orders':
             self.send_json(get_orders(params.get('barcode',[''])[0]))
         elif parsed.path == '/api/search':
@@ -230,6 +264,14 @@ class Handler(BaseHTTPRequestHandler):
             delete_order(body['id']); self.send_json({'ok': True})
         elif self.path == '/api/orders/complete':
             toggle_complete(body['id']); self.send_json({'ok': True})
+        elif self.path == '/api/issues':
+            self.send_json({'ok': True, 'id': add_issue(body)})
+        elif self.path == '/api/issues/update':
+            update_issue(body); self.send_json({'ok': True})
+        elif self.path == '/api/issues/status':
+            set_issue_status(body['id'], body['status']); self.send_json({'ok': True})
+        elif self.path == '/api/issues/delete':
+            delete_issue(body['id']); self.send_json({'ok': True})
         else:
             self.send_response(404); self.end_headers()
 

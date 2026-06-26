@@ -155,6 +155,19 @@
     /* 라이트박스 */
 
     /* 주문 */
+    /* 이슈사항 */
+    .issue-badge-active { background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:6px; font-size:11px; padding:2px 7px; font-weight:600; }
+    .issue-badge-closed { background:#f0f0ec; color:#888; border:1px solid #d4d4ce; border-radius:6px; font-size:11px; padding:2px 7px; }
+    .issue-item { background:#fff; border:1px solid #e5e5e0; border-radius:12px; padding:16px; margin-bottom:10px; }
+    .issue-item.closed { background:#f8f8f6; opacity:0.7; }
+    .issue-title { font-size:15px; font-weight:600; margin-bottom:6px; }
+    .issue-meta { font-size:12px; color:#888; margin-bottom:8px; }
+    .issue-content { font-size:13px; color:#444; line-height:1.6; white-space:pre-wrap; margin-bottom:10px; }
+    .issue-actions { display:flex; gap:8px; }
+    .issue-btn { padding:6px 14px; border-radius:8px; font-size:13px; cursor:pointer; border:1px solid #d4d4ce; background:#fff; color:#444; }
+    .issue-btn-active { background:#185fa5; color:#fff; border-color:#185fa5; }
+    .issue-btn-close { background:#6c757d; color:#fff; border-color:#6c757d; }
+    .issue-btn-del { background:#fff; color:#c0392b; border-color:#e5b4b4; }
     .order-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1100; align-items:flex-end; justify-content:center; }
     .order-overlay.open { display:flex; }
     .order-box { background:#fff; border-radius:20px 20px 0 0; padding:24px 24px 36px; width:100%; max-width:640px; max-height:92vh; overflow-y:auto; overflow-x:hidden; }
@@ -232,6 +245,10 @@
     <button class="header-nav-btn" onclick="openOrderList()">
       <i class="ti ti-clipboard-list"></i>
       주문 목록
+    </button>
+    <button class="header-nav-btn" onclick="openIssueList()">
+      <i class="ti ti-alert-triangle"></i>
+      이슈사항
     </button>
     <button class="header-nav-btn" onclick="openGuide()">
       <i class="ti ti-help-circle"></i>
@@ -313,6 +330,43 @@
       <textarea class="order-input" id="of-note" rows="3" placeholder="특이사항을 입력하세요..." style="resize:none;"></textarea>
     </div>
     <button class="order-submit-btn" onclick="submitOrder()">등록</button>
+  </div>
+</div>
+
+<!-- 이슈사항 등록 모달 -->
+<div class="order-overlay" id="issue-form-overlay">
+  <div class="order-box">
+    <div class="order-header">
+      <h2 id="issue-form-title">이슈사항 등록</h2>
+      <button class="order-close" onclick="closeIssueForm()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="order-field">
+      <div class="order-label">제목 *</div>
+      <input class="order-input" id="if-title" placeholder="이슈 제목을 입력하세요">
+    </div>
+    <div class="order-field">
+      <div class="order-label">발생일</div>
+      <input class="order-input" type="date" id="if-date">
+    </div>
+    <div class="order-field">
+      <div class="order-label">내용</div>
+      <textarea class="order-input" id="if-content" rows="5" placeholder="이슈 내용을 입력하세요..." style="resize:none;"></textarea>
+    </div>
+    <button class="order-submit-btn" onclick="submitIssue()">등록</button>
+  </div>
+</div>
+
+<!-- 이슈사항 목록 모달 -->
+<div class="order-overlay" id="issue-list-overlay" onclick="if(event.target===this)closeIssueList()">
+  <div class="order-box" style="min-height:67vh; display:flex; flex-direction:column;">
+    <div class="order-header">
+      <h2>이슈사항</h2>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="order-edit-btn" style="padding:6px 14px;font-size:13px;" onclick="closeIssueList();openIssueForm()"><i class="ti ti-plus"></i> 새 이슈</button>
+        <button class="order-close" onclick="closeIssueList()"><i class="ti ti-x"></i></button>
+      </div>
+    </div>
+    <div id="issue-list-container" style="flex:1;"><div class="order-empty">이슈사항이 없습니다</div></div>
   </div>
 </div>
 
@@ -1288,6 +1342,82 @@ async function deleteOrder(id) {
   if (!confirm('주문을 삭제할까요?')) return;
   await fetch('/api/orders/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id}) });
   loadOrderList();
+}
+/* ── 이슈사항 ──────────────────────────────── */
+let issueFormId = null;
+
+function openIssueList() {
+  document.getElementById('issue-list-overlay').classList.add('open');
+  loadIssueList();
+}
+function closeIssueList() { document.getElementById('issue-list-overlay').classList.remove('open'); }
+
+function openIssueForm(issue=null) {
+  issueFormId = issue ? issue.id : null;
+  document.getElementById('issue-form-title').textContent = issue ? '이슈 수정' : '이슈사항 등록';
+  document.getElementById('if-title').value = issue ? issue.title : '';
+  document.getElementById('if-content').value = issue ? issue.content : '';
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  document.getElementById('if-date').value = issue ? issue.occurred_at : todayStr;
+  document.getElementById('issue-form-overlay').classList.add('open');
+}
+function closeIssueForm() { document.getElementById('issue-form-overlay').classList.remove('open'); }
+
+async function submitIssue() {
+  const title = document.getElementById('if-title').value.trim();
+  if (!title) { alert('제목을 입력해주세요.'); return; }
+  const body = {
+    title,
+    occurred_at: document.getElementById('if-date').value,
+    content: document.getElementById('if-content').value.trim()
+  };
+  if (issueFormId) body.id = issueFormId;
+  await fetch(issueFormId ? '/api/issues/update' : '/api/issues', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  closeIssueForm();
+  openIssueList();
+}
+
+async function loadIssueList() {
+  const issues = await fetch('/api/issues').then(r => r.json());
+  const container = document.getElementById('issue-list-container');
+  if (!issues.length) { container.innerHTML = '<div class="order-empty">이슈사항이 없습니다</div>'; return; }
+  container.innerHTML = issues.map(is => `
+    <div class="issue-item${is.status==='종료' ? ' closed' : ''}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span class="${is.status==='종료' ? 'issue-badge-closed' : 'issue-badge-active'}">${esc(is.status)}</span>
+        <span class="issue-title">${esc(is.title)}</span>
+      </div>
+      <div class="issue-meta">발생일 ${esc(is.occurred_at||'—')}</div>
+      ${is.content ? `<div class="issue-content">${esc(is.content)}</div>` : ''}
+      <div class="issue-actions">
+        ${is.status==='종료'
+          ? `<button class="issue-btn" onclick="setIssueStatus(${is.id},'진행중')">진행중으로</button>`
+          : `<button class="issue-btn issue-btn-close" onclick="setIssueStatus(${is.id},'종료')">종료</button>`}
+        <button class="issue-btn issue-btn-active" onclick="openIssueFormById(${is.id})">수정</button>
+        <button class="issue-btn issue-btn-del" onclick="deleteIssue(${is.id})">삭제</button>
+      </div>
+    </div>
+  `).join('');
+  window._issues = issues;
+}
+
+function openIssueFormById(id) {
+  const is = (window._issues||[]).find(x => x.id===id);
+  if (is) { closeIssueList(); openIssueForm(is); }
+}
+
+async function setIssueStatus(id, status) {
+  await fetch('/api/issues/status', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, status})});
+  loadIssueList();
+}
+
+async function deleteIssue(id) {
+  if (!confirm('이슈를 삭제할까요?')) return;
+  await fetch('/api/issues/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id})});
+  loadIssueList();
 }
 </script>
 </body>
