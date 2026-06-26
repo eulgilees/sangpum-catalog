@@ -539,13 +539,12 @@
 
 <!-- 휴무일정 모달 -->
 <div class="order-overlay" id="schedule-overlay" onclick="if(event.target===this)closeSchedule()">
-  <div class="order-modal" style="max-height:92vh">
-    <div class="order-modal-header">
-      <button class="modal-back-btn" onclick="closeSchedule()"><i class="ti ti-x"></i></button>
+  <div class="order-box" style="min-height:67vh;display:flex;flex-direction:column;">
+    <div class="order-header">
       <h2>휴무일정</h2>
-      <span></span>
+      <button class="order-close" onclick="closeSchedule()"><i class="ti ti-x"></i></button>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px 0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 0;">
       <button onclick="scheduleMonthMove(-1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:#555;">&#8249;</button>
       <span id="schedule-month-label" style="font-weight:600;font-size:15px;color:#333;"></span>
       <button onclick="scheduleMonthMove(1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:#555;">&#8250;</button>
