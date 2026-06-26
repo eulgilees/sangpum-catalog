@@ -939,7 +939,7 @@ async function checkUpcomingOrders() {
       const d = new Date(o.pickup_date); d.setHours(0,0,0,0);
       const diff = Math.ceil((d - today) / (1000*60*60*24));
       const label = diff === 0 ? '오늘' : diff === 1 ? '내일' : `${diff}일 후`;
-      return `• ${o.name || '(상품미정)'}${o.customer ? ' / ' + o.customer : ''} — 수령 ${label}`;
+      return `• ${o.name || '(상품미정)'}${o.customer ? ' / ' + o.customer : ''} — 수령희망일 ${label}`;
     });
     if (!urgent.length) return;
     const msg = `⚠️ 처리가 필요한 주문이 있습니다!\n\n${urgent.join('\n')}\n\n주문 목록을 확인해주세요.`;
