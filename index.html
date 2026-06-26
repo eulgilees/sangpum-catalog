@@ -925,6 +925,29 @@ async function checkAppVersion() {
 checkAppVersion();
 setInterval(checkAppVersion, 10 * 1000);
 
+// 수령희망일 임박 주문 체크
+async function checkUpcomingOrders() {
+  try {
+    const orders = await fetch('/api/orders').then(r => r.json());
+    const today = new Date(); today.setHours(0,0,0,0);
+    const urgent = orders.filter(o => {
+      if (o.completed || !o.pickup_date) return false;
+      const d = new Date(o.pickup_date); d.setHours(0,0,0,0);
+      const diff = Math.ceil((d - today) / (1000*60*60*24));
+      return diff >= 0 && diff <= 3;
+    }).map(o => {
+      const d = new Date(o.pickup_date); d.setHours(0,0,0,0);
+      const diff = Math.ceil((d - today) / (1000*60*60*24));
+      const label = diff === 0 ? '오늘' : diff === 1 ? '내일' : `${diff}일 후`;
+      return `• ${o.name || '(상품미정)'}${o.customer ? ' / ' + o.customer : ''} — 수령 ${label}`;
+    });
+    if (!urgent.length) return;
+    const msg = `⚠️ 처리가 필요한 주문이 있습니다!\n\n${urgent.join('\n')}\n\n주문 목록을 확인해주세요.`;
+    alert(msg);
+  } catch(e) {}
+}
+checkUpcomingOrders();
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(async reg => {
 
