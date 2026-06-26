@@ -2451,9 +2451,11 @@ async function chatSend() {
   const content = input.value.trim();
   if (!content || !chatRoomId) return;
   input.value = '';
+  // 폴링 멈춰서 중복 방지
+  stopChatPoll();
   // 즉시 화면에 렌더링
   appendChatBubble({ id: 0, user_id: currentUser?.id, display_name: currentUser?.display_name, content, created_at: Math.floor(Date.now()/1000) });
-  // 서버 전송 + 실제 id 반영
+  // 서버 전송 + chatLastMsgId 업데이트 후 폴링 재개
   const token = localStorage.getItem('authToken');
   const res = await fetch('/api/chat/message', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token },
@@ -2461,6 +2463,7 @@ async function chatSend() {
   });
   const data = await res.json();
   if (data.ok) chatLastMsgId = Math.max(chatLastMsgId, data.message.id);
+  startChatPoll();
 }
 
 function appendChatBubble(m) {
@@ -2480,7 +2483,7 @@ function appendChatBubble(m) {
 }
 function startChatPoll() {
   stopChatPoll();
-  chatPollTimer = setInterval(loadChatMessages, 3000);
+  chatPollTimer = setInterval(loadChatMessages, 1000);
 }
 function stopChatPoll() {
   if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; }
