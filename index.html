@@ -2163,7 +2163,7 @@ function hideAuthScreen() {
   document.getElementById('logout-btn').style.display = 'flex';
   const btn = document.getElementById('profile-btn');
   btn.style.display = 'block';
-  btn.textContent = currentUser?.display_name || '';
+  btn.textContent = (currentUser?.display_name || '') + (currentUser?.store ? ' · ' + currentUser.store : '');
 }
 
 function openProfile() {
@@ -2201,7 +2201,7 @@ async function doUpdateProfile() {
   const data = await res.json();
   if (!data.ok) { errEl.textContent = data.error || '오류가 발생했습니다'; errEl.style.display = 'block'; return; }
   currentUser = data.user;
-  document.getElementById('profile-btn').textContent = currentUser.display_name || '';
+  document.getElementById('profile-btn').textContent = (currentUser.display_name || '') + (currentUser.store ? ' · ' + currentUser.store : '');
   closeProfile();
   showToast('✅ 정보가 저장되었습니다', true);
 }
