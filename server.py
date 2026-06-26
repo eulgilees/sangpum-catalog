@@ -197,7 +197,8 @@ def get_subscriptions(user_id=None):
     if user_id is not None:
         c.execute('SELECT * FROM push_subscriptions WHERE user_id=%s', (user_id,))
     else:
-        c.execute('SELECT * FROM push_subscriptions')
+        # 로그인된 사용자(user_id 있는)의 구독만 반환
+        c.execute('SELECT * FROM push_subscriptions WHERE user_id IS NOT NULL')
     rows = rows_to_dicts(c); conn.close(); return rows
 
 def send_push_notification(title, body, target_user_id=None):
