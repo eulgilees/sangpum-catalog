@@ -63,6 +63,13 @@ def init_tables():
         staff TEXT DEFAULT '', note TEXT DEFAULT '',
         created_at TEXT DEFAULT '', completed INTEGER DEFAULT 0
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS as_requests (
+        id SERIAL PRIMARY KEY,
+        received_date TEXT DEFAULT '', product_name TEXT DEFAULT '',
+        content TEXT DEFAULT '', customer TEXT DEFAULT '', phone TEXT DEFAULT '',
+        delivery TEXT DEFAULT '없음', staff TEXT DEFAULT '',
+        note TEXT DEFAULT '', status TEXT DEFAULT '진행중', created_at TEXT DEFAULT ''
+    )''')
     c.execute('''CREATE TABLE IF NOT EXISTS suggestions (
         id SERIAL PRIMARY KEY,
         content TEXT DEFAULT '', date TEXT DEFAULT '',
@@ -221,6 +228,39 @@ def delete_issue(issue_id):
     c.execute('DELETE FROM issues WHERE id=%s', (issue_id,))
     conn.commit(); conn.close()
 
+def get_as_requests():
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT * FROM as_requests ORDER BY id DESC')
+    rows = rows_to_dicts(c); conn.close(); return rows
+
+def add_as_request(data):
+    conn = data_db(); c = conn.cursor()
+    c.execute('''INSERT INTO as_requests(received_date,product_name,content,customer,phone,delivery,staff,note,status,created_at)
+                 VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+              (data.get('received_date',''), data.get('product_name',''), data.get('content',''),
+               data.get('customer',''), data.get('phone',''), data.get('delivery','없음'),
+               data.get('staff',''), data.get('note',''), '진행중', data.get('created_at','')))
+    new_id = c.fetchone()[0]; conn.commit(); conn.close(); return new_id
+
+def update_as_request(data):
+    conn = data_db(); c = conn.cursor()
+    c.execute('''UPDATE as_requests SET received_date=%s,product_name=%s,content=%s,customer=%s,
+                 phone=%s,delivery=%s,staff=%s,note=%s WHERE id=%s''',
+              (data.get('received_date',''), data.get('product_name',''), data.get('content',''),
+               data.get('customer',''), data.get('phone',''), data.get('delivery','없음'),
+               data.get('staff',''), data.get('note',''), data['id']))
+    conn.commit(); conn.close()
+
+def set_as_status(as_id, status):
+    conn = data_db(); c = conn.cursor()
+    c.execute('UPDATE as_requests SET status=%s WHERE id=%s', (status, as_id))
+    conn.commit(); conn.close()
+
+def delete_as_request(as_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('DELETE FROM as_requests WHERE id=%s', (as_id,))
+    conn.commit(); conn.close()
+
 def get_suggestions():
     conn = data_db(); c = conn.cursor()
     c.execute('SELECT * FROM suggestions ORDER BY id DESC')
@@ -280,6 +320,8 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/dbinfo':
             db_url = os.environ.get('DATABASE_URL', '')
             self.send_json({'DATABASE_URL_set': bool(db_url), 'backend': 'postgresql'})
+        elif parsed.path == '/api/as':
+            self.send_json(get_as_requests())
         elif parsed.path == '/api/suggestions':
             self.send_json(get_suggestions())
         elif parsed.path == '/api/issues':
@@ -318,6 +360,14 @@ class Handler(BaseHTTPRequestHandler):
             delete_order(body['id']); self.send_json({'ok': True})
         elif self.path == '/api/orders/complete':
             toggle_complete(body['id']); self.send_json({'ok': True})
+        elif self.path == '/api/as':
+            self.send_json({'ok': True, 'id': add_as_request(body)})
+        elif self.path == '/api/as/update':
+            update_as_request(body); self.send_json({'ok': True})
+        elif self.path == '/api/as/status':
+            set_as_status(body['id'], body['status']); self.send_json({'ok': True})
+        elif self.path == '/api/as/delete':
+            delete_as_request(body['id']); self.send_json({'ok': True})
         elif self.path == '/api/suggestions':
             self.send_json({'ok': True, 'id': add_suggestion(body)})
         elif self.path == '/api/suggestions/status':

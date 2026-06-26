@@ -271,6 +271,10 @@
       <i class="ti ti-alert-triangle"></i>
       이슈사항
     </button>
+    <button class="header-nav-btn" onclick="openAsList()">
+      <i class="ti ti-tool"></i>
+      고객AS
+    </button>
     <button class="header-nav-btn" onclick="openSuggestionList()">
       <i class="ti ti-message-circle"></i>
       건의사항
@@ -382,6 +386,68 @@
       <textarea class="order-input" id="if-content" rows="5" placeholder="이슈 내용을 입력하세요..." style="resize:none;"></textarea>
     </div>
     <button class="order-submit-btn" onclick="submitIssue()">등록</button>
+  </div>
+</div>
+
+<!-- 고객AS 목록 모달 -->
+<div class="order-overlay" id="as-list-overlay" onclick="if(event.target===this)closeAsList()">
+  <div class="order-box" style="min-height:75vh;display:flex;flex-direction:column;">
+    <div class="order-header">
+      <h2>고객 AS</h2>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="order-edit-btn" style="padding:6px 14px;font-size:13px;" onclick="openAsForm()"><i class="ti ti-plus"></i> 새 접수</button>
+        <button class="order-close" onclick="closeAsList()"><i class="ti ti-x"></i></button>
+      </div>
+    </div>
+    <div id="as-list-container" style="flex:1;overflow-y:auto;"><div class="order-empty">AS 접수 내역이 없습니다</div></div>
+  </div>
+</div>
+
+<!-- 고객AS 등록/수정 모달 -->
+<div class="order-overlay" id="as-form-overlay">
+  <div class="order-box" style="max-height:92vh;overflow-y:auto;">
+    <div class="order-header">
+      <h2 id="as-form-title">AS 접수 등록</h2>
+      <button class="order-close" onclick="closeAsForm()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="order-field">
+      <div class="order-label">접수일</div>
+      <input type="date" id="as-date" class="order-input">
+    </div>
+    <div class="order-field">
+      <div class="order-label">상품명</div>
+      <input type="text" id="as-product" class="order-input" placeholder="상품명 입력">
+    </div>
+    <div class="order-field">
+      <div class="order-label">AS 접수내용</div>
+      <textarea id="as-content" class="order-input" rows="3" placeholder="AS 내용 입력" style="resize:none;"></textarea>
+    </div>
+    <div style="display:flex;gap:12px;">
+      <div class="order-field" style="flex:1;">
+        <div class="order-label">고객 이름</div>
+        <input type="text" id="as-customer" class="order-input" placeholder="이름">
+      </div>
+      <div class="order-field" style="flex:1;">
+        <div class="order-label">연락처</div>
+        <input type="text" id="as-phone" class="order-input" placeholder="전화번호">
+      </div>
+    </div>
+    <div class="order-field">
+      <div class="order-label">택배 여부</div>
+      <div class="toggle-group">
+        <button class="toggle-btn" id="as-del-no" onclick="setAsDelivery('없음')">없음</button>
+        <button class="toggle-btn" id="as-del-yes" onclick="setAsDelivery('택배')">택배</button>
+      </div>
+    </div>
+    <div class="order-field">
+      <div class="order-label">접수자</div>
+      <input type="text" id="as-staff" class="order-input" placeholder="접수자 이름">
+    </div>
+    <div class="order-field">
+      <div class="order-label">특이사항</div>
+      <textarea id="as-note" class="order-input" rows="2" placeholder="특이사항" style="resize:none;"></textarea>
+    </div>
+    <button class="order-submit-btn" onclick="submitAs()">등록</button>
   </div>
 </div>
 
@@ -1446,6 +1512,99 @@ async function deleteOrder(id) {
   await fetch('/api/orders/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id}) });
   loadOrderList();
 }
+/* ── 고객AS ──────────────────────────────── */
+let asFormId = null;
+let asDelivery = '없음';
+
+function setAsDelivery(val) {
+  asDelivery = val;
+  document.getElementById('as-del-no').classList.toggle('active', val==='없음');
+  document.getElementById('as-del-yes').classList.toggle('active', val==='택배');
+}
+
+async function openAsList() {
+  document.getElementById('as-list-overlay').classList.add('open');
+  await loadAsList();
+}
+function closeAsList() { document.getElementById('as-list-overlay').classList.remove('open'); }
+
+function openAsForm(as=null) {
+  asFormId = as ? as.id : null;
+  document.getElementById('as-form-title').textContent = as ? 'AS 수정' : 'AS 접수 등록';
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('as-date').value = as ? as.received_date : today;
+  document.getElementById('as-product').value = as ? as.product_name : '';
+  document.getElementById('as-content').value = as ? as.content : '';
+  document.getElementById('as-customer').value = as ? as.customer : '';
+  document.getElementById('as-phone').value = as ? as.phone : '';
+  document.getElementById('as-staff').value = as ? as.staff : '';
+  document.getElementById('as-note').value = as ? as.note : '';
+  setAsDelivery(as ? as.delivery : '없음');
+  document.getElementById('as-form-overlay').classList.add('open');
+}
+function closeAsForm() { document.getElementById('as-form-overlay').classList.remove('open'); }
+
+async function submitAs() {
+  const product_name = document.getElementById('as-product').value.trim();
+  if (!product_name) { alert('상품명을 입력해주세요.'); return; }
+  const body = {
+    received_date: document.getElementById('as-date').value,
+    product_name,
+    content: document.getElementById('as-content').value.trim(),
+    customer: document.getElementById('as-customer').value.trim(),
+    phone: document.getElementById('as-phone').value.trim(),
+    delivery: asDelivery,
+    staff: document.getElementById('as-staff').value.trim(),
+    note: document.getElementById('as-note').value.trim(),
+    created_at: new Date().toISOString()
+  };
+  if (asFormId) body.id = asFormId;
+  await fetch(asFormId ? '/api/as/update' : '/api/as', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  closeAsForm();
+  await loadAsList();
+}
+
+async function loadAsList() {
+  const list = await fetch('/api/as').then(r => r.json());
+  const container = document.getElementById('as-list-container');
+  if (!list.length) { container.innerHTML = '<div class="order-empty">AS 접수 내역이 없습니다</div>'; return; }
+  window._asRequests = list;
+  container.innerHTML = list.map(a => `
+    <div class="order-list-item${a.status==='완료' ? ' completed' : ''}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span class="order-badge ${a.status==='완료' ? 'badge-done' : 'badge-pending'}">${esc(a.status)}</span>
+        ${a.delivery==='택배' ? '<span class="order-badge badge-unpaid">택배</span>' : ''}
+        <span class="order-item-name" style="flex:1;">${esc(a.product_name)}</span>
+      </div>
+      <div class="order-item-detail">
+        📅 ${esc(a.received_date||'—')} · 접수자 ${esc(a.staff||'—')}<br>
+        👤 ${esc(a.customer||'—')} · ${esc(a.phone||'—')}<br>
+        📋 ${esc(a.content||'—')}
+      </div>
+      ${a.note ? `<div class="order-item-note">💬 ${esc(a.note)}</div>` : ''}
+      <div class="order-item-actions">
+        <button class="order-edit-btn" onclick="openAsForm(window._asRequests.find(x=>x.id===${a.id}))">수정</button>
+        <button class="order-del-btn" onclick="deleteAs(${a.id})">삭제</button>
+        ${a.status==='완료'
+          ? `<button class="order-undo-btn" onclick="setAsStatus(${a.id},'진행중')">진행중으로</button>`
+          : `<button class="order-complete-btn" onclick="setAsStatus(${a.id},'완료')">완료</button>`}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function setAsStatus(id, status) {
+  await fetch('/api/as/status', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, status})});
+  loadAsList();
+}
+async function deleteAs(id) {
+  if (!confirm('삭제할까요?')) return;
+  await fetch('/api/as/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id})});
+  loadAsList();
+}
+
 /* ── 건의사항 ──────────────────────────────── */
 async function openSuggestionList() {
   const today = new Date();
