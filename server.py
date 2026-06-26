@@ -5,42 +5,52 @@ import urllib.parse
 import os
 import re
 import time
+import ssl
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 IMAGES_DIR = 'images'
 START_TIME = str(int(time.time()))
 DB_PATH = os.environ.get('DB_PATH', 'products.db')
-DATA_DB_PATH = os.environ.get('DATA_DB_PATH', '/data/orders.db')
 VAPID_PUBLIC_KEY  = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
 VAPID_EMAIL       = os.environ.get('VAPID_EMAIL', 'mailto:admin@example.com')
 
 def data_db():
-    conn = sqlite3.connect(DATA_DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    import pg8000.dbapi as pg
+    url = os.environ.get('DATABASE_URL', '')
+    if not url:
+        raise Exception('DATABASE_URL 환경변수가 없습니다')
+    r = urllib.parse.urlparse(url)
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return pg.connect(
+        host=r.hostname, port=r.port or 5432,
+        database=r.path[1:], user=r.username, password=r.password,
+        ssl_context=ctx
+    )
+
+def rows_to_dicts(cursor):
+    cols = [d[0] for d in cursor.description]
+    return [dict(zip(cols, row)) for row in cursor.fetchall()]
 
 def init_tables():
-    conn = data_db()
-    conn.execute('''CREATE TABLE IF NOT EXISTS comments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conn = data_db(); c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS comments (
+        id SERIAL PRIMARY KEY,
         barcode TEXT, content TEXT, created_at TEXT, parent_id INTEGER
     )''')
-    conn.execute('''CREATE TABLE IF NOT EXISTS push_subscriptions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+    c.execute('''CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id SERIAL PRIMARY KEY,
         endpoint TEXT UNIQUE, p256dh TEXT, auth TEXT
     )''')
-    conn.execute('''CREATE TABLE IF NOT EXISTS issues (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+    c.execute('''CREATE TABLE IF NOT EXISTS issues (
+        id SERIAL PRIMARY KEY,
         title TEXT, occurred_at TEXT DEFAULT '', ended_at TEXT DEFAULT '',
         content TEXT DEFAULT '', status TEXT DEFAULT '진행중', created_at TEXT DEFAULT ''
     )''')
-    # 기존 issues 테이블에 ended_at 컬럼 없으면 추가
-    existing_cols = {row[1] for row in conn.execute('PRAGMA table_info(issues)')}
-    if 'ended_at' not in existing_cols:
-        conn.execute('ALTER TABLE issues ADD COLUMN ended_at TEXT DEFAULT ""')
-    conn.execute('''CREATE TABLE IF NOT EXISTS orders (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+    c.execute('''CREATE TABLE IF NOT EXISTS orders (
+        id SERIAL PRIMARY KEY,
         barcode TEXT, name TEXT, qty INTEGER DEFAULT 1,
         order_date TEXT DEFAULT '', payment TEXT DEFAULT '미불',
         ordered TEXT DEFAULT '미완료', pickup_date TEXT DEFAULT '',
@@ -49,8 +59,7 @@ def init_tables():
         staff TEXT DEFAULT '', note TEXT DEFAULT '',
         created_at TEXT DEFAULT '', completed INTEGER DEFAULT 0
     )''')
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
 
 def search_products(query='', barcode='', limit=50, offset=0):
     conn = sqlite3.connect(DB_PATH)
@@ -76,8 +85,8 @@ def search_products(query='', barcode='', limit=50, offset=0):
 
 def get_comments(barcode):
     conn = data_db(); c = conn.cursor()
-    c.execute('SELECT id,content,created_at,parent_id FROM comments WHERE barcode=? ORDER BY id', (barcode,))
-    rows = [dict(r) for r in c.fetchall()]; conn.close()
+    c.execute('SELECT id,content,created_at,parent_id FROM comments WHERE barcode=%s ORDER BY id', (barcode,))
+    rows = rows_to_dicts(c); conn.close()
     top = [r for r in rows if not r['parent_id']]
     replies = {}
     for r in rows:
@@ -87,14 +96,14 @@ def get_comments(barcode):
 
 def add_comment(barcode, content, created_at, parent_id=None):
     conn = data_db(); c = conn.cursor()
-    c.execute('INSERT INTO comments(barcode,content,created_at,parent_id) VALUES(?,?,?,?)',
+    c.execute('INSERT INTO comments(barcode,content,created_at,parent_id) VALUES(%s,%s,%s,%s) RETURNING id',
               (barcode, content, created_at, parent_id))
-    new_id = c.lastrowid; conn.commit(); conn.close()
+    new_id = c.fetchone()[0]; conn.commit(); conn.close()
     return new_id
 
 def delete_comment(comment_id):
-    conn = data_db()
-    conn.execute('DELETE FROM comments WHERE id=?', (comment_id,))
+    conn = data_db(); c = conn.cursor()
+    c.execute('DELETE FROM comments WHERE id=%s', (comment_id,))
     conn.commit(); conn.close()
 
 def search_comments(query):
@@ -104,8 +113,8 @@ def search_comments(query):
     conn = data_db(); c = conn.cursor()
     like = f"%{query.lower().replace(' ','')}%"
     c.execute('''SELECT id,barcode,content,created_at FROM comments
-                 WHERE replace(lower(content),' ','') LIKE ? ORDER BY id DESC LIMIT 100''', (like,))
-    rows = [dict(r) for r in c.fetchall()]; conn.close()
+                 WHERE replace(lower(content),' ','') LIKE %s ORDER BY id DESC LIMIT 100''', (like,))
+    rows = rows_to_dicts(c); conn.close()
     for r in rows:
         p = products.get(r['barcode'], {})
         r.update({'name': p.get('name',''), 'author': p.get('author',''),
@@ -113,15 +122,16 @@ def search_comments(query):
     return rows
 
 def save_subscription(endpoint, p256dh, auth):
-    conn = data_db()
-    conn.execute('INSERT OR REPLACE INTO push_subscriptions(endpoint,p256dh,auth) VALUES(?,?,?)',
-                 (endpoint, p256dh, auth))
+    conn = data_db(); c = conn.cursor()
+    c.execute('''INSERT INTO push_subscriptions(endpoint,p256dh,auth) VALUES(%s,%s,%s)
+                 ON CONFLICT(endpoint) DO UPDATE SET p256dh=EXCLUDED.p256dh, auth=EXCLUDED.auth''',
+              (endpoint, p256dh, auth))
     conn.commit(); conn.close()
 
 def get_subscriptions():
-    conn = data_db()
-    rows = [dict(r) for r in conn.execute('SELECT * FROM push_subscriptions')]
-    conn.close(); return rows
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT * FROM push_subscriptions')
+    rows = rows_to_dicts(c); conn.close(); return rows
 
 def send_push_notification(title, body):
     if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
@@ -143,66 +153,68 @@ def send_push_notification(title, body):
 
 def get_orders(barcode=''):
     conn = data_db(); c = conn.cursor()
-    if barcode: c.execute('SELECT * FROM orders WHERE barcode=? ORDER BY id DESC', (barcode,))
+    if barcode: c.execute('SELECT * FROM orders WHERE barcode=%s ORDER BY id DESC', (barcode,))
     else: c.execute('SELECT * FROM orders ORDER BY id DESC')
-    rows = [dict(r) for r in c.fetchall()]; conn.close(); return rows
+    rows = rows_to_dicts(c); conn.close(); return rows
 
 def add_order(data):
     conn = data_db(); c = conn.cursor()
     c.execute('''INSERT INTO orders(barcode,name,qty,order_date,payment,ordered,pickup_date,
-                 customer,phone,delivery,address,staff,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                 customer,phone,delivery,address,staff,note,created_at) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
               (data.get('barcode',''), data.get('name',''), data.get('qty',1),
                data.get('order_date',''), data.get('payment','미불'), data.get('ordered','미완료'),
                data.get('pickup_date',''), data.get('customer',''), data.get('phone',''),
                data.get('delivery','없음'), data.get('address',''),
                data.get('staff',''), data.get('note',''), data.get('created_at','')))
-    new_id = c.lastrowid; conn.commit(); conn.close(); return new_id
+    new_id = c.fetchone()[0]; conn.commit(); conn.close(); return new_id
 
 def update_order(data):
-    conn = data_db()
-    conn.execute('''UPDATE orders SET qty=?,order_date=?,payment=?,ordered=?,pickup_date=?,
-                    customer=?,phone=?,delivery=?,address=?,staff=?,note=? WHERE id=?''',
-                 (data.get('qty',1), data.get('order_date',''), data.get('payment','미불'),
-                  data.get('ordered','미완료'), data.get('pickup_date',''), data.get('customer',''),
-                  data.get('phone',''), data.get('delivery','없음'), data.get('address',''),
-                  data.get('staff',''), data.get('note',''), data['id']))
+    conn = data_db(); c = conn.cursor()
+    c.execute('''UPDATE orders SET qty=%s,order_date=%s,payment=%s,ordered=%s,pickup_date=%s,
+                 customer=%s,phone=%s,delivery=%s,address=%s,staff=%s,note=%s WHERE id=%s''',
+              (data.get('qty',1), data.get('order_date',''), data.get('payment','미불'),
+               data.get('ordered','미완료'), data.get('pickup_date',''), data.get('customer',''),
+               data.get('phone',''), data.get('delivery','없음'), data.get('address',''),
+               data.get('staff',''), data.get('note',''), data['id']))
     conn.commit(); conn.close()
 
 def delete_order(order_id):
-    conn = data_db()
-    conn.execute('DELETE FROM orders WHERE id=?', (order_id,))
+    conn = data_db(); c = conn.cursor()
+    c.execute('DELETE FROM orders WHERE id=%s', (order_id,))
     conn.commit(); conn.close()
 
 def get_issues():
     conn = data_db(); c = conn.cursor()
     c.execute('SELECT * FROM issues ORDER BY id DESC')
-    rows = [dict(r) for r in c.fetchall()]; conn.close(); return rows
+    rows = rows_to_dicts(c); conn.close(); return rows
 
 def add_issue(data):
     conn = data_db(); c = conn.cursor()
-    c.execute('INSERT INTO issues(title,occurred_at,ended_at,content,status,created_at) VALUES(?,?,?,?,?,?)',
-              (data.get('title',''), data.get('occurred_at',''), data.get('ended_at',''), data.get('content',''), '진행중', data.get('created_at','')))
-    new_id = c.lastrowid; conn.commit(); conn.close(); return new_id
+    c.execute('INSERT INTO issues(title,occurred_at,ended_at,content,status,created_at) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id',
+              (data.get('title',''), data.get('occurred_at',''), data.get('ended_at',''),
+               data.get('content',''), '진행중', data.get('created_at','')))
+    new_id = c.fetchone()[0]; conn.commit(); conn.close(); return new_id
 
 def update_issue(data):
-    conn = data_db()
-    conn.execute('UPDATE issues SET title=?,occurred_at=?,ended_at=?,content=? WHERE id=?',
-                 (data.get('title',''), data.get('occurred_at',''), data.get('ended_at',''), data.get('content',''), data['id']))
+    conn = data_db(); c = conn.cursor()
+    c.execute('UPDATE issues SET title=%s,occurred_at=%s,ended_at=%s,content=%s WHERE id=%s',
+              (data.get('title',''), data.get('occurred_at',''), data.get('ended_at',''),
+               data.get('content',''), data['id']))
     conn.commit(); conn.close()
 
 def set_issue_status(issue_id, status):
-    conn = data_db()
-    conn.execute('UPDATE issues SET status=? WHERE id=?', (status, issue_id))
+    conn = data_db(); c = conn.cursor()
+    c.execute('UPDATE issues SET status=%s WHERE id=%s', (status, issue_id))
     conn.commit(); conn.close()
 
 def delete_issue(issue_id):
-    conn = data_db()
-    conn.execute('DELETE FROM issues WHERE id=?', (issue_id,))
+    conn = data_db(); c = conn.cursor()
+    c.execute('DELETE FROM issues WHERE id=%s', (issue_id,))
     conn.commit(); conn.close()
 
 def toggle_complete(order_id):
-    conn = data_db()
-    conn.execute('UPDATE orders SET completed=1-completed WHERE id=?', (order_id,))
+    conn = data_db(); c = conn.cursor()
+    c.execute('UPDATE orders SET completed=1-completed WHERE id=%s', (order_id,))
     conn.commit(); conn.close()
 
 class Handler(BaseHTTPRequestHandler):
@@ -233,23 +245,8 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/push/debug':
             self.send_json({'count': len(get_subscriptions()), 'vapid_key_set': bool(VAPID_PUBLIC_KEY)})
         elif parsed.path == '/api/dbinfo':
-            import subprocess
-            data_dir = os.path.dirname(os.path.abspath(DATA_DB_PATH))
-            db_exists = os.path.exists(DATA_DB_PATH)
-            db_size = os.path.getsize(DATA_DB_PATH) if db_exists else 0
-            try:
-                mounts = open('/proc/mounts').read()
-                data_mounted = '/data' in mounts
-            except:
-                data_mounted = None
-            self.send_json({
-                'DATA_DB_PATH': DATA_DB_PATH,
-                'data_dir_exists': os.path.exists(data_dir),
-                'db_file_exists': db_exists,
-                'db_size_bytes': db_size,
-                'data_mounted': data_mounted,
-                'data_dir_contents': os.listdir(data_dir) if os.path.exists(data_dir) else [],
-            })
+            db_url = os.environ.get('DATABASE_URL', '')
+            self.send_json({'DATABASE_URL_set': bool(db_url), 'backend': 'postgresql'})
         elif parsed.path == '/api/issues':
             self.send_json(get_issues())
         elif parsed.path == '/api/orders':
@@ -298,7 +295,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(404); self.end_headers()
 
     def send_json(self, data):
-        body = json.dumps(data, ensure_ascii=False).encode('utf-8')
+        body = json.dumps(data, ensure_ascii=False, default=str).encode('utf-8')
         self.send_response(200)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Content-Length', len(body))
@@ -322,18 +319,16 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    # /data 디렉토리 확보
-    os.makedirs(os.path.dirname(os.path.abspath(DATA_DB_PATH)), exist_ok=True)
-    print(f'데이터 DB 경로: {DATA_DB_PATH}')
     # 상품 DB 없으면 다운로드
     if not os.path.exists(DB_PATH):
         import urllib.request
-        os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
         print('상품 DB 다운로드 중...')
         urllib.request.urlretrieve(
             'https://github.com/eulgilees/sangpum-catalog/releases/download/v1.0/products.db', DB_PATH)
         print('다운로드 완료!')
+    print('PostgreSQL 테이블 초기화...')
     init_tables()
+    print('PostgreSQL 연결 성공!')
     port = int(os.environ.get('PORT', 8747))
     print(f'서버 시작: http://localhost:{port}')
     HTTPServer(('', port), Handler).serve_forever()
