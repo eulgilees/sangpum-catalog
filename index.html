@@ -1507,7 +1507,7 @@ function openIssueList() {
   document.getElementById('issue-list-overlay').classList.add('open');
   loadIssueList();
 }
-function closeIssueList() { document.getElementById('issue-list-overlay').classList.remove('open'); }
+function closeIssueList() { document.getElementById('issue-list-overlay').classList.remove('open'); checkActiveIssues(); }
 
 function openIssueForm(issue=null) {
   issueFormId = issue ? issue.id : null;
@@ -1571,6 +1571,7 @@ function openIssueFormById(id) {
 async function setIssueStatus(id, status) {
   await fetch('/api/issues/status', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, status})});
   loadIssueList();
+  checkActiveIssues();
 }
 
 async function deleteIssue(id) {
