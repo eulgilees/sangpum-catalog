@@ -307,6 +307,12 @@
         <button class="order-close" onclick="closeOrderList()"><i class="ti ti-x"></i></button>
       </div>
     </div>
+    <div style="padding:0 0 12px; position:relative;">
+      <i class="ti ti-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#888;font-size:16px;"></i>
+      <input type="text" id="order-search-input" placeholder="상품명, 고객명, 연락처 검색..."
+        oninput="filterOrders()"
+        style="width:100%;padding:10px 12px 10px 36px;border:1px solid #d4d4ce;border-radius:10px;font-size:14px;outline:none;background:#f5f5f3;">
+    </div>
     <div id="order-list-container"><div class="order-empty">주문 내역이 없습니다</div></div>
   </div>
 </div>
@@ -1109,13 +1115,29 @@ async function submitOrder() {
 
 async function openOrderList() {
   document.getElementById('order-list-overlay').classList.add('open');
+  document.getElementById('order-search-input').value = '';
   await loadOrderList();
 }
 function closeOrderList() { document.getElementById('order-list-overlay').classList.remove('open'); }
 
+function filterOrders() {
+  const q = document.getElementById('order-search-input').value.trim().toLowerCase().replace(/ /g,'');
+  if (!q) { renderOrderList(window._orders || []); return; }
+  const filtered = (window._orders || []).filter(o =>
+    [o.name, o.customer, o.phone, o.barcode, o.staff, o.note, o.address]
+      .some(v => v && v.toLowerCase().replace(/ /g,'').includes(q))
+  );
+  renderOrderList(filtered);
+}
+
 async function loadOrderList() {
   const res = await fetch('/api/orders');
   const orders = await res.json();
+  window._orders = orders;
+  renderOrderList(orders);
+}
+
+function renderOrderList(orders) {
   const container = document.getElementById('order-list-container');
   if (!orders.length) { container.innerHTML = '<div class="order-empty">주문 내역이 없습니다</div>'; return; }
   container.innerHTML = orders.map(o => `
@@ -1141,7 +1163,6 @@ async function loadOrderList() {
       </div>
     </div>
   `).join('');
-  window._orders = orders;
 }
 
 async function editOrder(id) {
