@@ -17,8 +17,12 @@ VAPID_EMAIL       = os.environ.get('VAPID_EMAIL', 'mailto:admin@example.com')
 
 # ── PostgreSQL 연결 ──────────────────────────────────────────────
 def pg():
-    import psycopg2, psycopg2.extras
-    conn = psycopg2.connect(DATABASE_URL)
+    import psycopg2
+    url = DATABASE_URL
+    # postgres:// → postgresql:// 변환
+    if url.startswith('postgres://'):
+        url = 'postgresql://' + url[len('postgres://'):]
+    conn = psycopg2.connect(url, sslmode='require')
     return conn
 
 def pg_row(cur):
