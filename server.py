@@ -6,7 +6,9 @@ import os
 import re
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
+import time
 IMAGES_DIR = 'images'
+START_TIME = str(int(time.time()))  # 배포마다 달라지는 버전
 DB_PATH = os.environ.get('DB_PATH', 'products.db')
 # 주문·댓글·알림 데이터는 별도 파일에 저장 (배포해도 절대 안 날아감)
 DATA_DB_PATH = os.environ.get('DATA_DB_PATH', '/data/orders.db')
@@ -234,6 +236,9 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/comments':
             barcode = params.get('barcode', [''])[0]
             self.send_json(get_comments(barcode))
+
+        elif parsed.path == '/api/version':
+            self.send_json({'version': START_TIME})
 
         elif parsed.path == '/api/push/key':
             self.send_json({'publicKey': VAPID_PUBLIC_KEY})

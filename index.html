@@ -906,22 +906,22 @@ document.addEventListener('click', e => {
 });
 
 let swReg = null;
-let _refreshing = false;
-if ('serviceWorker' in navigator) {
-  // controllerchange = 새 SW가 활성화될 때 확실하게 발동
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (_refreshing) return;
-    _refreshing = true;
-    if (confirm('🆕 새 버전이 업데이트되었습니다!\n새로고침 하시겠습니까?')) {
-      location.reload();
+// 버전 체크: 배포 감지
+let _appVersion = null;
+async function checkAppVersion() {
+  try {
+    const { version } = await fetch('/api/version?t=' + Date.now()).then(r => r.json());
+    if (_appVersion === null) { _appVersion = version; return; }
+    if (_appVersion !== version) {
+      if (confirm('🆕 새 버전이 업데이트되었습니다!\n새로고침 하시겠습니까?')) location.reload();
     }
-  });
+  } catch(e) {}
+}
+checkAppVersion();
+setInterval(checkAppVersion, 30 * 1000);
 
+if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(async reg => {
-    // 앱 열 때마다 업데이트 강제 확인
-    reg.update();
-    // 5분마다 백그라운드 체크
-    setInterval(() => reg.update(), 5 * 60 * 1000);
 
     if (!('PushManager' in window)) return;
     swReg = reg;
