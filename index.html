@@ -2215,7 +2215,8 @@ async function initAuth() {
     if (!currentUser) showAuthScreen();
     return;
   }
-  const data = await res.json();
+  const data = await res.json().catch(() => null);
+  if (!data) return; // 서버 오류 시 현재 상태 유지
   if (data.ok) {
     currentUser = data.user;
     localStorage.setItem('cachedUser', JSON.stringify(data.user));
