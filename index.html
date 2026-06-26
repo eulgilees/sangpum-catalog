@@ -2190,6 +2190,7 @@ function hideAuthScreen() {
   document.getElementById('logout-btn').style.display = 'flex';
   document.getElementById('push-btn').style.display = 'flex';
   linkPushToUser();
+  checkActiveIssues();
   // 채팅 목록 미리 로드 (백그라운드)
   loadChatRooms();
   const btn = document.getElementById('profile-btn');
