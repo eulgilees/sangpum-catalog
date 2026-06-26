@@ -1447,9 +1447,7 @@ async function checkAppVersion() {
     const stored = localStorage.getItem('appVersion');
     if (stored && stored !== version) {
       localStorage.setItem('appVersion', version);
-      if (confirm('🆕 새 버전이 업데이트되었습니다!\n확인을 누르면 최신 버전으로 새로고침됩니다.')) {
-        location.reload();
-      }
+      location.reload();
     } else {
       localStorage.setItem('appVersion', version);
     }
