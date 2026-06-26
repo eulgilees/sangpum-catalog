@@ -1941,7 +1941,7 @@ function renderOrderList(orders) {
         <div><span style="color:#aaa;font-size:11px;">수량</span><br><b>${esc(String(o.qty))}부</b></div>
         <div><span style="color:#aaa;font-size:11px;">담당</span><br><b>${esc(o.staff||'—')}</b></div>
       </div>
-      ${o.customer ? `<div style="font-size:13px;color:#5f5e5a;margin-bottom:6px;">👤 ${esc(o.customer)}${o.phone?' · '+esc(o.phone):''}</div>` : ''}
+      <div style="font-size:13px;color:${o.customer?'#5f5e5a':'#aaa'};margin-bottom:6px;">👤 ${o.customer ? esc(o.customer)+(o.phone?' · '+esc(o.phone):'') : '고객정보 미입력'}</div>
       ${o.delivery==='발송' ? `<div style="font-size:13px;color:#5f5e5a;margin-bottom:6px;">📦 택배 발송${o.address?' · '+esc(o.address):''}</div>` : ''}
       ${o.note ? `<div class="order-item-note">📝 ${esc(o.note)}</div>` : ''}
       <div class="order-item-actions">
