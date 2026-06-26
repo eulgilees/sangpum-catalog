@@ -299,7 +299,13 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'ok': True})
 
         elif self.path == '/api/push/subscribe':
-            save_subscription(body['endpoint'], body['keys']['p256dh'], body['keys']['auth'])
+            ep = body.get('endpoint', '')
+            keys = body.get('keys', {})
+            print(f'[PUSH] 구독 요청: endpoint={ep[:60]}')
+            print(f'[PUSH] keys 존재: p256dh={bool(keys.get("p256dh"))}, auth={bool(keys.get("auth"))}')
+            save_subscription(ep, keys.get('p256dh',''), keys.get('auth',''))
+            total = len(get_subscriptions())
+            print(f'[PUSH] 저장 완료. 총 구독자: {total}명')
             self.send_json({'ok': True})
 
         elif self.path == '/api/orders':

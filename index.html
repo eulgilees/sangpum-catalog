@@ -921,12 +921,27 @@ function setPushIcon(on) {
   icon.parentElement.title = on ? '알림 켜짐 (탭하면 끄기)' : '알림 끄기 상태 (탭하면 켜기)';
 }
 
+function showToast(msg, ok) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;z-index:9999;max-width:80vw;text-align:center;transition:opacity 0.3s;';
+    document.body.appendChild(t);
+  }
+  t.style.background = ok ? '#2d7a1f' : '#c0392b';
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
+
 async function requestPush() {
   const btn = document.getElementById('push-btn');
   btn.disabled = true;
   try {
-    if (!('PushManager' in window)) {
-      alert('푸시 알림 미지원 환경입니다.\n홈 화면에 추가한 앱에서 실행해주세요.');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      showToast('❌ 홈 화면 앱에서만 알림을 사용할 수 있습니다', false);
       return;
     }
     const reg = swReg || await navigator.serviceWorker.ready;
@@ -935,16 +950,17 @@ async function requestPush() {
     if (existing) {
       await existing.unsubscribe();
       setPushIcon(false);
+      showToast('🔕 알림을 껐습니다', false);
       return;
     }
     // 구독 시작
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      alert('알림 권한이 거부되었습니다.\n설정 > Safari > 알림에서 허용해주세요.');
+      showToast('❌ 알림 권한이 거부됨. 설정 > Safari > 알림 확인', false);
       return;
     }
     const { publicKey } = await fetch('/api/push/key').then(r => r.json());
-    if (!publicKey) { alert('서버 오류: VAPID 키 없음'); return; }
+    if (!publicKey) { showToast('❌ 서버 오류: VAPID 키 없음', false); return; }
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicKey)
@@ -957,8 +973,9 @@ async function requestPush() {
     const data = await res.json();
     if (!data.ok) throw new Error('서버 저장 실패');
     setPushIcon(true);
+    showToast('🔔 알림이 켜졌습니다!', true);
   } catch(e) {
-    alert('알림 설정 오류: ' + e.message);
+    showToast('❌ 오류: ' + e.message, false);
   } finally {
     btn.disabled = false;
   }
