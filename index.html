@@ -410,7 +410,7 @@
       <button id="logout-btn" class="header-refresh" onclick="doLogout()" title="로그아웃" style="display:none;">
         <i class="ti ti-logout"></i>
       </button>
-      <button id="push-btn" class="header-refresh" onclick="requestPush()" title="알림">
+      <button id="push-btn" class="header-refresh" onclick="requestPush()" title="알림" style="display:none;">
         <i class="ti ti-bell-off" id="push-icon"></i>
       </button>
       <button class="header-refresh" onclick="location.reload()" title="새로고침">
@@ -2166,6 +2166,7 @@ function showAuthScreen() {
 function hideAuthScreen() {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('logout-btn').style.display = 'flex';
+  document.getElementById('push-btn').style.display = 'flex';
   const btn = document.getElementById('profile-btn');
   btn.style.display = 'block';
   btn.textContent = (currentUser?.display_name || '') + (currentUser?.store ? ' · ' + currentUser.store : '');
@@ -2219,6 +2220,7 @@ async function doLogout() {
   }
   currentUser = null;
   document.getElementById('logout-btn').style.display = 'none';
+  document.getElementById('push-btn').style.display = 'none';
   showAuthScreen();
 }
 function showRegister() {
