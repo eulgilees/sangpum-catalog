@@ -6,6 +6,8 @@ import os
 import re
 import time
 import ssl
+import hashlib
+import secrets
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 IMAGES_DIR = 'images'
@@ -75,6 +77,18 @@ def init_tables():
         id SERIAL PRIMARY KEY,
         content TEXT DEFAULT '', date TEXT DEFAULT '',
         status TEXT DEFAULT '미처리', created_at TEXT DEFAULT ''
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        display_name TEXT DEFAULT '',
+        created_at TEXT DEFAULT ''
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS sessions (
+        token TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        expires_at BIGINT NOT NULL
     )''')
     conn.commit(); conn.close()
 
@@ -288,6 +302,61 @@ def toggle_complete(order_id):
     c.execute('UPDATE orders SET completed=1-completed WHERE id=%s', (order_id,))
     conn.commit(); conn.close()
 
+def hash_password(pw):
+    salt = secrets.token_hex(16)
+    h = hashlib.pbkdf2_hmac('sha256', pw.encode(), salt.encode(), 100000).hex()
+    return f'{salt}${h}'
+
+def verify_password(pw, stored):
+    try:
+        salt, h = stored.split('$')
+        return hashlib.pbkdf2_hmac('sha256', pw.encode(), salt.encode(), 100000).hex() == h
+    except: return False
+
+def register_user(username, password, display_name):
+    conn = data_db(); c = conn.cursor()
+    try:
+        c.execute('INSERT INTO users (username, password_hash, display_name, created_at) VALUES (%s,%s,%s,%s) RETURNING id',
+                  (username.strip(), hash_password(password), display_name.strip(), str(int(time.time()))))
+        user_id = c.fetchone()[0]
+        conn.commit()
+        return {'id': user_id, 'username': username, 'display_name': display_name}
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally: conn.close()
+
+def login_user(username, password):
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT id, username, display_name, password_hash FROM users WHERE username=%s', (username.strip(),))
+    rows = rows_to_dicts(c); conn.close()
+    if not rows: return None
+    u = rows[0]
+    if not verify_password(password, u['password_hash']): return None
+    return {'id': u['id'], 'username': u['username'], 'display_name': u['display_name']}
+
+def create_session(user_id):
+    token = secrets.token_hex(32)
+    expires = int(time.time()) + 30 * 24 * 3600  # 30일
+    conn = data_db(); c = conn.cursor()
+    c.execute('INSERT INTO sessions (token, user_id, expires_at) VALUES (%s,%s,%s)', (token, user_id, expires))
+    conn.commit(); conn.close()
+    return token
+
+def verify_session(token):
+    if not token: return None
+    conn = data_db(); c = conn.cursor()
+    c.execute('''SELECT u.id, u.username, u.display_name FROM sessions s
+                 JOIN users u ON u.id = s.user_id
+                 WHERE s.token=%s AND s.expires_at > %s''', (token, int(time.time())))
+    rows = rows_to_dicts(c); conn.close()
+    return rows[0] if rows else None
+
+def delete_session(token):
+    conn = data_db(); c = conn.cursor()
+    c.execute('DELETE FROM sessions WHERE token=%s', (token,))
+    conn.commit(); conn.close()
+
 def fetch_schedule(year_short, month):
     import urllib.request, csv, io
     sheet_name = f'{year_short}년 {month}월'
@@ -383,6 +452,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(get_suggestions())
         elif parsed.path == '/api/issues':
             self.send_json(get_issues())
+        elif parsed.path == '/api/auth/me':
+            token = self.headers.get('X-Token','')
+            user = verify_session(token)
+            if user: self.send_json({'ok': True, 'user': user})
+            else: self.send_json({'ok': False})
         elif parsed.path == '/api/schedule':
             try:
                 now = time.localtime()
@@ -405,7 +479,33 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get('Content-Length', 0))
         body = json.loads(self.rfile.read(length))
 
-        if self.path == '/api/comments':
+        if self.path == '/api/auth/register':
+            try:
+                username = body.get('username','').strip()
+                password = body.get('password','').strip()
+                display_name = body.get('display_name','').strip()
+                if not username or not password or not display_name:
+                    self.send_json({'ok': False, 'error': '모든 항목을 입력해주세요'}); return
+                if len(password) < 4:
+                    self.send_json({'ok': False, 'error': '비밀번호는 4자 이상이어야 합니다'}); return
+                user = register_user(username, password, display_name)
+                token = create_session(user['id'])
+                self.send_json({'ok': True, 'token': token, 'user': user})
+            except Exception as e:
+                msg = str(e)
+                if 'unique' in msg.lower() or 'duplicate' in msg.lower():
+                    self.send_json({'ok': False, 'error': '이미 사용 중인 아이디입니다'})
+                else:
+                    self.send_json({'ok': False, 'error': '오류가 발생했습니다'})
+        elif self.path == '/api/auth/login':
+            user = login_user(body.get('username',''), body.get('password',''))
+            if not user: self.send_json({'ok': False, 'error': '아이디 또는 비밀번호가 틀렸습니다'}); return
+            token = create_session(user['id'])
+            self.send_json({'ok': True, 'token': token, 'user': user})
+        elif self.path == '/api/auth/logout':
+            delete_session(self.headers.get('X-Token',''))
+            self.send_json({'ok': True})
+        elif self.path == '/api/comments':
             self.send_json({'ok': True, 'id': add_comment(body['barcode'], body['content'], body['created_at'], body.get('parent_id'))})
         elif self.path == '/api/comments/delete':
             delete_comment(body['id']); self.send_json({'ok': True})
