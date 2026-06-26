@@ -17,7 +17,8 @@ VAPID_EMAIL       = os.environ.get('VAPID_EMAIL', 'mailto:admin@example.com')
 
 def data_db():
     import pg8000.dbapi as pg
-    url = (os.environ.get('DATABASE_URL') or
+    url = (os.environ.get('PG_URL') or
+           os.environ.get('DATABASE_URL') or
            os.environ.get('DATABASE_PUBLIC_URL') or '')
     if url:
         r = urllib.parse.urlparse(url)
@@ -333,8 +334,8 @@ if __name__ == '__main__':
         urllib.request.urlretrieve(
             'https://github.com/eulgilees/sangpum-catalog/releases/download/v1.0/products.db', DB_PATH)
         print('다운로드 완료!')
-    db_url_val = os.environ.get('DATABASE_URL', 'NOT_SET')
-    print(f'=== DATABASE_URL 값 === [{db_url_val[:50] if db_url_val else "EMPTY"}]')
+    pg_url_val = os.environ.get('PG_URL', 'NOT_SET')
+    print(f'=== PG_URL 값 === [{pg_url_val[:30] if pg_url_val != "NOT_SET" else "NOT_SET"}]')
     print('PostgreSQL 테이블 초기화...')
     init_tables()
     print('PostgreSQL 연결 성공!')
