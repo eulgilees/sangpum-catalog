@@ -1484,11 +1484,22 @@ async function checkUpcomingOrders() {
 }
 checkUpcomingOrders();
 
+function getViewedIssueIds() {
+  try { return new Set(JSON.parse(localStorage.getItem('viewedIssueIds') || '[]')); } catch(e) { return new Set(); }
+}
+function markIssuesViewed(ids) {
+  const viewed = getViewedIssueIds();
+  ids.forEach(id => viewed.add(String(id)));
+  localStorage.setItem('viewedIssueIds', JSON.stringify([...viewed]));
+}
+
 async function checkActiveIssues() {
   try {
     const issues = await fetch('/api/issues').then(r => r.json());
-    const hasActive = issues.some(issue => issue.status === '진행중');
-    document.querySelector('.header-logo').classList.toggle('issue-alert', hasActive);
+    const activeIds = issues.filter(i => i.status === '진행중').map(i => String(i.id));
+    const viewed = getViewedIssueIds();
+    const hasUnread = activeIds.some(id => !viewed.has(id));
+    document.querySelector('.header-logo').classList.toggle('issue-alert', hasUnread);
   } catch(e) {}
 }
 checkActiveIssues();
@@ -2037,6 +2048,9 @@ async function submitIssue() {
 
 async function loadIssueList() {
   const issues = await fetch('/api/issues').then(r => r.json());
+  // 진행중 이슈 전부 읽음 처리 → 헤더 로고 원래 색으로
+  const activeIds = issues.filter(i => i.status === '진행중').map(i => String(i.id));
+  if (activeIds.length) { markIssuesViewed(activeIds); checkActiveIssues(); }
   const container = document.getElementById('issue-list-container');
   if (!issues.length) { container.innerHTML = '<div class="order-empty">이슈사항이 없습니다</div>'; return; }
   container.innerHTML = issues.map(is => `
