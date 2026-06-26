@@ -401,7 +401,7 @@
 </div>
 
 
-<div class="header-top" style="position:fixed;top:0;left:0;right:0;z-index:500;background:#fff;border-bottom:1px solid #e5e5e0;padding:0 20px;">
+<div class="header-top" style="position:fixed;top:0;left:0;right:0;z-index:9000;background:#fff;border-bottom:1px solid #e5e5e0;padding:0 20px;">
     <div class="header-logo" onclick="unlockScroll();closeOrderForm();closeOrderList();closeIssueList();closeIssueForm();closeAsList();closeAsForm();closeSuggestionList();closeSchedule();closeGuide();closeChat();window.scrollTo({top:0,behavior:'smooth'});" style="cursor:pointer;">
       <i class="ti ti-barcode"></i>
       <span>상품 조회</span>
@@ -739,7 +739,7 @@
 </div>
 
 <!-- 휴무일정 모달 -->
-<div id="schedule-overlay" style="display:none;position:fixed;inset:0;background:#fff;z-index:1100;flex-direction:column;">
+<div id="schedule-overlay" style="display:none;position:fixed;inset:0;top:50px;background:#fff;z-index:1100;flex-direction:column;">
   <div style="display:flex;flex-direction:column;height:100%;width:100%;max-width:640px;margin:0 auto;">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid #f0f0ec;">
       <button onclick="closeSchedule()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;padding:0;line-height:1;"><i class="ti ti-arrow-left"></i></button>
@@ -2941,7 +2941,7 @@ window.addEventListener('load', () => {
 </script>
 
 <!-- 채팅 오버레이 -->
-<div id="chat-overlay" style="display:none;position:fixed;inset:0;height:100dvh;background:#f5f5f3;z-index:8000;flex-direction:column;">
+<div id="chat-overlay" style="display:none;position:fixed;inset:0;top:50px;height:calc(100dvh - 50px);background:#f5f5f3;z-index:8000;flex-direction:column;">
 
   <!-- 채팅 목록 -->
   <div id="chat-list-view" style="display:flex;flex-direction:column;height:100%;">
