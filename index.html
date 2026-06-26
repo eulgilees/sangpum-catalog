@@ -2365,6 +2365,7 @@ let chatPollTimer = null;
 let chatLastMsgId = 0;
 let chatAllUsers = [];
 let chatSending = false;
+const chatMsgCache = {}; // room_id → {msgs: [], lastId: 0}
 
 function openChat() {
   lockScroll();
@@ -2468,12 +2469,25 @@ async function openChatRoom(roomId, name, store) {
 }
 function enterChatRoom(roomId, name, store) {
   chatRoomId = roomId;
-  chatLastMsgId = 0;
   document.getElementById('chat-room-title').textContent = name;
   document.getElementById('chat-room-subtitle').textContent = store;
   document.getElementById('chat-room-view').style.display = 'flex';
-  document.getElementById('chat-messages-area').innerHTML = '';
   document.getElementById('chat-input').value = '';
+
+  const area = document.getElementById('chat-messages-area');
+  area.innerHTML = '';
+
+  // 캐시된 메시지 즉시 표시
+  const cache = chatMsgCache[roomId];
+  if (cache && cache.msgs.length) {
+    cache.msgs.forEach(m => appendChatBubble(m));
+    chatLastMsgId = cache.lastId;
+    area.scrollTop = area.scrollHeight;
+  } else {
+    chatLastMsgId = 0;
+    area.innerHTML = '<div style="text-align:center;color:#ccc;padding:32px;font-size:13px;">메시지를 불러오는 중...</div>';
+  }
+
   loadChatMessages(true);
   startChatPoll();
 }
@@ -2484,9 +2498,18 @@ async function loadChatMessages(initial = false) {
   if (!data.ok || !data.messages.length) return;
   const area = document.getElementById('chat-messages-area');
   const atBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 60;
+  // 처음 로드 시 로딩 텍스트 제거
+  if (initial) area.innerHTML = '';
+
   data.messages.forEach(m => {
     chatLastMsgId = Math.max(chatLastMsgId, m.id);
     appendChatBubble(m);
+    // 캐시 업데이트
+    if (!chatMsgCache[chatRoomId]) chatMsgCache[chatRoomId] = { msgs: [], lastId: 0 };
+    chatMsgCache[chatRoomId].msgs.push(m);
+    chatMsgCache[chatRoomId].lastId = chatLastMsgId;
+    // 캐시 최대 100개 유지
+    if (chatMsgCache[chatRoomId].msgs.length > 100) chatMsgCache[chatRoomId].msgs.shift();
   });
   if (initial || atBottom) area.scrollTop = area.scrollHeight;
 }
