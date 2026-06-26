@@ -544,14 +544,13 @@
       <input class="order-input" id="if-title" placeholder="이슈 제목을 입력하세요">
     </div>
     <div class="order-field">
-      <div class="order-label">발생일</div>
+      <div class="order-label">발생일 — 종료일</div>
       <input type="hidden" id="if-date">
-      <button type="button" id="if-date-btn" onclick="showDatePicker('if-date','발생일')" class="order-input" style="text-align:left;cursor:pointer;color:#aaa;width:100%;">발생일 선택</button>
-    </div>
-    <div class="order-field">
-      <div class="order-label">종료일</div>
       <input type="hidden" id="if-end-date">
-      <button type="button" id="if-end-date-btn" onclick="showDatePicker('if-end-date','종료일')" class="order-input" style="text-align:left;cursor:pointer;color:#aaa;width:100%;">종료일 선택</button>
+      <div style="display:flex;gap:8px;">
+        <button type="button" id="if-date-btn" onclick="showDatePicker('if-date','발생일')" class="order-input" style="flex:1;text-align:left;cursor:pointer;color:#aaa;">발생일 선택</button>
+        <button type="button" id="if-end-date-btn" onclick="showDatePicker('if-end-date','종료일')" class="order-input" style="flex:1;text-align:left;cursor:pointer;color:#aaa;">종료일 선택</button>
+      </div>
     </div>
     <div class="order-field">
       <div class="order-label">내용</div>
