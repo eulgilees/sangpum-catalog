@@ -160,6 +160,25 @@
     /* 이슈사항 */
     .issue-badge-active { background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:6px; font-size:11px; padding:2px 7px; font-weight:600; }
     .issue-badge-closed { background:#f0f0ec; color:#888; border:1px solid #d4d4ce; border-radius:6px; font-size:11px; padding:2px 7px; }
+    /* 이슈 달력 */
+    .issue-tab-bar { display:flex; border-bottom:1px solid #eee; margin-bottom:16px; }
+    .issue-tab { flex:1; padding:10px; font-size:14px; font-weight:500; background:none; border:none; cursor:pointer; color:#888; border-bottom:2px solid transparent; }
+    .issue-tab.active { color:#185fa5; border-bottom:2px solid #185fa5; }
+    .issue-cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .issue-cal-nav button { background:none; border:none; cursor:pointer; font-size:20px; color:#555; padding:4px 8px; }
+    .issue-cal-nav span { font-size:15px; font-weight:600; }
+    .issue-cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:1px; margin-bottom:8px; }
+    .issue-cal-dow { text-align:center; font-size:11px; color:#888; padding:4px 0; }
+    .issue-cal-day { min-height:36px; text-align:center; font-size:12px; padding:4px 2px 2px; position:relative; }
+    .issue-cal-day.today .day-num { background:#185fa5; color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; margin:0 auto; }
+    .issue-cal-day.other-month .day-num { color:#ccc; }
+    .day-num { width:22px; height:22px; display:flex; align-items:center; justify-content:center; margin:0 auto; font-size:12px; }
+    .issue-cal-bar { height:5px; border-radius:3px; margin-top:2px; font-size:0; }
+    .issue-cal-bar.active-bar { background:#e03131; }
+    .issue-cal-bar.closed-bar { background:#adb5bd; }
+    .issue-cal-legend { display:flex; gap:16px; font-size:12px; color:#555; margin-top:8px; }
+    .issue-cal-legend span { display:flex; align-items:center; gap:5px; }
+    .issue-cal-legend b { display:inline-block; width:16px; height:5px; border-radius:3px; }
     .issue-item { background:#fff; border:1px solid #e5e5e0; border-radius:12px; padding:16px; margin-bottom:10px; }
     .issue-item.closed { background:#f8f8f6; opacity:0.7; }
     .issue-title { font-size:15px; font-weight:600; margin-bottom:6px; }
@@ -372,7 +391,30 @@
         <button class="order-close" onclick="closeIssueList()"><i class="ti ti-x"></i></button>
       </div>
     </div>
+    <div class="issue-tab-bar">
+      <button class="issue-tab active" id="tab-list" onclick="switchIssueTab('list')">목록</button>
+      <button class="issue-tab" id="tab-cal" onclick="switchIssueTab('cal')">달력</button>
+    </div>
     <div id="issue-list-container" style="flex:1;"><div class="order-empty">이슈사항이 없습니다</div></div>
+    <div id="issue-cal-container" style="display:none;flex:1;">
+      <div class="issue-cal-nav">
+        <button onclick="moveIssueMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+        <span id="issue-cal-title"></span>
+        <button onclick="moveIssueMonth(1)"><i class="ti ti-chevron-right"></i></button>
+      </div>
+      <div class="issue-cal-grid" id="issue-cal-dow">
+        <div class="issue-cal-dow" style="color:#e03131">일</div>
+        <div class="issue-cal-dow">월</div><div class="issue-cal-dow">화</div>
+        <div class="issue-cal-dow">수</div><div class="issue-cal-dow">목</div>
+        <div class="issue-cal-dow">금</div>
+        <div class="issue-cal-dow" style="color:#185fa5">토</div>
+      </div>
+      <div class="issue-cal-grid" id="issue-cal-days"></div>
+      <div class="issue-cal-legend">
+        <span><b style="background:#e03131;"></b> 진행중</span>
+        <span><b style="background:#adb5bd;"></b> 종료</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1452,6 +1494,52 @@ async function deleteIssue(id) {
   if (!confirm('이슈를 삭제할까요?')) return;
   await fetch('/api/issues/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id})});
   loadIssueList();
+}
+
+let _issueCalYear, _issueCalMonth;
+
+function switchIssueTab(tab) {
+  document.getElementById('tab-list').classList.toggle('active', tab==='list');
+  document.getElementById('tab-cal').classList.toggle('active', tab==='cal');
+  document.getElementById('issue-list-container').style.display = tab==='list' ? '' : 'none';
+  document.getElementById('issue-cal-container').style.display = tab==='cal' ? '' : 'none';
+  if (tab==='cal') renderIssueCalendar();
+}
+
+function moveIssueMonth(dir) {
+  _issueCalMonth += dir;
+  if (_issueCalMonth > 11) { _issueCalMonth = 0; _issueCalYear++; }
+  if (_issueCalMonth < 0)  { _issueCalMonth = 11; _issueCalYear--; }
+  renderIssueCalendar();
+}
+
+function renderIssueCalendar() {
+  const issues = window._issues || [];
+  const today = new Date();
+  if (_issueCalYear === undefined) { _issueCalYear = today.getFullYear(); _issueCalMonth = today.getMonth(); }
+
+  const y = _issueCalYear, m = _issueCalMonth;
+  document.getElementById('issue-cal-title').textContent = `${y}년 ${m+1}월`;
+
+  const firstDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const pad = n => String(n).padStart(2,'0');
+  const dateStr = d => `${y}-${pad(m+1)}-${pad(d)}`;
+
+  let html = '';
+  for (let i = 0; i < firstDay; i++) html += '<div class="issue-cal-day other-month"><div class="day-num"></div></div>';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = dateStr(d);
+    const isToday = ds === `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+    const bars = issues.filter(is => {
+      const start = is.occurred_at || ds;
+      const end = is.ended_at || ds;
+      return ds >= start && ds <= end;
+    }).map(is => `<div class="issue-cal-bar ${is.status==='종료' ? 'closed-bar' : 'active-bar'}" title="${esc(is.title)}"></div>`).join('');
+    html += `<div class="issue-cal-day${isToday ? ' today' : ''}"><div class="day-num">${d}</div>${bars}</div>`;
+  }
+  document.getElementById('issue-cal-days').innerHTML = html;
 }
 </script>
 </body>
