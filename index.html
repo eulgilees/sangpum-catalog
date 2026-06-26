@@ -545,11 +545,15 @@
     </div>
     <div class="order-field">
       <div class="order-label">발생일 — 종료일</div>
-      <input type="hidden" id="if-date">
-      <input type="hidden" id="if-end-date">
       <div style="display:flex;gap:8px;">
-        <button type="button" id="if-date-btn" onclick="showDatePicker('if-date','발생일')" class="order-input" style="flex:1;text-align:left;cursor:pointer;color:#aaa;">발생일 선택</button>
-        <button type="button" id="if-end-date-btn" onclick="showDatePicker('if-end-date','종료일')" class="order-input" style="flex:1;text-align:left;cursor:pointer;color:#aaa;">종료일 선택</button>
+        <div style="flex:1;display:flex;gap:4px;">
+          <input class="order-input" id="if-date" type="text" placeholder="YYYY-MM-DD" style="flex:1;min-width:0;">
+          <button type="button" onclick="showDatePicker('if-date','발생일')" style="background:#f0f0ec;border:1px solid #d4d4ce;border-radius:10px;padding:0 10px;font-size:18px;cursor:pointer;flex-shrink:0;">📅</button>
+        </div>
+        <div style="flex:1;display:flex;gap:4px;">
+          <input class="order-input" id="if-end-date" type="text" placeholder="YYYY-MM-DD" style="flex:1;min-width:0;">
+          <button type="button" onclick="showDatePicker('if-end-date','종료일')" style="background:#f0f0ec;border:1px solid #d4d4ce;border-radius:10px;padding:0 10px;font-size:18px;cursor:pointer;flex-shrink:0;">📅</button>
+        </div>
       </div>
     </div>
     <div class="order-field">
