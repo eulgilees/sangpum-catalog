@@ -27,7 +27,10 @@
     .header-logo.issue-alert span { color: #e03131; }
     .header-refresh { background: none; border: none; cursor: pointer; padding: 6px; color: #aaa; font-size: 20px; line-height: 1; }
     .header-refresh:hover { color: #185fa5; }
-    .header-nav { display: flex; border-top: 1px solid #f0f0ec; }
+    .header-nav { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid #f0f0ec; }
+    .header-nav-btn + .header-nav-btn { border-left: none; }
+    .header-nav-btn:nth-child(n+4) { border-top: 1px solid #f0f0ec; }
+    .header-nav-btn:not(:nth-child(3n+1)) { border-left: 1px solid #f0f0ec; }
     .header-nav-btn { flex: 1; background: none; border: none; cursor: pointer; padding: 10px 4px; font-size: 13px; color: #5f5e5a; display: flex; flex-direction: column; align-items: center; gap: 3px; font-weight: 400; }
     .header-nav-btn i { font-size: 18px; color: #888; }
     .header-nav-btn:hover { color: #185fa5; }
