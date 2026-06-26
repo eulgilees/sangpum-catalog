@@ -537,28 +537,27 @@
 </div>
 
 <!-- 휴무일정 모달 -->
-<div class="order-overlay" id="schedule-overlay" onclick="if(event.target===this)closeSchedule()">
-  <div class="order-box" style="min-height:67vh;display:flex;flex-direction:column;">
-    <div class="order-header">
-      <h2>휴무일정</h2>
-      <button class="order-close" onclick="closeSchedule()"><i class="ti ti-x"></i></button>
+<div id="schedule-overlay" style="display:none;position:fixed;inset:0;background:#fff;z-index:1100;flex-direction:column;">
+  <div style="display:flex;flex-direction:column;height:100%;width:100%;max-width:640px;margin:0 auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid #f0f0ec;">
+      <button onclick="closeSchedule()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;padding:0;line-height:1;"><i class="ti ti-arrow-left"></i></button>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button onclick="scheduleMonthMove(-1)" style="background:none;border:none;font-size:22px;cursor:pointer;color:#555;padding:0;line-height:1;">&#8249;</button>
+        <span id="schedule-month-label" style="font-weight:700;font-size:16px;color:#222;min-width:80px;text-align:center;"></span>
+        <button onclick="scheduleMonthMove(1)" style="background:none;border:none;font-size:22px;cursor:pointer;color:#555;padding:0;line-height:1;">&#8250;</button>
+      </div>
+      <div style="display:flex;gap:0;border:1px solid #d4d4ce;border-radius:8px;overflow:hidden;">
+        <button id="sch-tab-list" onclick="switchScheduleTab('list')" style="background:#185fa5;color:#fff;border:none;padding:6px 14px;font-size:13px;cursor:pointer;">목록</button>
+        <button id="sch-tab-cal" onclick="switchScheduleTab('cal')" style="background:none;color:#555;border:none;padding:6px 14px;font-size:13px;cursor:pointer;">달력</button>
+      </div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 0;">
-      <button onclick="scheduleMonthMove(-1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:#555;">&#8249;</button>
-      <span id="schedule-month-label" style="font-weight:600;font-size:15px;color:#333;"></span>
-      <button onclick="scheduleMonthMove(1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:#555;">&#8250;</button>
-    </div>
-    <div style="display:flex;border-bottom:1px solid #eee;margin:8px 16px 0;">
-      <button id="sch-tab-list" class="issue-tab active" onclick="switchScheduleTab('list')">목록</button>
-      <button id="sch-tab-cal" class="issue-tab" onclick="switchScheduleTab('cal')">달력</button>
-    </div>
-    <div id="schedule-list-view" style="overflow-y:auto;flex:1;padding:12px 16px;"></div>
-    <div id="schedule-cal-view" style="display:none;padding:12px 16px;overflow-y:auto;flex:1;">
-      <input id="schedule-person-filter" type="text" placeholder="이름 검색 (예: 슬기)" oninput="renderScheduleCal()" style="width:100%;box-sizing:border-box;border:1px solid #d4d4ce;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px;outline:none;">
-      <div id="schedule-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-bottom:10px;"></div>
+    <div id="schedule-list-view" style="overflow-y:auto;flex:1;padding:14px 16px;"></div>
+    <div id="schedule-cal-view" style="display:none;padding:14px 16px;overflow-y:auto;flex:1;">
+      <input id="schedule-person-filter" type="text" placeholder="이름 검색 (예: 슬기)" oninput="renderScheduleCal()" style="width:100%;box-sizing:border-box;border:1px solid #d4d4ce;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:12px;outline:none;">
+      <div id="schedule-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;text-align:center;margin-bottom:12px;"></div>
       <div id="schedule-day-detail" style="margin-top:8px;"></div>
     </div>
-    <div id="schedule-loading" style="text-align:center;padding:40px;color:#888;">불러오는 중...</div>
+    <div id="schedule-loading" style="text-align:center;padding:60px;color:#888;">불러오는 중...</div>
   </div>
 </div>
 
@@ -1047,10 +1046,11 @@ function openSchedule() {
   const now = new Date();
   scheduleYear = now.getFullYear() % 100;
   scheduleMonth = now.getMonth() + 1;
-  document.getElementById('schedule-overlay').classList.add('open');
+  const el = document.getElementById('schedule-overlay');
+  el.style.display = 'flex';
   loadSchedule();
 }
-function closeSchedule() { document.getElementById('schedule-overlay').classList.remove('open'); }
+function closeSchedule() { document.getElementById('schedule-overlay').style.display = 'none'; }
 
 function scheduleMonthMove(dir) {
   scheduleMonth += dir;
@@ -1061,10 +1061,14 @@ function scheduleMonthMove(dir) {
 
 function switchScheduleTab(tab) {
   scheduleTab = tab;
-  document.getElementById('sch-tab-list').classList.toggle('active', tab === 'list');
-  document.getElementById('sch-tab-cal').classList.toggle('active', tab === 'cal');
-  document.getElementById('schedule-list-view').style.display = tab === 'list' ? '' : 'none';
-  document.getElementById('schedule-cal-view').style.display  = tab === 'cal'  ? '' : 'none';
+  const listBtn = document.getElementById('sch-tab-list');
+  const calBtn  = document.getElementById('sch-tab-cal');
+  listBtn.style.background = tab === 'list' ? '#185fa5' : 'none';
+  listBtn.style.color      = tab === 'list' ? '#fff' : '#555';
+  calBtn.style.background  = tab === 'cal'  ? '#185fa5' : 'none';
+  calBtn.style.color       = tab === 'cal'  ? '#fff' : '#555';
+  document.getElementById('schedule-list-view').style.display = tab === 'list' ? 'block' : 'none';
+  document.getElementById('schedule-cal-view').style.display  = tab === 'cal'  ? 'block' : 'none';
 }
 
 async function loadSchedule() {
