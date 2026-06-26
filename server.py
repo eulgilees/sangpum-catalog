@@ -63,6 +63,11 @@ def init_tables():
         staff TEXT DEFAULT '', note TEXT DEFAULT '',
         created_at TEXT DEFAULT '', completed INTEGER DEFAULT 0
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS suggestions (
+        id SERIAL PRIMARY KEY,
+        content TEXT DEFAULT '', date TEXT DEFAULT '',
+        status TEXT DEFAULT '미처리', created_at TEXT DEFAULT ''
+    )''')
     conn.commit(); conn.close()
 
 def search_products(query='', barcode='', limit=50, offset=0):
@@ -216,6 +221,27 @@ def delete_issue(issue_id):
     c.execute('DELETE FROM issues WHERE id=%s', (issue_id,))
     conn.commit(); conn.close()
 
+def get_suggestions():
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT * FROM suggestions ORDER BY id DESC')
+    rows = rows_to_dicts(c); conn.close(); return rows
+
+def add_suggestion(data):
+    conn = data_db(); c = conn.cursor()
+    c.execute('INSERT INTO suggestions(content,date,status,created_at) VALUES(%s,%s,%s,%s) RETURNING id',
+              (data.get('content',''), data.get('date',''), '미처리', data.get('created_at','')))
+    new_id = c.fetchone()[0]; conn.commit(); conn.close(); return new_id
+
+def set_suggestion_status(sid, status):
+    conn = data_db(); c = conn.cursor()
+    c.execute('UPDATE suggestions SET status=%s WHERE id=%s', (status, sid))
+    conn.commit(); conn.close()
+
+def delete_suggestion(sid):
+    conn = data_db(); c = conn.cursor()
+    c.execute('DELETE FROM suggestions WHERE id=%s', (sid,))
+    conn.commit(); conn.close()
+
 def toggle_complete(order_id):
     conn = data_db(); c = conn.cursor()
     c.execute('UPDATE orders SET completed=1-completed WHERE id=%s', (order_id,))
@@ -254,6 +280,8 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/dbinfo':
             db_url = os.environ.get('DATABASE_URL', '')
             self.send_json({'DATABASE_URL_set': bool(db_url), 'backend': 'postgresql'})
+        elif parsed.path == '/api/suggestions':
+            self.send_json(get_suggestions())
         elif parsed.path == '/api/issues':
             self.send_json(get_issues())
         elif parsed.path == '/api/orders':
@@ -290,6 +318,12 @@ class Handler(BaseHTTPRequestHandler):
             delete_order(body['id']); self.send_json({'ok': True})
         elif self.path == '/api/orders/complete':
             toggle_complete(body['id']); self.send_json({'ok': True})
+        elif self.path == '/api/suggestions':
+            self.send_json({'ok': True, 'id': add_suggestion(body)})
+        elif self.path == '/api/suggestions/status':
+            set_suggestion_status(body['id'], body['status']); self.send_json({'ok': True})
+        elif self.path == '/api/suggestions/delete':
+            delete_suggestion(body['id']); self.send_json({'ok': True})
         elif self.path == '/api/issues':
             self.send_json({'ok': True, 'id': add_issue(body)})
         elif self.path == '/api/issues/update':

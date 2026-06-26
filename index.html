@@ -271,6 +271,10 @@
       <i class="ti ti-alert-triangle"></i>
       이슈사항
     </button>
+    <button class="header-nav-btn" onclick="openSuggestionList()">
+      <i class="ti ti-message-circle"></i>
+      건의사항
+    </button>
     <button class="header-nav-btn" onclick="openGuide()">
       <i class="ti ti-help-circle"></i>
       설치 후 가이드
@@ -378,6 +382,28 @@
       <textarea class="order-input" id="if-content" rows="5" placeholder="이슈 내용을 입력하세요..." style="resize:none;"></textarea>
     </div>
     <button class="order-submit-btn" onclick="submitIssue()">등록</button>
+  </div>
+</div>
+
+<!-- 건의사항 모달 -->
+<div class="order-overlay" id="suggestion-overlay" onclick="if(event.target===this)closeSuggestionList()">
+  <div class="order-box" style="min-height:67vh; display:flex; flex-direction:column;">
+    <div class="order-header">
+      <h2>건의사항</h2>
+      <button class="order-close" onclick="closeSuggestionList()"><i class="ti ti-x"></i></button>
+    </div>
+    <div style="background:#f5f5f3;border-radius:12px;padding:16px;margin-bottom:16px;">
+      <div class="order-field">
+        <div class="order-label">날짜</div>
+        <input type="date" id="sg-date" class="order-input">
+      </div>
+      <div class="order-field">
+        <div class="order-label">건의 내용</div>
+        <textarea id="sg-content" class="order-input" rows="4" placeholder="건의사항을 입력해주세요..." style="resize:none;"></textarea>
+      </div>
+      <button class="order-submit-btn" onclick="submitSuggestion()">등록</button>
+    </div>
+    <div id="suggestion-list-container" style="flex:1;overflow-y:auto;"></div>
   </div>
 </div>
 
@@ -1417,6 +1443,60 @@ async function deleteOrder(id) {
   await fetch('/api/orders/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id}) });
   loadOrderList();
 }
+/* ── 건의사항 ──────────────────────────────── */
+async function openSuggestionList() {
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  document.getElementById('sg-date').value = todayStr;
+  document.getElementById('sg-content').value = '';
+  document.getElementById('suggestion-overlay').classList.add('open');
+  await loadSuggestionList();
+}
+function closeSuggestionList() { document.getElementById('suggestion-overlay').classList.remove('open'); }
+
+async function submitSuggestion() {
+  const content = document.getElementById('sg-content').value.trim();
+  if (!content) { alert('내용을 입력해주세요.'); return; }
+  const today = new Date().toISOString();
+  await fetch('/api/suggestions', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ content, date: document.getElementById('sg-date').value, created_at: today })
+  });
+  document.getElementById('sg-content').value = '';
+  await loadSuggestionList();
+}
+
+async function loadSuggestionList() {
+  const list = await fetch('/api/suggestions').then(r => r.json());
+  const container = document.getElementById('suggestion-list-container');
+  if (!list.length) { container.innerHTML = '<div class="order-empty">건의사항이 없습니다</div>'; return; }
+  container.innerHTML = list.map(s => `
+    <div class="issue-item${s.status==='처리완료' ? ' closed' : ''}" style="margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span class="${s.status==='처리완료' ? 'issue-badge-closed' : 'issue-badge-active'}">${esc(s.status)}</span>
+        <span style="font-size:12px;color:#888;">${esc(s.date||'')}</span>
+      </div>
+      <div class="issue-content">${esc(s.content)}</div>
+      <div class="issue-actions">
+        ${s.status==='처리완료'
+          ? `<button class="issue-btn" onclick="setSuggestionStatus(${s.id},'미처리')">미처리로</button>`
+          : `<button class="issue-btn issue-btn-close" onclick="setSuggestionStatus(${s.id},'처리완료')">처리완료</button>`}
+        <button class="issue-btn issue-btn-del" onclick="deleteSuggestion(${s.id})">삭제</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function setSuggestionStatus(id, status) {
+  await fetch('/api/suggestions/status', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, status})});
+  loadSuggestionList();
+}
+async function deleteSuggestion(id) {
+  if (!confirm('삭제할까요?')) return;
+  await fetch('/api/suggestions/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id})});
+  loadSuggestionList();
+}
+
 /* ── 이슈사항 ──────────────────────────────── */
 let issueFormId = null;
 
