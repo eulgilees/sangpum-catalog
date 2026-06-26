@@ -299,7 +299,8 @@ def fetch_schedule(year_short, month):
     i = 0
     while i < len(rows):
         row = rows[i]
-        if not row or row[0].strip() != '구분':
+        label = row[0].strip() if row else ''
+        if not row or not (label == '구분' or label.endswith('구분')):
             i += 1
             continue
         date_row = rows[i+1] if i+1 < len(rows) else []
