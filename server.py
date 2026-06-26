@@ -76,7 +76,7 @@ def init_orders_table():
         barcode TEXT, name TEXT, qty INTEGER DEFAULT 1,
         order_date TEXT, payment TEXT DEFAULT '미불', ordered TEXT DEFAULT '미완료',
         pickup_date TEXT, customer TEXT, phone TEXT, delivery TEXT DEFAULT '없음',
-        address TEXT, staff TEXT, note TEXT, created_at TEXT
+        address TEXT, staff TEXT, note TEXT, created_at TEXT, completed INTEGER DEFAULT 0
     )''')
     conn.commit()
     conn.close()
@@ -235,6 +235,13 @@ class Handler(BaseHTTPRequestHandler):
 
         elif self.path == '/api/orders/delete':
             delete_order(body['id'])
+            self.send_json({'ok': True})
+
+        elif self.path == '/api/orders/complete':
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute('UPDATE orders SET completed=1-completed WHERE id=?', (body['id'],))
+            conn.commit()
+            conn.close()
             self.send_json({'ok': True})
 
         else:

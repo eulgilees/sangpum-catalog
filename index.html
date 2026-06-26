@@ -172,9 +172,12 @@
     .badge-done { background:#cfe2ff; color:#084298; }
     .order-item-detail { font-size:13px; color:#5f5e5a; line-height:1.7; }
     .order-item-note { font-size:13px; color:#888780; margin-top:6px; white-space:pre-wrap; }
-    .order-item-actions { display:flex; gap:8px; margin-top:10px; }
+    .order-item-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
     .order-edit-btn { font-size:12px; color:#185fa5; background:none; border:1px solid #b5d4f4; border-radius:6px; padding:4px 12px; cursor:pointer; }
     .order-del-btn { font-size:12px; color:#a32d2d; background:none; border:1px solid #f5c2c7; border-radius:6px; padding:4px 12px; cursor:pointer; }
+    .order-complete-btn { font-size:12px; color:#fff; background:#3b6d11; border:none; border-radius:6px; padding:4px 12px; cursor:pointer; margin-left:auto; }
+    .order-undo-btn { font-size:12px; color:#5f5e5a; background:none; border:1px solid #d4d4ce; border-radius:6px; padding:4px 12px; cursor:pointer; margin-left:auto; }
+    .order-list-item.completed { background:#f5f5f3; border-color:#e0e0dc; opacity:0.7; }
     .order-empty { text-align:center; padding:40px 0; color:#888780; font-size:14px; }
 
     /* 시작 가이드 */
@@ -992,8 +995,8 @@ async function loadOrderList() {
   const container = document.getElementById('order-list-container');
   if (!orders.length) { container.innerHTML = '<div class="order-empty">주문 내역이 없습니다</div>'; return; }
   container.innerHTML = orders.map(o => `
-    <div class="order-list-item">
-      <div class="order-item-name">${esc(o.name)}</div>
+    <div class="order-list-item${o.completed ? ' completed' : ''}">
+      <div class="order-item-name">${o.completed ? '✓ ' : ''}${esc(o.name)}</div>
       <div class="order-item-row">
         <span class="order-badge ${o.payment==='완불'?'badge-paid':'badge-unpaid'}">${esc(o.payment)}</span>
         <span class="order-badge ${o.ordered==='완료'?'badge-done':'badge-pending'}">발주 ${esc(o.ordered)}</span>
@@ -1006,8 +1009,11 @@ async function loadOrderList() {
       ${o.note ? `<div class="order-item-note">📝 ${esc(o.note)}</div>` : ''}
       <div style="font-size:11px;color:#b4b2a9;margin-top:6px;">${esc(o.created_at||'')}</div>
       <div class="order-item-actions">
-        <button class="order-edit-btn" onclick="editOrder(${o.id})">수정</button>
+        ${!o.completed ? `<button class="order-edit-btn" onclick="editOrder(${o.id})">수정</button>` : ''}
         <button class="order-del-btn" onclick="deleteOrder(${o.id})">삭제</button>
+        ${o.completed
+          ? `<button class="order-undo-btn" onclick="toggleComplete(${o.id})">처리 취소</button>`
+          : `<button class="order-complete-btn" onclick="toggleComplete(${o.id})">처리 완료</button>`}
       </div>
     </div>
   `).join('');
@@ -1019,6 +1025,11 @@ async function editOrder(id) {
   if (!o) return;
   closeOrderList();
   openOrderForm(o.barcode, o.name, o);
+}
+
+async function toggleComplete(id) {
+  await fetch('/api/orders/complete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id}) });
+  loadOrderList();
 }
 
 async function deleteOrder(id) {
