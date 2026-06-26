@@ -10,7 +10,10 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 IMAGES_DIR = 'images'
 START_TIME = str(int(time.time()))
 DB_PATH = os.environ.get('DB_PATH', 'products.db')
-DATABASE_URL = os.environ.get('DATABASE_URL', '')  # Railway PostgreSQL
+DATABASE_URL = (os.environ.get('DATABASE_URL') or
+                os.environ.get('POSTGRES_URL') or
+                os.environ.get('POSTGRESQL_URL') or
+                os.environ.get('DATABASE_PUBLIC_URL') or '')  # Railway PostgreSQL
 VAPID_PUBLIC_KEY  = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
 VAPID_EMAIL       = os.environ.get('VAPID_EMAIL', 'mailto:admin@example.com')
@@ -334,7 +337,10 @@ if __name__ == '__main__':
         print(f'DB 다운로드 중...')
         urllib.request.urlretrieve(DB_URL, DB_PATH)
         print('DB 다운로드 완료!')
-    print(f'DATABASE_URL 설정: {bool(DATABASE_URL)} / 앞부분: {DATABASE_URL[:30] if DATABASE_URL else "없음"}')
+    # DB 관련 환경변수 전체 출력
+    for k, v in os.environ.items():
+        if 'DATABASE' in k or 'POSTGRES' in k or 'PG' in k:
+            print(f'ENV: {k}={v[:40]}')
     print('PostgreSQL 테이블 초기화...')
     init_pg_tables()
     port = int(os.environ.get('PORT', 8747))
