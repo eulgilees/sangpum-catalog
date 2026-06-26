@@ -904,12 +904,39 @@ document.addEventListener('click', e => {
 });
 
 let swReg = null;
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && 'PushManager' in window) {
   navigator.serviceWorker.register('/sw.js').then(async reg => {
     swReg = reg;
-    // 이미 구독 중이면 아이콘 켜진 상태로
-    const existing = await reg.pushManager.getSubscription();
-    if (existing) setPushIcon(true);
+    try {
+      let sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        // 기존 구독 있으면 서버에 재등록 (DB 초기화돼도 복구)
+        setPushIcon(true);
+        fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sub)
+        });
+      } else {
+        // 구독 없으면 자동으로 시도
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          const { publicKey } = await fetch('/api/push/key').then(r => r.json());
+          if (publicKey) {
+            sub = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(publicKey)
+            });
+            await fetch('/api/push/subscribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(sub)
+            });
+            setPushIcon(true);
+          }
+        }
+      }
+    } catch(e) {}
   });
 }
 
