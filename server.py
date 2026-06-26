@@ -10,16 +10,15 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 IMAGES_DIR = 'images'
 START_TIME = str(int(time.time()))
-DB_PATH = os.environ.get('DB_PATH', 'products.db')
+PRODUCTS_DB = 'products.db'
+PG_URL = os.environ.get('PRODUCTS_DB', '')  # PRODUCTS_DB 변수 재활용
 VAPID_PUBLIC_KEY  = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
 VAPID_EMAIL       = os.environ.get('VAPID_EMAIL', 'mailto:admin@example.com')
 
 def data_db():
     import pg8000.dbapi as pg
-    url = (os.environ.get('PG_URL') or
-           os.environ.get('DATABASE_URL') or
-           os.environ.get('DATABASE_PUBLIC_URL') or '')
+    url = PG_URL
     if url:
         r = urllib.parse.urlparse(url)
         host, port, database, user, password = r.hostname, r.port or 5432, r.path[1:], r.username, r.password
@@ -70,7 +69,7 @@ def init_tables():
     conn.commit(); conn.close()
 
 def search_products(query='', barcode='', limit=50, offset=0):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(PRODUCTS_DB)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     if barcode:
@@ -115,7 +114,7 @@ def delete_comment(comment_id):
     conn.commit(); conn.close()
 
 def search_comments(query):
-    pconn = sqlite3.connect(DB_PATH); pconn.row_factory = sqlite3.Row
+    pconn = sqlite3.connect(PRODUCTS_DB); pconn.row_factory = sqlite3.Row
     products = {r['barcode']: dict(r) for r in pconn.execute('SELECT barcode,name,author,publisher,price FROM products')}
     pconn.close()
     conn = data_db(); c = conn.cursor()
@@ -330,12 +329,12 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     # 상품 DB 없으면 다운로드
-    if not os.path.exists(DB_PATH):
+    if not os.path.exists(PRODUCTS_DB):
         import urllib.request
-        os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
+        os.makedirs(os.path.dirname(os.path.abspath(PRODUCTS_DB)) or '.', exist_ok=True)
         print('상품 DB 다운로드 중...')
         urllib.request.urlretrieve(
-            'https://github.com/eulgilees/sangpum-catalog/releases/download/v1.0/products.db', DB_PATH)
+            'https://github.com/eulgilees/sangpum-catalog/releases/download/v1.0/products.db', PRODUCTS_DB)
         print('다운로드 완료!')
     pg_url_val = os.environ.get('PG_URL', 'NOT_SET')
     print(f'=== PG_URL 값 === [{pg_url_val[:30] if pg_url_val != "NOT_SET" else "NOT_SET"}]')
