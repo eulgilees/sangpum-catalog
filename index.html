@@ -406,6 +406,7 @@
       <span>상품 조회</span>
     </div>
     <div style="display:flex;align-items:center;gap:2px;">
+      <button id="profile-btn" onclick="openProfile()" title="내 정보" style="display:none;background:none;border:none;cursor:pointer;padding:6px 10px;font-size:12px;font-weight:600;color:#185fa5;border-radius:8px;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis;"></button>
       <button id="logout-btn" class="header-refresh" onclick="doLogout()" title="로그아웃" style="display:none;">
         <i class="ti ti-logout"></i>
       </button>
@@ -2160,6 +2161,49 @@ function showAuthScreen() {
 function hideAuthScreen() {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('logout-btn').style.display = 'flex';
+  const btn = document.getElementById('profile-btn');
+  btn.style.display = 'block';
+  btn.textContent = currentUser?.display_name || '';
+}
+
+function openProfile() {
+  if (!currentUser) return;
+  document.getElementById('prof-display').value = currentUser.display_name || '';
+  document.getElementById('prof-store').value = currentUser.store || '';
+  const rawPhone = (currentUser.phone || '').replace(/\D/g,'');
+  let fmt = rawPhone;
+  if (rawPhone.length >= 8) fmt = rawPhone.slice(0,3)+'-'+rawPhone.slice(3,7)+'-'+rawPhone.slice(7);
+  else if (rawPhone.length >= 4) fmt = rawPhone.slice(0,3)+'-'+rawPhone.slice(3);
+  document.getElementById('prof-phone').value = fmt;
+  document.getElementById('prof-pw').value = '';
+  document.getElementById('prof-pw2').value = '';
+  document.getElementById('prof-error').style.display = 'none';
+  document.getElementById('profile-modal').style.display = 'block';
+}
+function closeProfile() {
+  document.getElementById('profile-modal').style.display = 'none';
+}
+async function doUpdateProfile() {
+  const display_name = document.getElementById('prof-display').value.trim();
+  const store = document.getElementById('prof-store').value;
+  const phone = document.getElementById('prof-phone').value.trim();
+  const new_password = document.getElementById('prof-pw').value;
+  const new_password2 = document.getElementById('prof-pw2').value;
+  const errEl = document.getElementById('prof-error');
+  errEl.style.display = 'none';
+  if (!display_name || !store || !phone) { errEl.textContent = '이름, 점포, 휴대폰 번호를 입력해주세요'; errEl.style.display = 'block'; return; }
+  if (new_password && new_password !== new_password2) { errEl.textContent = '비밀번호가 일치하지 않습니다'; errEl.style.display = 'block'; return; }
+  const token = localStorage.getItem('authToken');
+  const res = await fetch('/api/auth/update-profile', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token },
+    body: JSON.stringify({ display_name, store, phone, new_password: new_password || '' })
+  });
+  const data = await res.json();
+  if (!data.ok) { errEl.textContent = data.error || '오류가 발생했습니다'; errEl.style.display = 'block'; return; }
+  currentUser = data.user;
+  document.getElementById('profile-btn').textContent = currentUser.display_name || '';
+  closeProfile();
+  showToast('✅ 정보가 저장되었습니다', true);
 }
 
 async function doLogout() {
@@ -2368,5 +2412,51 @@ window.addEventListener('load', () => {
   preventBounce(document.getElementById('schedule-cal-view'));
 });
 </script>
+
+<!-- 내 정보 수정 모달 -->
+<div id="profile-modal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);" onclick="if(event.target===this)closeProfile()">
+  <div style="position:absolute;bottom:0;left:0;right:0;background:#f5f5f3;border-radius:20px 20px 0 0;padding:28px 24px 40px;max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <div style="font-size:17px;font-weight:700;color:#222;">내 정보 수정</div>
+      <button onclick="closeProfile()" style="background:none;border:none;font-size:22px;color:#aaa;cursor:pointer;padding:0;">✕</button>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">이름</label>
+      <input id="prof-display" type="text" style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;background:#fff;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">근무 점포</label>
+      <select id="prof-store" style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;background:#fff;appearance:none;-webkit-appearance:none;box-sizing:border-box;">
+        <option value="">점포를 선택해주세요</option>
+        <option>가든파이브점</option><option>강남점</option><option>건대스타시티점</option>
+        <option>경성대ㆍ부경대점</option><option>광교점</option><option>광주상무점</option>
+        <option>광화문점</option><option>대구점</option><option>대전점</option>
+        <option>동대문점</option><option>목동점</option><option>부산점</option>
+        <option>분당점</option><option>서울대점</option><option>세종점</option>
+        <option>센텀시티점</option><option>송도점</option><option>수유점</option>
+        <option>영등포점</option><option>울산점</option><option>원그로브점</option>
+        <option>은평점</option><option>이화여대점</option><option>인천점</option>
+        <option>일산점</option><option>잠실점</option><option>전주점</option>
+        <option>창원점</option><option>천안점</option><option>천호점</option>
+        <option>청량리점</option><option>칠곡점</option><option>판교점</option>
+        <option>평촌점</option><option>합정점</option>
+      </select>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">휴대폰 번호</label>
+      <input id="prof-phone" type="tel" inputmode="numeric" oninput="formatPhone(this)" placeholder="010-0000-0000" style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;background:#fff;box-sizing:border-box;">
+    </div>
+    <div style="border-top:1px solid #ebebeb;margin:20px 0 16px;"></div>
+    <div style="font-size:12px;font-weight:600;color:#888;margin-bottom:12px;">비밀번호 변경 (변경하지 않으려면 비워두세요)</div>
+    <div style="margin-bottom:14px;">
+      <input id="prof-pw" type="password" placeholder="새 비밀번호" style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;background:#fff;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:20px;">
+      <input id="prof-pw2" type="password" placeholder="새 비밀번호 확인" style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;background:#fff;box-sizing:border-box;">
+    </div>
+    <div id="prof-error" style="color:#e03131;font-size:13px;margin-bottom:12px;display:none;"></div>
+    <button onclick="doUpdateProfile()" style="width:100%;background:#185fa5;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;">저장</button>
+  </div>
+</div>
 </body>
 </html>

@@ -366,11 +366,21 @@ def create_session(user_id):
 def verify_session(token):
     if not token: return None
     conn = data_db(); c = conn.cursor()
-    c.execute('''SELECT u.id, u.username, u.display_name FROM sessions s
+    c.execute('''SELECT u.id, u.username, u.display_name, u.phone, u.store FROM sessions s
                  JOIN users u ON u.id = s.user_id
                  WHERE s.token=%s AND s.expires_at > %s''', (token, int(time.time())))
     rows = rows_to_dicts(c); conn.close()
     return rows[0] if rows else None
+
+def update_profile(user_id, display_name, phone, store, new_password=None):
+    conn = data_db(); c = conn.cursor()
+    if new_password:
+        c.execute('UPDATE users SET display_name=%s, phone=%s, store=%s, password_hash=%s WHERE id=%s',
+                  (display_name.strip(), phone.strip(), store.strip(), hash_password(new_password), user_id))
+    else:
+        c.execute('UPDATE users SET display_name=%s, phone=%s, store=%s WHERE id=%s',
+                  (display_name.strip(), phone.strip(), store.strip(), user_id))
+    conn.commit(); conn.close()
 
 def delete_session(token):
     conn = data_db(); c = conn.cursor()
@@ -539,6 +549,21 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({'ok': False, 'error': '비밀번호는 4자 이상이어야 합니다'}); return
             reset_password(user_id, new_pw)
             self.send_json({'ok': True})
+        elif self.path == '/api/auth/update-profile':
+            token = self.headers.get('X-Token','')
+            user = verify_session(token)
+            if not user: self.send_json({'ok': False, 'error': '로그인이 필요합니다'}); return
+            display_name = body.get('display_name','').strip()
+            phone = re.sub(r'[^\d]', '', body.get('phone',''))
+            store = body.get('store','').strip()
+            new_pw = body.get('new_password','').strip()
+            if not display_name or not phone or not store:
+                self.send_json({'ok': False, 'error': '모든 항목을 입력해주세요'}); return
+            if new_pw and len(new_pw) < 4:
+                self.send_json({'ok': False, 'error': '비밀번호는 4자 이상이어야 합니다'}); return
+            update_profile(user['id'], display_name, phone, store, new_pw or None)
+            updated = verify_session(token)
+            self.send_json({'ok': True, 'user': updated})
         elif self.path == '/api/auth/logout':
             delete_session(self.headers.get('X-Token',''))
             self.send_json({'ok': True})
