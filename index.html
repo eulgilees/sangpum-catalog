@@ -1518,13 +1518,8 @@ if ('serviceWorker' in navigator) {
       let sub = await reg.pushManager.getSubscription();
       cachedSub = sub || null;
       if (sub) {
-        // 기존 구독 있으면 서버에 재등록 (DB 초기화돼도 복구)
+        // 기존 구독 있으면 서버에 재등록 — user_id는 로그인 후 linkPushToUser()에서 처리
         setPushIcon(true);
-        fetch('/api/push/subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(sub)
-        });
       } else {
         // 구독 없으면 자동으로 시도
         const permission = await Notification.requestPermission();
@@ -2189,6 +2184,7 @@ function hideAuthScreen() {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('logout-btn').style.display = 'flex';
   document.getElementById('push-btn').style.display = 'flex';
+  linkPushToUser();
   const btn = document.getElementById('profile-btn');
   btn.style.display = 'block';
   btn.textContent = (currentUser?.display_name || '') + (currentUser?.store ? ' · ' + currentUser.store : '');
@@ -2519,6 +2515,21 @@ function stopChatPoll() {
 
 // 키보드 올라올 때 채팅 오버레이 높이를 visual viewport에 맞춤
 function resetChatOverlaySize() {}
+
+async function linkPushToUser() {
+  const token = localStorage.getItem('authToken');
+  if (!token || !('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Token': token },
+      body: JSON.stringify(sub)
+    });
+  } catch(e) {}
+}
 function updateChatBadge(count) {
   const el = document.getElementById('chat-badge');
   if (count > 0) { el.textContent = count > 99 ? '99+' : count; el.style.display = 'inline-block'; }
