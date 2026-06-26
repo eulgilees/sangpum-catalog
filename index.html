@@ -253,15 +253,15 @@
 <div id="auth-screen" style="display:none;position:fixed;inset:0;background:#f5f5f3;z-index:9999;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;">
   <!-- 로그인 폼 -->
   <div id="auth-login" style="width:100%;max-width:400px;">
-    <div style="text-align:center;margin-bottom:32px;">
+    <div style="text-align:center;margin-bottom:28px;">
       <i class="ti ti-barcode" style="font-size:48px;color:#185fa5;"></i>
       <div style="font-size:20px;font-weight:700;color:#222;margin-top:8px;">문구파트 상품조회</div>
       <div style="font-size:13px;color:#888;margin-top:4px;">직원 전용 서비스입니다</div>
     </div>
     <div style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 2px 16px rgba(0,0,0,0.08);">
       <div style="margin-bottom:14px;">
-        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">아이디</label>
-        <input id="login-username" type="text" placeholder="아이디 입력" autocomplete="username"
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">사번 (5자리)</label>
+        <input id="login-username" type="tel" placeholder="00000" maxlength="5" inputmode="numeric" autocomplete="username"
           style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;">
       </div>
       <div style="margin-bottom:20px;">
@@ -272,25 +272,33 @@
       </div>
       <div id="login-error" style="color:#e03131;font-size:13px;margin-bottom:12px;display:none;"></div>
       <button onclick="doLogin()" style="width:100%;background:#185fa5;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;">로그인</button>
-      <button onclick="showRegister()" style="width:100%;background:none;border:none;color:#185fa5;font-size:13px;margin-top:14px;cursor:pointer;padding:4px;">계정이 없으신가요? 가입하기</button>
+      <div style="display:flex;justify-content:space-between;margin-top:12px;">
+        <button onclick="showRegister()" style="background:none;border:none;color:#185fa5;font-size:13px;cursor:pointer;padding:4px;">가입하기</button>
+        <button onclick="showFindPw()" style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;padding:4px;">비밀번호 찾기</button>
+      </div>
     </div>
   </div>
 
   <!-- 가입 폼 -->
-  <div id="auth-register" style="display:none;width:100%;max-width:400px;">
-    <div style="text-align:center;margin-bottom:32px;">
-      <i class="ti ti-user-plus" style="font-size:48px;color:#185fa5;"></i>
-      <div style="font-size:20px;font-weight:700;color:#222;margin-top:8px;">새 계정 만들기</div>
+  <div id="auth-register" style="display:none;width:100%;max-width:400px;overflow-y:auto;max-height:90vh;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <i class="ti ti-user-plus" style="font-size:40px;color:#185fa5;"></i>
+      <div style="font-size:18px;font-weight:700;color:#222;margin-top:6px;">새 계정 만들기</div>
     </div>
     <div style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 2px 16px rgba(0,0,0,0.08);">
       <div style="margin-bottom:14px;">
-        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">이름 (표시될 이름)</label>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">이름</label>
         <input id="reg-display" type="text" placeholder="예: 홍길동"
           style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;">
       </div>
       <div style="margin-bottom:14px;">
-        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">아이디</label>
-        <input id="reg-username" type="text" placeholder="영문/숫자 조합" autocomplete="username"
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">사번 (5자리 숫자)</label>
+        <input id="reg-username" type="tel" placeholder="00000" maxlength="5" inputmode="numeric" autocomplete="username"
+          style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;">
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">휴대폰 번호 (비밀번호 찾기용)</label>
+        <input id="reg-phone" type="tel" placeholder="010-0000-0000" inputmode="numeric" oninput="formatPhone(this)"
           style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;">
       </div>
       <div style="margin-bottom:14px;">
@@ -306,7 +314,45 @@
       </div>
       <div id="reg-error" style="color:#e03131;font-size:13px;margin-bottom:12px;display:none;"></div>
       <button onclick="doRegister()" style="width:100%;background:#185fa5;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;">가입하기</button>
-      <button onclick="showLogin()" style="width:100%;background:none;border:none;color:#185fa5;font-size:13px;margin-top:14px;cursor:pointer;padding:4px;">이미 계정이 있으신가요? 로그인</button>
+      <button onclick="showLogin()" style="width:100%;background:none;border:none;color:#185fa5;font-size:13px;margin-top:12px;cursor:pointer;padding:4px;">이미 계정이 있으신가요? 로그인</button>
+    </div>
+  </div>
+
+  <!-- 비밀번호 찾기 -->
+  <div id="auth-findpw" style="display:none;width:100%;max-width:400px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <i class="ti ti-lock-open" style="font-size:40px;color:#185fa5;"></i>
+      <div style="font-size:18px;font-weight:700;color:#222;margin-top:6px;">비밀번호 찾기</div>
+    </div>
+    <div id="findpw-step1" style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">사번 (5자리)</label>
+        <input id="findpw-username" type="tel" placeholder="00000" maxlength="5" inputmode="numeric"
+          style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;">
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">휴대폰 번호</label>
+        <input id="findpw-phone" type="tel" placeholder="010-0000-0000" inputmode="numeric" oninput="formatPhone(this)"
+          style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;">
+      </div>
+      <div id="findpw-error" style="color:#e03131;font-size:13px;margin-bottom:12px;display:none;"></div>
+      <button onclick="doFindPw()" style="width:100%;background:#185fa5;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;">확인</button>
+      <button onclick="showLogin()" style="width:100%;background:none;border:none;color:#888;font-size:13px;margin-top:12px;cursor:pointer;padding:4px;">돌아가기</button>
+    </div>
+    <div id="findpw-step2" style="display:none;background:#fff;border-radius:16px;padding:24px;box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+      <div id="findpw-name" style="text-align:center;font-size:15px;color:#333;margin-bottom:20px;font-weight:600;"></div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">새 비밀번호</label>
+        <input id="findpw-newpw" type="password" placeholder="새 비밀번호 입력"
+          style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;">
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">비밀번호 확인</label>
+        <input id="findpw-newpw2" type="password" placeholder="새 비밀번호 재입력"
+          style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;">
+      </div>
+      <div id="findpw-error2" style="color:#e03131;font-size:13px;margin-bottom:12px;display:none;"></div>
+      <button onclick="doResetPw()" style="width:100%;background:#185fa5;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;">비밀번호 변경</button>
     </div>
   </div>
 </div>
@@ -2072,11 +2118,21 @@ function hideAuthScreen() {
 }
 function showRegister() {
   document.getElementById('auth-login').style.display = 'none';
+  document.getElementById('auth-findpw').style.display = 'none';
   document.getElementById('auth-register').style.display = 'block';
 }
 function showLogin() {
   document.getElementById('auth-register').style.display = 'none';
+  document.getElementById('auth-findpw').style.display = 'none';
   document.getElementById('auth-login').style.display = 'block';
+}
+function showFindPw() {
+  document.getElementById('auth-login').style.display = 'none';
+  document.getElementById('auth-register').style.display = 'none';
+  document.getElementById('auth-findpw').style.display = 'block';
+  document.getElementById('findpw-step1').style.display = 'block';
+  document.getElementById('findpw-step2').style.display = 'none';
+  document.getElementById('findpw-error').style.display = 'none';
 }
 
 async function doLogin() {
@@ -2100,15 +2156,16 @@ async function doLogin() {
 async function doRegister() {
   const display_name = document.getElementById('reg-display').value.trim();
   const username = document.getElementById('reg-username').value.trim();
+  const phone = document.getElementById('reg-phone').value.trim();
   const password = document.getElementById('reg-password').value;
   const password2 = document.getElementById('reg-password2').value;
   const errEl = document.getElementById('reg-error');
   errEl.style.display = 'none';
-  if (!display_name || !username || !password) { errEl.textContent = '모든 항목을 입력해주세요'; errEl.style.display = 'block'; return; }
+  if (!display_name || !username || !phone || !password) { errEl.textContent = '모든 항목을 입력해주세요'; errEl.style.display = 'block'; return; }
   if (password !== password2) { errEl.textContent = '비밀번호가 일치하지 않습니다'; errEl.style.display = 'block'; return; }
   const res = await fetch('/api/auth/register', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password, display_name })
+    body: JSON.stringify({ username, password, display_name, phone })
   });
   const data = await res.json();
   if (!data.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
@@ -2116,6 +2173,41 @@ async function doRegister() {
   currentUser = data.user;
   hideAuthScreen();
   showToast(`👋 ${data.user.display_name}님 환영합니다!`, true);
+}
+
+let _findPwUserId = null;
+async function doFindPw() {
+  const username = document.getElementById('findpw-username').value.trim();
+  const phone = document.getElementById('findpw-phone').value.trim();
+  const errEl = document.getElementById('findpw-error');
+  errEl.style.display = 'none';
+  if (!username || !phone) { errEl.textContent = '사번과 휴대폰 번호를 입력해주세요'; errEl.style.display = 'block'; return; }
+  const res = await fetch('/api/auth/find-password', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, phone })
+  });
+  const data = await res.json();
+  if (!data.ok) { errEl.textContent = data.error || '일치하는 계정을 찾을 수 없습니다'; errEl.style.display = 'block'; return; }
+  _findPwUserId = data.user_id;
+  document.getElementById('findpw-name').textContent = `${data.display_name}님의 비밀번호를 변경합니다`;
+  document.getElementById('findpw-step1').style.display = 'none';
+  document.getElementById('findpw-step2').style.display = 'block';
+}
+async function doResetPw() {
+  const newpw = document.getElementById('findpw-newpw').value;
+  const newpw2 = document.getElementById('findpw-newpw2').value;
+  const errEl = document.getElementById('findpw-error2');
+  errEl.style.display = 'none';
+  if (!newpw) { errEl.textContent = '새 비밀번호를 입력해주세요'; errEl.style.display = 'block'; return; }
+  if (newpw !== newpw2) { errEl.textContent = '비밀번호가 일치하지 않습니다'; errEl.style.display = 'block'; return; }
+  const res = await fetch('/api/auth/reset-password', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: _findPwUserId, new_password: newpw })
+  });
+  const data = await res.json();
+  if (!data.ok) { errEl.textContent = data.error || '오류가 발생했습니다'; errEl.style.display = 'block'; return; }
+  showLogin();
+  showToast('✅ 비밀번호가 변경되었습니다. 로그인해주세요.', true);
 }
 
 // ── 전화번호 자동 하이픈 ──
