@@ -2395,7 +2395,17 @@ function showChatList() {
   stopChatPoll();
   loadChatRooms();
 }
-function backToChatList() { showChatList(); }
+function backToChatList() {
+  // 현재 방을 읽음으로 캐시 업데이트
+  if (chatRoomId && chatRoomsCache) {
+    const room = chatRoomsCache.find(r => r.id === chatRoomId);
+    if (room) room.unread = 0;
+    renderChatRooms(chatRoomsCache);
+    const totalUnread = chatRoomsCache.reduce((s, r) => s + (r.unread || 0), 0);
+    updateChatBadge(totalUnread);
+  }
+  showChatList();
+}
 
 function renderChatRooms(rooms) {
   const el = document.getElementById('chat-rooms-list');
