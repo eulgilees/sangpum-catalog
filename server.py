@@ -96,12 +96,13 @@ def get_subscriptions():
 
 def send_push_notification(title, body):
     if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
+        print('VAPID 키 없음, 푸시 스킵')
         return
     try:
-        import base64
         from pywebpush import webpush, WebPushException
-        priv_pem = base64.urlsafe_b64decode(VAPID_PRIVATE_KEY + '==')
-        for sub in get_subscriptions():
+        subs = get_subscriptions()
+        print(f'푸시 발송: {len(subs)}명, title={title}')
+        for sub in subs:
             try:
                 webpush(
                     subscription_info={
@@ -109,13 +110,14 @@ def send_push_notification(title, body):
                         'keys': {'p256dh': sub['p256dh'], 'auth': sub['auth']}
                     },
                     data=json.dumps({'title': title, 'body': body}, ensure_ascii=False),
-                    vapid_private_key=priv_pem,
+                    vapid_private_key=VAPID_PRIVATE_KEY,
                     vapid_claims={'sub': VAPID_EMAIL}
                 )
-            except WebPushException:
-                pass
-    except Exception:
-        pass
+                print(f'푸시 성공: {sub["endpoint"][:40]}...')
+            except WebPushException as e:
+                print(f'푸시 실패: {e}')
+    except Exception as e:
+        print(f'푸시 오류: {e}')
 
 def init_orders_table():
     conn = sqlite3.connect(DB_PATH)
