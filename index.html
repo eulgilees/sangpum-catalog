@@ -980,7 +980,7 @@ async function submitOrder() {
       body: JSON.stringify({ barcode, name, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, customer, phone, delivery:orderDeliveryVal, address, staff, note, created_at }) });
   }
   closeOrderForm();
-  if (document.getElementById('order-list-overlay').classList.contains('open')) loadOrderList();
+  await openOrderList();
 }
 
 async function openOrderList() {
