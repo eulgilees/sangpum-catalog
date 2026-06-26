@@ -319,8 +319,8 @@ def chat_total_unread(user_id):
 
 def get_orders(barcode=''):
     conn = data_db(); c = conn.cursor()
-    if barcode: c.execute('SELECT * FROM orders WHERE barcode=%s ORDER BY CASE WHEN status=\'완료\' THEN 1 ELSE 0 END, id DESC', (barcode,))
-    else: c.execute('SELECT * FROM orders ORDER BY CASE WHEN status=\'완료\' THEN 1 ELSE 0 END, id DESC')
+    if barcode: c.execute('SELECT * FROM orders WHERE barcode=%s ORDER BY completed, id DESC', (barcode,))
+    else: c.execute('SELECT * FROM orders ORDER BY completed, id DESC')
     rows = rows_to_dicts(c); conn.close(); return rows
 
 def add_order(data):
