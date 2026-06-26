@@ -342,9 +342,7 @@ def fetch_schedule(year_short, month):
     def date_key(d):
         m = re.search(r'(\d+)월\s*(\d+)일', d)
         return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
-    target_month = int(month)
-    return [{'date': d, **schedule[d]} for d in sorted(schedule, key=date_key)
-            if re.search(r'(\d+)월', d) and int(re.search(r'(\d+)월', d).group(1)) == target_month]
+    return [{'date': d, **schedule[d]} for d in sorted(schedule, key=date_key)]
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
