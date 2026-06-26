@@ -327,6 +327,7 @@ if __name__ == '__main__':
         urllib.request.urlretrieve(
             'https://github.com/eulgilees/sangpum-catalog/releases/download/v1.0/products.db', DB_PATH)
         print('다운로드 완료!')
+    print('환경변수 확인:', {k: v[:20]+'...' if len(v)>20 else v for k,v in os.environ.items() if any(x in k.upper() for x in ['DATA','PG','POST','SQL','DB'])})
     print('PostgreSQL 테이블 초기화...')
     init_tables()
     print('PostgreSQL 연결 성공!')
