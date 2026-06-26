@@ -24,7 +24,12 @@ NEON_DB   = 'neondb'
 NEON_USER = 'neondb_owner'
 NEON_PASS = 'npg_FudX2Rp4iYOw'
 
-def data_db():
+import queue, threading as _threading
+
+_DB_POOL = queue.Queue(maxsize=5)
+_DB_POOL_LOCK = _threading.Lock()
+
+def _new_raw_conn():
     import pg8000.dbapi as pg
     url = PG_URL if PG_URL.startswith('postgresql') else ''
     if url:
@@ -36,6 +41,44 @@ def data_db():
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     return pg.connect(host=host, port=port, database=database, user=user, password=password, ssl_context=ctx)
+
+def _get_pool_conn():
+    try:
+        conn = _DB_POOL.get_nowait()
+        # 살아있는지 확인
+        try:
+            conn.run("SELECT 1")
+            return conn
+        except Exception:
+            try: conn.close()
+            except: pass
+    except queue.Empty:
+        pass
+    return _new_raw_conn()
+
+def _return_pool_conn(conn):
+    try:
+        _DB_POOL.put_nowait(conn)
+    except queue.Full:
+        try: conn.close()
+        except: pass
+
+class _PooledConn:
+    def __init__(self):
+        self._conn = _get_pool_conn()
+    def cursor(self):
+        return self._conn.cursor()
+    def commit(self):
+        self._conn.commit()
+    def rollback(self):
+        self._conn.rollback()
+    def run(self, sql):
+        return self._conn.run(sql)
+    def close(self):
+        _return_pool_conn(self._conn)
+
+def data_db():
+    return _PooledConn()
 
 def rows_to_dicts(cursor):
     cols = [d[0] for d in cursor.description]
@@ -819,6 +862,15 @@ if __name__ == '__main__':
         print('PostgreSQL 연결 성공!')
     except Exception as e:
         print(f'DB 초기화 실패 (서버는 계속 실행): {e}')
+    # 커넥션 풀 예열 (3개 미리 연결)
+    print('커넥션 풀 예열 중...')
+    try:
+        for _ in range(3):
+            c = _new_raw_conn()
+            _return_pool_conn(c)
+        print(f'커넥션 풀 준비 완료 ({_DB_POOL.qsize()}개)')
+    except Exception as e:
+        print(f'풀 예열 실패 (무시): {e}')
     port = int(os.environ.get('PORT', 8747))
     print(f'서버 시작: http://localhost:{port}')
     HTTPServer(('', port), Handler).serve_forever()
