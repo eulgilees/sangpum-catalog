@@ -1072,13 +1072,14 @@ function switchScheduleTab(tab) {
   document.getElementById('schedule-cal-view').style.display  = tab === 'cal'  ? 'block' : 'none';
 }
 
-async function loadSchedule() {
+async function loadSchedule(silent = false) {
   const label = `${scheduleYear}년 ${scheduleMonth}월`;
   document.getElementById('schedule-month-label').textContent = label;
-  document.getElementById('schedule-loading').style.display = 'block';
-  document.getElementById('schedule-list-view').style.display = 'none';
-  document.getElementById('schedule-cal-view').style.display = 'none';
-
+  if (!silent) {
+    document.getElementById('schedule-loading').style.display = 'block';
+    document.getElementById('schedule-list-view').style.display = 'none';
+    document.getElementById('schedule-cal-view').style.display = 'none';
+  }
   try {
     const res = await fetch(`/api/schedule?year=${scheduleYear}&month=${scheduleMonth}`);
     const json = await res.json();
@@ -1088,7 +1089,9 @@ async function loadSchedule() {
     renderScheduleList();
     renderScheduleCal();
     switchScheduleTab(scheduleTab);
+    if (silent) showToast('✅ 새로고침 완료', true);
   } catch(e) {
+    if (silent) { showToast('❌ 새로고침 실패', false); return; }
     document.getElementById('schedule-loading').textContent = '❌ 데이터를 불러올 수 없습니다. 탭 이름을 확인해주세요.';
   }
 }
@@ -2051,13 +2054,25 @@ window.addEventListener('load', () => {
     ['#issue-list-overlay .order-box',  loadIssueList],
     ['#as-list-overlay .order-box',     loadAsList],
     ['#suggestion-overlay .order-box',  loadSuggestionList],
-    ['#schedule-list-view',             loadSchedule],
-    ['#schedule-cal-view',              loadSchedule],
+    ['#schedule-list-view',             () => loadSchedule(true)],
+    ['#schedule-cal-view',              () => loadSchedule(true)],
   ];
   pairs.forEach(([sel, fn]) => {
     const el = document.querySelector(sel);
     if (el) initPTR(el, fn);
   });
+
+  // 스케줄 오버레이: iOS WebView bounce로 인한 모달 닫힘 완전 차단
+  const scheduleOverlay = document.getElementById('schedule-overlay');
+  scheduleOverlay.addEventListener('touchmove', (e) => {
+    // 스크롤 가능한 자식 안에서 터치하면 허용
+    let el = e.target;
+    while (el && el !== scheduleOverlay) {
+      if (el.scrollHeight > el.clientHeight + 1) return;
+      el = el.parentElement;
+    }
+    e.preventDefault();
+  }, { passive: false });
 });
 </script>
 </body>
