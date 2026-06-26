@@ -365,6 +365,9 @@
       <span>상품 조회</span>
     </div>
     <div style="display:flex;align-items:center;gap:2px;">
+      <button id="logout-btn" class="header-refresh" onclick="doLogout()" title="로그아웃" style="display:none;">
+        <i class="ti ti-logout"></i>
+      </button>
       <button id="push-btn" class="header-refresh" onclick="requestPush()" title="알림">
         <i class="ti ti-bell-off" id="push-icon"></i>
       </button>
@@ -2115,6 +2118,18 @@ function showAuthScreen() {
 }
 function hideAuthScreen() {
   document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('logout-btn').style.display = 'flex';
+}
+
+async function doLogout() {
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    fetch('/api/auth/logout', { method: 'POST', headers: { 'X-Token': token } }).catch(() => {});
+    localStorage.removeItem('authToken');
+  }
+  currentUser = null;
+  document.getElementById('logout-btn').style.display = 'none';
+  showAuthScreen();
 }
 function showRegister() {
   document.getElementById('auth-login').style.display = 'none';
