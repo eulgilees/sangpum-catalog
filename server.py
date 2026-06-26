@@ -9,6 +9,9 @@ import ssl
 import hashlib
 import secrets
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
 
 IMAGES_DIR = 'images'
 START_TIME = str(int(time.time()))
@@ -45,9 +48,10 @@ def _new_raw_conn():
 def _get_pool_conn():
     try:
         conn = _DB_POOL.get_nowait()
-        # 살아있는지 확인
+        # 살아있는지 확인 (DBAPI 방식)
         try:
-            conn.run("SELECT 1")
+            cur = conn.cursor()
+            cur.execute("SELECT 1")
             return conn
         except Exception:
             try: conn.close()
@@ -72,8 +76,6 @@ class _PooledConn:
         self._conn.commit()
     def rollback(self):
         self._conn.rollback()
-    def run(self, sql):
-        return self._conn.run(sql)
     def close(self):
         _return_pool_conn(self._conn)
 
@@ -873,4 +875,4 @@ if __name__ == '__main__':
         print(f'풀 예열 실패 (무시): {e}')
     port = int(os.environ.get('PORT', 8747))
     print(f'서버 시작: http://localhost:{port}')
-    HTTPServer(('', port), Handler).serve_forever()
+    ThreadedHTTPServer(('', port), Handler).serve_forever()
