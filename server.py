@@ -322,6 +322,7 @@ if __name__ == '__main__':
     # 상품 DB 없으면 다운로드
     if not os.path.exists(DB_PATH):
         import urllib.request
+        os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
         print('상품 DB 다운로드 중...')
         urllib.request.urlretrieve(
             'https://github.com/eulgilees/sangpum-catalog/releases/download/v1.0/products.db', DB_PATH)
