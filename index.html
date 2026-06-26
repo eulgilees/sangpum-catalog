@@ -1465,7 +1465,7 @@ async function checkUpcomingOrders() {
   const todayStr = new Date().toISOString().slice(0,10);
   if (localStorage.getItem('orderAlertDate') === todayStr) return;
   try {
-    const orders = await fetch('/api/orders').then(r => r.json());
+    const orders = await fetch('/api/orders', {headers:{'X-Token':localStorage.getItem('authToken')||''}}).then(r => r.json());
     const today = new Date(); today.setHours(0,0,0,0);
     const urgent = orders.filter(o => {
       if (o.completed || !o.pickup_date) return false;
@@ -1497,7 +1497,7 @@ function markIssuesViewed(ids) {
 
 async function checkActiveIssues() {
   try {
-    const issues = await fetch('/api/issues').then(r => r.json());
+    const issues = await fetch('/api/issues', {headers:{'X-Token':localStorage.getItem('authToken')||''}}).then(r => r.json());
     const activeIds = issues.filter(i => i.status === '진행중').map(i => String(i.id));
     const viewed = getViewedIssueIds();
     const hasUnread = activeIds.some(id => !viewed.has(id));
@@ -1805,8 +1805,8 @@ function filterOrders() {
 }
 
 async function loadOrderList() {
-  const res = await fetch('/api/orders');
-  const orders = await res.json();
+  const token = localStorage.getItem('authToken') || '';
+  const orders = await fetch('/api/orders', {headers:{'X-Token':token}}).then(r=>r.json());
   window._orders = orders;
   renderOrderList(orders);
 }
@@ -1943,7 +1943,8 @@ function loadAsList_render(list) {
   `).join('');
 }
 async function loadAsList() {
-  const list = await fetch('/api/as').then(r => r.json());
+  const token = localStorage.getItem('authToken') || '';
+  const list = await fetch('/api/as', {headers:{'X-Token':token}}).then(r=>r.json());
   window._asRequests = list;
   loadAsList_render(list);
 }
@@ -2131,7 +2132,8 @@ function loadIssueList_render(issues) {
 }
 
 async function loadIssueList() {
-  const issues = await fetch('/api/issues').then(r => r.json());
+  const token = localStorage.getItem('authToken') || '';
+  const issues = await fetch('/api/issues', {headers:{'X-Token':token}}).then(r => r.json());
   window._issues = issues;
   loadIssueList_render(issues);
   // 진행중 이슈 읽음 처리
@@ -2271,9 +2273,11 @@ function hideAuthScreen() {
   checkActiveIssues();
   // 로그인 후 백그라운드 프리로드
   loadChatRooms();
-  fetch('/api/orders').then(r=>r.json()).then(d=>{ window._orders=d; }).catch(()=>{});
-  fetch('/api/issues').then(r=>r.json()).then(d=>{ window._issues=d; }).catch(()=>{});
-  fetch('/api/as').then(r=>r.json()).then(d=>{ window._asRequests=d; }).catch(()=>{});
+  const _t = localStorage.getItem('authToken') || '';
+  const _h = {headers:{'X-Token':_t}};
+  fetch('/api/orders', _h).then(r=>r.json()).then(d=>{ window._orders=d; }).catch(()=>{});
+  fetch('/api/issues', _h).then(r=>r.json()).then(d=>{ window._issues=d; }).catch(()=>{});
+  fetch('/api/as', _h).then(r=>r.json()).then(d=>{ window._asRequests=d; }).catch(()=>{});
   const btn = document.getElementById('profile-btn');
   btn.style.display = 'block';
   btn.textContent = (currentUser?.display_name || '') + (currentUser?.store ? ' · ' + currentUser.store : '');

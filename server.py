@@ -57,7 +57,8 @@ def init_tables():
     c.execute('''CREATE TABLE IF NOT EXISTS issues (
         id SERIAL PRIMARY KEY,
         title TEXT, occurred_at TEXT DEFAULT '', ended_at TEXT DEFAULT '',
-        content TEXT DEFAULT '', status TEXT DEFAULT '진행중', created_at TEXT DEFAULT ''
+        content TEXT DEFAULT '', status TEXT DEFAULT '진행중', created_at TEXT DEFAULT '',
+        store TEXT DEFAULT ''
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS orders (
         id SERIAL PRIMARY KEY,
@@ -67,14 +68,16 @@ def init_tables():
         customer TEXT DEFAULT '', phone TEXT DEFAULT '',
         delivery TEXT DEFAULT '없음', address TEXT DEFAULT '',
         staff TEXT DEFAULT '', note TEXT DEFAULT '',
-        created_at TEXT DEFAULT '', completed INTEGER DEFAULT 0
+        created_at TEXT DEFAULT '', completed INTEGER DEFAULT 0,
+        store TEXT DEFAULT ''
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS as_requests (
         id SERIAL PRIMARY KEY,
         received_date TEXT DEFAULT '', product_name TEXT DEFAULT '',
         content TEXT DEFAULT '', customer TEXT DEFAULT '', phone TEXT DEFAULT '',
         delivery TEXT DEFAULT '없음', staff TEXT DEFAULT '',
-        note TEXT DEFAULT '', status TEXT DEFAULT '진행중', created_at TEXT DEFAULT ''
+        note TEXT DEFAULT '', status TEXT DEFAULT '진행중', created_at TEXT DEFAULT '',
+        store TEXT DEFAULT ''
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS suggestions (
         id SERIAL PRIMARY KEY,
@@ -102,6 +105,9 @@ def init_tables():
         conn2 = data_db(); c2 = conn2.cursor()
         c2.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT ''")
         c2.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
+        c2.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
+        c2.execute("ALTER TABLE issues ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
+        c2.execute("ALTER TABLE as_requests ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
         conn2.commit(); conn2.close()
     except: pass
     c.execute('''CREATE TABLE IF NOT EXISTS sessions (
@@ -317,21 +323,24 @@ def chat_total_unread(user_id):
     row = c.fetchone(); conn.close()
     return int(row[0]) if row else 0
 
-def get_orders(barcode=''):
+def get_orders(store='', barcode=''):
     conn = data_db(); c = conn.cursor()
-    if barcode: c.execute('SELECT * FROM orders WHERE barcode=%s ORDER BY completed, id DESC', (barcode,))
-    else: c.execute('SELECT * FROM orders ORDER BY completed, id DESC')
+    if barcode:
+        c.execute('SELECT * FROM orders WHERE barcode=%s AND store=%s ORDER BY completed, id DESC', (barcode, store))
+    else:
+        c.execute('SELECT * FROM orders WHERE store=%s ORDER BY completed, id DESC', (store,))
     rows = rows_to_dicts(c); conn.close(); return rows
 
 def add_order(data):
     conn = data_db(); c = conn.cursor()
     c.execute('''INSERT INTO orders(barcode,name,qty,order_date,payment,ordered,pickup_date,
-                 customer,phone,delivery,address,staff,note,created_at) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+                 customer,phone,delivery,address,staff,note,created_at,store) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
               (data.get('barcode',''), data.get('name',''), data.get('qty',1),
                data.get('order_date',''), data.get('payment','미불'), data.get('ordered','미완료'),
                data.get('pickup_date',''), data.get('customer',''), data.get('phone',''),
                data.get('delivery','없음'), data.get('address',''),
-               data.get('staff',''), data.get('note',''), data.get('created_at','')))
+               data.get('staff',''), data.get('note',''), data.get('created_at',''),
+               data.get('store','')))
     new_id = c.fetchone()[0]; conn.commit(); conn.close(); return new_id
 
 def update_order(data):
@@ -349,16 +358,16 @@ def delete_order(order_id):
     c.execute('DELETE FROM orders WHERE id=%s', (order_id,))
     conn.commit(); conn.close()
 
-def get_issues():
+def get_issues(store=''):
     conn = data_db(); c = conn.cursor()
-    c.execute("SELECT * FROM issues ORDER BY CASE WHEN status='종료' THEN 1 ELSE 0 END, id DESC")
+    c.execute("SELECT * FROM issues WHERE store=%s ORDER BY CASE WHEN status='종료' THEN 1 ELSE 0 END, id DESC", (store,))
     rows = rows_to_dicts(c); conn.close(); return rows
 
 def add_issue(data):
     conn = data_db(); c = conn.cursor()
-    c.execute('INSERT INTO issues(title,occurred_at,ended_at,content,status,created_at) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id',
+    c.execute('INSERT INTO issues(title,occurred_at,ended_at,content,status,created_at,store) VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id',
               (data.get('title',''), data.get('occurred_at',''), data.get('ended_at',''),
-               data.get('content',''), '진행중', data.get('created_at','')))
+               data.get('content',''), '진행중', data.get('created_at',''), data.get('store','')))
     new_id = c.fetchone()[0]; conn.commit(); conn.close(); return new_id
 
 def update_issue(data):
@@ -378,18 +387,19 @@ def delete_issue(issue_id):
     c.execute('DELETE FROM issues WHERE id=%s', (issue_id,))
     conn.commit(); conn.close()
 
-def get_as_requests():
+def get_as_requests(store=''):
     conn = data_db(); c = conn.cursor()
-    c.execute("SELECT * FROM as_requests ORDER BY CASE WHEN status='완료' THEN 1 ELSE 0 END, id DESC")
+    c.execute("SELECT * FROM as_requests WHERE store=%s ORDER BY CASE WHEN status='완료' THEN 1 ELSE 0 END, id DESC", (store,))
     rows = rows_to_dicts(c); conn.close(); return rows
 
 def add_as_request(data):
     conn = data_db(); c = conn.cursor()
-    c.execute('''INSERT INTO as_requests(received_date,product_name,content,customer,phone,delivery,staff,note,status,created_at)
-                 VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+    c.execute('''INSERT INTO as_requests(received_date,product_name,content,customer,phone,delivery,staff,note,status,created_at,store)
+                 VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
               (data.get('received_date',''), data.get('product_name',''), data.get('content',''),
                data.get('customer',''), data.get('phone',''), data.get('delivery','없음'),
-               data.get('staff',''), data.get('note',''), '진행중', data.get('created_at','')))
+               data.get('staff',''), data.get('note',''), '진행중', data.get('created_at',''),
+               data.get('store','')))
     new_id = c.fetchone()[0]; conn.commit(); conn.close(); return new_id
 
 def update_as_request(data):
@@ -620,7 +630,8 @@ class Handler(BaseHTTPRequestHandler):
             db_url = os.environ.get('DATABASE_URL', '')
             self.send_json({'DATABASE_URL_set': bool(db_url), 'backend': 'postgresql'})
         elif parsed.path == '/api/as':
-            self.send_json(get_as_requests())
+            user = verify_session(self.headers.get('X-Token',''))
+            self.send_json(get_as_requests(user['store'] if user else ''))
         elif parsed.path == '/api/suggestions':
             self.send_json(get_suggestions())
         elif parsed.path == '/api/suggestions/comments':
@@ -628,7 +639,8 @@ class Handler(BaseHTTPRequestHandler):
             if sid: self.send_json(get_suggestion_comments(int(sid)))
             else: self.send_json([])
         elif parsed.path == '/api/issues':
-            self.send_json(get_issues())
+            user = verify_session(self.headers.get('X-Token',''))
+            self.send_json(get_issues(user['store'] if user else ''))
         elif parsed.path == '/api/auth/me':
             token = self.headers.get('X-Token','')
             user = verify_session(token)
@@ -677,7 +689,8 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_json({'ok': False, 'error': str(e)})
         elif parsed.path == '/api/orders':
-            self.send_json(get_orders(params.get('barcode',[''])[0]))
+            user = verify_session(self.headers.get('X-Token',''))
+            self.send_json(get_orders(user['store'] if user else '', params.get('barcode',[''])[0]))
         elif parsed.path == '/api/search':
             products, total = search_products(
                 params.get('q',[''])[0], params.get('barcode',[''])[0],
@@ -789,6 +802,8 @@ class Handler(BaseHTTPRequestHandler):
             print(f'[PUSH] 구독 저장. 총: {len(get_subscriptions())}명')
             self.send_json({'ok': True})
         elif self.path == '/api/orders':
+            user = verify_session(self.headers.get('X-Token',''))
+            body['store'] = user['store'] if user else ''
             new_id = add_order(body)
             send_push_notification('새 고객 주문',
                 f"{body.get('name','')}{' · '+body.get('customer','') if body.get('customer') else ''}",
@@ -801,6 +816,8 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == '/api/orders/complete':
             toggle_complete(body['id']); self.send_json({'ok': True})
         elif self.path == '/api/as':
+            user = verify_session(self.headers.get('X-Token',''))
+            body['store'] = user['store'] if user else ''
             self.send_json({'ok': True, 'id': add_as_request(body)})
         elif self.path == '/api/as/update':
             update_as_request(body); self.send_json({'ok': True})
@@ -819,6 +836,8 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == '/api/suggestions/comment/delete':
             delete_suggestion_comment(body['id']); self.send_json({'ok': True})
         elif self.path == '/api/issues':
+            user = verify_session(self.headers.get('X-Token',''))
+            body['store'] = user['store'] if user else ''
             self.send_json({'ok': True, 'id': add_issue(body)})
         elif self.path == '/api/issues/update':
             update_issue(body); self.send_json({'ok': True})
