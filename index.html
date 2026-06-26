@@ -1104,6 +1104,8 @@ document.addEventListener('click', e => {
 
 let swReg = null;
 let cachedSub = undefined; // undefined=미확인, null=없음, object=구독중
+let cachedVapidKey = null;
+fetch('/api/push/key').then(r => r.json()).then(d => { cachedVapidKey = d.publicKey; }).catch(() => {});
 // 버전 체크: 앱 열 때마다 + 30초마다 감지
 async function checkAppVersion() {
   try {
@@ -1264,7 +1266,7 @@ async function requestPush() {
       showToast('❌ 알림 권한이 거부됨. 설정 > Safari > 알림 확인', false);
       return;
     }
-    const { publicKey } = await fetch('/api/push/key').then(r => r.json());
+    const publicKey = cachedVapidKey || await fetch('/api/push/key').then(r => r.json()).then(d => d.publicKey);
     if (!publicKey) { showToast('❌ 서버 오류: VAPID 키 없음', false); return; }
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
