@@ -252,7 +252,8 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/push/debug':
             self.send_json({'count': len(get_subscriptions()), 'vapid_key_set': bool(VAPID_PUBLIC_KEY)})
         elif parsed.path == '/api/env':
-            self.send_json({'keys': sorted(os.environ.keys()), 'PG_URL': os.environ.get('PG_URL','NOT_SET')[:30]})
+            db_path_val = os.environ.get('DB_PATH', 'NOT_SET')
+            self.send_json({'keys': sorted(os.environ.keys()), 'DB_PATH_value': db_path_val[:40], 'PG_URL_module': PG_URL[:40] if PG_URL else 'EMPTY'})
         elif parsed.path == '/api/dbinfo':
             db_url = os.environ.get('DATABASE_URL', '')
             self.send_json({'DATABASE_URL_set': bool(db_url), 'backend': 'postgresql'})
