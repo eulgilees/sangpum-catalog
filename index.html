@@ -253,7 +253,7 @@
 
 <header>
   <div class="header-top">
-    <div class="header-logo" onclick="closeOrderForm();closeOrderList();closeIssueList();closeIssueForm();closeAsList();closeAsForm();closeSuggestionList();closeGuide();window.scrollTo({top:0,behavior:'smooth'});" style="cursor:pointer;">
+    <div class="header-logo" onclick="closeOrderForm();closeOrderList();closeIssueList();closeIssueForm();closeAsList();closeAsForm();closeSuggestionList();closeSchedule();closeGuide();window.scrollTo({top:0,behavior:'smooth'});" style="cursor:pointer;">
       <i class="ti ti-barcode"></i>
       <span>상품 조회</span>
     </div>
@@ -281,6 +281,10 @@
     <button class="header-nav-btn" onclick="openSuggestionList()">
       <i class="ti ti-message-circle"></i>
       건의사항
+    </button>
+    <button class="header-nav-btn" onclick="openSchedule()">
+      <i class="ti ti-calendar"></i>
+      휴무일정
     </button>
     <button class="header-nav-btn" onclick="openGuide()">
       <i class="ti ti-help-circle"></i>
@@ -530,6 +534,32 @@
         style="width:100%;padding:10px 12px 10px 36px;border:1px solid #d4d4ce;border-radius:10px;font-size:14px;outline:none;background:#f5f5f3;">
     </div>
     <div id="order-list-container"><div class="order-empty">주문 내역이 없습니다</div></div>
+  </div>
+</div>
+
+<!-- 휴무일정 모달 -->
+<div class="order-overlay" id="schedule-overlay" onclick="if(event.target===this)closeSchedule()">
+  <div class="order-modal" style="max-height:92vh">
+    <div class="order-modal-header">
+      <button class="modal-back-btn" onclick="closeSchedule()"><i class="ti ti-x"></i></button>
+      <h2>휴무일정</h2>
+      <span></span>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px 0;">
+      <button onclick="scheduleMonthMove(-1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:#555;">&#8249;</button>
+      <span id="schedule-month-label" style="font-weight:600;font-size:15px;color:#333;"></span>
+      <button onclick="scheduleMonthMove(1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:#555;">&#8250;</button>
+    </div>
+    <div style="display:flex;border-bottom:1px solid #eee;margin:8px 16px 0;">
+      <button id="sch-tab-list" class="issue-tab active" onclick="switchScheduleTab('list')">목록</button>
+      <button id="sch-tab-cal" class="issue-tab" onclick="switchScheduleTab('cal')">달력</button>
+    </div>
+    <div id="schedule-list-view" style="overflow-y:auto;flex:1;padding:12px 16px;"></div>
+    <div id="schedule-cal-view" style="display:none;padding:12px 16px;overflow-y:auto;flex:1;">
+      <div id="schedule-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-bottom:10px;"></div>
+      <div id="schedule-day-detail" style="margin-top:8px;"></div>
+    </div>
+    <div id="schedule-loading" style="text-align:center;padding:40px;color:#888;">불러오는 중...</div>
   </div>
 </div>
 
@@ -1007,6 +1037,128 @@ async function uploadImage(input, barcode) {
 /* 시작 가이드 */
 function openGuide() { document.getElementById('guide-overlay').classList.add('open'); }
 function closeGuide() { document.getElementById('guide-overlay').classList.remove('open'); }
+
+// ── 휴무일정 ──
+let scheduleData = [];
+let scheduleYear = 0;
+let scheduleMonth = 0;
+let scheduleTab = 'list';
+
+function openSchedule() {
+  const now = new Date();
+  scheduleYear = now.getFullYear() % 100;
+  scheduleMonth = now.getMonth() + 1;
+  document.getElementById('schedule-overlay').classList.add('open');
+  loadSchedule();
+}
+function closeSchedule() { document.getElementById('schedule-overlay').classList.remove('open'); }
+
+function scheduleMonthMove(dir) {
+  scheduleMonth += dir;
+  if (scheduleMonth > 12) { scheduleMonth = 1; scheduleYear++; }
+  if (scheduleMonth < 1)  { scheduleMonth = 12; scheduleYear--; }
+  loadSchedule();
+}
+
+function switchScheduleTab(tab) {
+  scheduleTab = tab;
+  document.getElementById('sch-tab-list').classList.toggle('active', tab === 'list');
+  document.getElementById('sch-tab-cal').classList.toggle('active', tab === 'cal');
+  document.getElementById('schedule-list-view').style.display = tab === 'list' ? '' : 'none';
+  document.getElementById('schedule-cal-view').style.display  = tab === 'cal'  ? '' : 'none';
+}
+
+async function loadSchedule() {
+  const label = `${scheduleYear}년 ${scheduleMonth}월`;
+  document.getElementById('schedule-month-label').textContent = label;
+  document.getElementById('schedule-loading').style.display = 'block';
+  document.getElementById('schedule-list-view').style.display = 'none';
+  document.getElementById('schedule-cal-view').style.display = 'none';
+
+  try {
+    const res = await fetch(`/api/schedule?year=${scheduleYear}&month=${scheduleMonth}`);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || '오류');
+    scheduleData = json.data;
+    document.getElementById('schedule-loading').style.display = 'none';
+    renderScheduleList();
+    renderScheduleCal();
+    switchScheduleTab(scheduleTab);
+  } catch(e) {
+    document.getElementById('schedule-loading').textContent = '❌ 데이터를 불러올 수 없습니다. 탭 이름을 확인해주세요.';
+  }
+}
+
+function renderScheduleList() {
+  const el = document.getElementById('schedule-list-view');
+  if (!scheduleData.length) { el.innerHTML = '<div style="text-align:center;color:#aaa;padding:30px;">일정 없음</div>'; return; }
+  el.innerHTML = scheduleData.map(d => `
+    <div style="border:1px solid #e8e8e4;border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+      <div style="font-weight:700;font-size:14px;color:#222;margin-bottom:8px;">${d.date}</div>
+      <div style="display:flex;flex-direction:column;gap:5px;font-size:13px;">
+        <div style="display:flex;gap:8px;align-items:baseline;">
+          <span style="min-width:32px;color:#185fa5;font-weight:600;">오전</span>
+          <span style="color:#333;">${d['오전'] || '<span style="color:#bbb">-</span>'}</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:baseline;">
+          <span style="min-width:32px;color:#185fa5;font-weight:600;">오후</span>
+          <span style="color:#333;">${d['오후'] || '<span style="color:#bbb">-</span>'}</span>
+        </div>
+        ${d['휴무'].length ? `<div style="display:flex;gap:8px;align-items:baseline;">
+          <span style="min-width:32px;color:#e03131;font-weight:600;">휴무</span>
+          <span style="color:#555;">${d['휴무'].join(', ')}</span>
+        </div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function renderScheduleCal() {
+  const grid = document.getElementById('schedule-cal-grid');
+  const days = ['일','월','화','수','목','금','토'];
+  // 날짜 → 데이터 맵
+  const dayMap = {};
+  scheduleData.forEach(d => {
+    const m = d.date.match(/(\d+)월\s*(\d+)일/);
+    if (m) dayMap[parseInt(m[2])] = d;
+  });
+
+  const year = 2000 + scheduleYear;
+  const firstDay = new Date(year, scheduleMonth - 1, 1).getDay();
+  const daysInMonth = new Date(year, scheduleMonth, 0).getDate();
+
+  let html = days.map(d => `<div style="font-size:11px;color:#888;font-weight:600;padding:4px 0;">${d}</div>`).join('');
+  for (let i = 0; i < firstDay; i++) html += '<div></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const has = dayMap[d];
+    const hasOff = has && has['휴무'].length > 0;
+    html += `<div onclick="showScheduleDay(${d})" style="padding:6px 2px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:${has?'600':'400'};color:${has?'#222':'#bbb'};background:${hasOff?'#fff0f0':'transparent'};border:1px solid ${has?'#ddd':'transparent'};min-height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+      ${d}
+      ${hasOff ? '<span style="font-size:9px;color:#e03131;">휴무</span>' : ''}
+    </div>`;
+  }
+  grid.innerHTML = html;
+  document.getElementById('schedule-day-detail').innerHTML = '';
+}
+
+function showScheduleDay(day) {
+  const dayMap = {};
+  scheduleData.forEach(d => {
+    const m = d.date.match(/(\d+)월\s*(\d+)일/);
+    if (m) dayMap[parseInt(m[2])] = d;
+  });
+  const d = dayMap[day];
+  const el = document.getElementById('schedule-day-detail');
+  if (!d) { el.innerHTML = `<div style="text-align:center;color:#aaa;padding:16px;">${day}일 일정 없음</div>`; return; }
+  el.innerHTML = `
+    <div style="border:1px solid #e8e8e4;border-radius:10px;padding:12px 14px;background:#f8f8f6;">
+      <div style="font-weight:700;font-size:14px;color:#222;margin-bottom:8px;">${d.date}</div>
+      <div style="display:flex;flex-direction:column;gap:5px;font-size:13px;">
+        <div style="display:flex;gap:8px;"><span style="min-width:32px;color:#185fa5;font-weight:600;">오전</span><span>${d['오전'] || '-'}</span></div>
+        <div style="display:flex;gap:8px;"><span style="min-width:32px;color:#185fa5;font-weight:600;">오후</span><span>${d['오후'] || '-'}</span></div>
+        ${d['휴무'].length ? `<div style="display:flex;gap:8px;"><span style="min-width:32px;color:#e03131;font-weight:600;">휴무</span><span>${d['휴무'].join(', ')}</span></div>` : ''}
+      </div>
+    </div>`;
+}
 
 /* 라이트박스 */
 function openImg(url) {

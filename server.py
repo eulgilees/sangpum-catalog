@@ -11,6 +11,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 IMAGES_DIR = 'images'
 START_TIME = str(int(time.time()))
 PRODUCTS_DB = 'products.db'
+SHEET_ID = '1xjDKlkehpL1sOqwJExLOdOibKhpnYi9fOra5XIBqk14'
 PG_URL = os.environ.get('PRODUCTS_DB', '')  # PRODUCTS_DB 변수 재활용
 VAPID_PUBLIC_KEY  = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
@@ -287,6 +288,61 @@ def toggle_complete(order_id):
     c.execute('UPDATE orders SET completed=1-completed WHERE id=%s', (order_id,))
     conn.commit(); conn.close()
 
+def fetch_schedule(year_short, month):
+    import urllib.request, csv, io
+    sheet_name = f'{year_short}년 {month}월'
+    url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(sheet_name)}'
+    with urllib.request.urlopen(url, timeout=10) as resp:
+        csv_text = resp.read().decode('utf-8')
+    rows = list(csv.reader(io.StringIO(csv_text)))
+    schedule = {}
+    i = 0
+    while i < len(rows):
+        row = rows[i]
+        if not row or row[0].strip() != '구분':
+            i += 1
+            continue
+        date_row = rows[i+1] if i+1 < len(rows) else []
+        dates = []
+        for c in range(1, min(15, len(date_row)), 2):
+            d = date_row[c].strip()
+            if d and '일' in d:
+                dates.append((c, d))
+        work_row = None
+        off_rows = []
+        collecting_off = False
+        for j in range(i+2, min(i+12, len(rows))):
+            r = rows[j]
+            if not r: continue
+            label = r[0].strip()
+            if label == '근무':
+                work_row = r
+            elif label == '휴무':
+                off_rows.append(r); collecting_off = True
+            elif label == '' and collecting_off:
+                off_rows.append(r)
+            elif label == '구분' and j > i+2:
+                break
+            elif label not in ('', '특이사항', '근무', '휴무'):
+                collecting_off = False
+        for col, date in dates:
+            if date not in schedule:
+                schedule[date] = {'오전': '', '오후': '', '휴무': []}
+            if work_row:
+                am = work_row[col].strip() if col < len(work_row) else ''
+                pm = work_row[col+1].strip() if col+1 < len(work_row) else ''
+                if am: schedule[date]['오전'] = am
+                if pm: schedule[date]['오후'] = pm
+            for off_row in off_rows:
+                person = off_row[col].strip() if col < len(off_row) else ''
+                if person: schedule[date]['휴무'].append(person)
+        i += 1
+    # 날짜 정렬
+    def date_key(d):
+        m = re.search(r'(\d+)월\s*(\d+)일', d)
+        return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+    return [{'date': d, **schedule[d]} for d in sorted(schedule, key=date_key)]
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -326,6 +382,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(get_suggestions())
         elif parsed.path == '/api/issues':
             self.send_json(get_issues())
+        elif parsed.path == '/api/schedule':
+            try:
+                now = time.localtime()
+                year_short = params.get('year', [str(now.tm_year % 100)])[0]
+                month = params.get('month', [str(now.tm_mon)])[0]
+                self.send_json({'ok': True, 'data': fetch_schedule(year_short, month)})
+            except Exception as e:
+                self.send_json({'ok': False, 'error': str(e)})
         elif parsed.path == '/api/orders':
             self.send_json(get_orders(params.get('barcode',[''])[0]))
         elif parsed.path == '/api/search':
