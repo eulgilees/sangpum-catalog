@@ -78,6 +78,19 @@ def init_orders_table():
         pickup_date TEXT, customer TEXT, phone TEXT, delivery TEXT DEFAULT '없음',
         address TEXT, staff TEXT, note TEXT, created_at TEXT, completed INTEGER DEFAULT 0
     )''')
+    # 기존 DB에 빠진 컬럼 자동 추가
+    existing = {row[1] for row in conn.execute('PRAGMA table_info(orders)')}
+    migrations = [
+        ('order_date',  'TEXT DEFAULT ""'),
+        ('customer',    'TEXT DEFAULT ""'),
+        ('phone',       'TEXT DEFAULT ""'),
+        ('delivery',    'TEXT DEFAULT "없음"'),
+        ('address',     'TEXT DEFAULT ""'),
+        ('completed',   'INTEGER DEFAULT 0'),
+    ]
+    for col, typedef in migrations:
+        if col not in existing:
+            conn.execute(f'ALTER TABLE orders ADD COLUMN {col} {typedef}')
     conn.commit()
     conn.close()
 
