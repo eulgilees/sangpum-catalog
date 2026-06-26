@@ -297,6 +297,47 @@
           style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;">
       </div>
       <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">근무 점포</label>
+        <select id="reg-store" style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;background:#fff;appearance:none;-webkit-appearance:none;">
+          <option value="">점포를 선택해주세요</option>
+          <option>가든파이브점</option>
+          <option>강남점</option>
+          <option>건대스타시티점</option>
+          <option>경성대ㆍ부경대점</option>
+          <option>광교점</option>
+          <option>광주상무점</option>
+          <option>광화문점</option>
+          <option>대구점</option>
+          <option>대전점</option>
+          <option>동대문점</option>
+          <option>목동점</option>
+          <option>부산점</option>
+          <option>분당점</option>
+          <option>서울대점</option>
+          <option>세종점</option>
+          <option>센텀시티점</option>
+          <option>송도점</option>
+          <option>수유점</option>
+          <option>영등포점</option>
+          <option>울산점</option>
+          <option>원그로브점</option>
+          <option>은평점</option>
+          <option>이화여대점</option>
+          <option>인천점</option>
+          <option>일산점</option>
+          <option>잠실점</option>
+          <option>전주점</option>
+          <option>창원점</option>
+          <option>천안점</option>
+          <option>천호점</option>
+          <option>청량리점</option>
+          <option>칠곡점</option>
+          <option>판교점</option>
+          <option>평촌점</option>
+          <option>합정점</option>
+        </select>
+      </div>
+      <div style="margin-bottom:14px;">
         <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">휴대폰 번호 (비밀번호 찾기용)</label>
         <input id="reg-phone" type="tel" placeholder="010-0000-0000" inputmode="numeric" oninput="formatPhone(this)"
           style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;">
@@ -2171,16 +2212,17 @@ async function doLogin() {
 async function doRegister() {
   const display_name = document.getElementById('reg-display').value.trim();
   const username = document.getElementById('reg-username').value.trim();
+  const store = document.getElementById('reg-store').value;
   const phone = document.getElementById('reg-phone').value.trim();
   const password = document.getElementById('reg-password').value;
   const password2 = document.getElementById('reg-password2').value;
   const errEl = document.getElementById('reg-error');
   errEl.style.display = 'none';
-  if (!display_name || !username || !phone || !password) { errEl.textContent = '모든 항목을 입력해주세요'; errEl.style.display = 'block'; return; }
+  if (!display_name || !username || !store || !phone || !password) { errEl.textContent = '모든 항목을 입력해주세요'; errEl.style.display = 'block'; return; }
   if (password !== password2) { errEl.textContent = '비밀번호가 일치하지 않습니다'; errEl.style.display = 'block'; return; }
   const res = await fetch('/api/auth/register', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password, display_name, phone })
+    body: JSON.stringify({ username, password, display_name, phone, store })
   });
   const data = await res.json();
   if (!data.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }

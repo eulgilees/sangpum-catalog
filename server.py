@@ -83,8 +83,17 @@ def init_tables():
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         display_name TEXT DEFAULT '',
+        phone TEXT DEFAULT '',
+        store TEXT DEFAULT '',
         created_at TEXT DEFAULT ''
     )''')
+    # 마이그레이션
+    try:
+        conn2 = data_db(); c2 = conn2.cursor()
+        c2.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT ''")
+        c2.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
+        conn2.commit(); conn2.close()
+    except: pass
     c.execute('''CREATE TABLE IF NOT EXISTS sessions (
         token TEXT PRIMARY KEY,
         user_id INTEGER NOT NULL,
@@ -313,17 +322,16 @@ def verify_password(pw, stored):
         return hashlib.pbkdf2_hmac('sha256', pw.encode(), salt.encode(), 100000).hex() == h
     except: return False
 
-def register_user(username, password, display_name):
+def register_user(username, password, display_name, phone, store=''):
     conn = data_db(); c = conn.cursor()
     try:
-        c.execute('INSERT INTO users (username, password_hash, display_name, created_at) VALUES (%s,%s,%s,%s) RETURNING id',
-                  (username.strip(), hash_password(password), display_name.strip(), str(int(time.time()))))
+        c.execute('INSERT INTO users (username, password_hash, display_name, phone, store, created_at) VALUES (%s,%s,%s,%s,%s,%s) RETURNING id',
+                  (username.strip(), hash_password(password), display_name.strip(), phone.strip(), store.strip(), str(int(time.time()))))
         user_id = c.fetchone()[0]
         conn.commit()
-        return {'id': user_id, 'username': username, 'display_name': display_name}
+        return {'id': user_id, 'username': username, 'display_name': display_name, 'store': store}
     except Exception as e:
-        conn.rollback()
-        raise e
+        conn.rollback(); raise e
     finally: conn.close()
 
 def login_user(username, password):
@@ -334,6 +342,18 @@ def login_user(username, password):
     u = rows[0]
     if not verify_password(password, u['password_hash']): return None
     return {'id': u['id'], 'username': u['username'], 'display_name': u['display_name']}
+
+def find_user_by_phone(username, phone):
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT id, username, display_name FROM users WHERE username=%s AND phone=%s',
+              (username.strip(), phone.strip()))
+    rows = rows_to_dicts(c); conn.close()
+    return rows[0] if rows else None
+
+def reset_password(user_id, new_password):
+    conn = data_db(); c = conn.cursor()
+    c.execute('UPDATE users SET password_hash=%s WHERE id=%s', (hash_password(new_password), user_id))
+    conn.commit(); conn.close()
 
 def create_session(user_id):
     token = secrets.token_hex(32)
@@ -484,24 +504,41 @@ class Handler(BaseHTTPRequestHandler):
                 username = body.get('username','').strip()
                 password = body.get('password','').strip()
                 display_name = body.get('display_name','').strip()
-                if not username or not password or not display_name:
+                phone = re.sub(r'[^\d]', '', body.get('phone',''))
+                store = body.get('store','').strip()
+                if not username or not password or not display_name or not phone or not store:
                     self.send_json({'ok': False, 'error': '모든 항목을 입력해주세요'}); return
+                if not re.fullmatch(r'\d{5}', username):
+                    self.send_json({'ok': False, 'error': '사번은 숫자 5자리여야 합니다'}); return
                 if len(password) < 4:
                     self.send_json({'ok': False, 'error': '비밀번호는 4자 이상이어야 합니다'}); return
-                user = register_user(username, password, display_name)
+                user = register_user(username, password, display_name, phone, store)
                 token = create_session(user['id'])
                 self.send_json({'ok': True, 'token': token, 'user': user})
             except Exception as e:
                 msg = str(e)
                 if 'unique' in msg.lower() or 'duplicate' in msg.lower():
-                    self.send_json({'ok': False, 'error': '이미 사용 중인 아이디입니다'})
+                    self.send_json({'ok': False, 'error': '이미 등록된 사번입니다'})
                 else:
                     self.send_json({'ok': False, 'error': '오류가 발생했습니다'})
         elif self.path == '/api/auth/login':
             user = login_user(body.get('username',''), body.get('password',''))
-            if not user: self.send_json({'ok': False, 'error': '아이디 또는 비밀번호가 틀렸습니다'}); return
+            if not user: self.send_json({'ok': False, 'error': '사번 또는 비밀번호가 틀렸습니다'}); return
             token = create_session(user['id'])
             self.send_json({'ok': True, 'token': token, 'user': user})
+        elif self.path == '/api/auth/find-password':
+            username = body.get('username','').strip()
+            phone = re.sub(r'[^\d]', '', body.get('phone',''))
+            user = find_user_by_phone(username, phone)
+            if not user: self.send_json({'ok': False, 'error': '사번과 휴대폰 번호가 일치하지 않습니다'}); return
+            self.send_json({'ok': True, 'user_id': user['id'], 'display_name': user['display_name']})
+        elif self.path == '/api/auth/reset-password':
+            user_id = body.get('user_id')
+            new_pw = body.get('password','')
+            if not user_id or len(new_pw) < 4:
+                self.send_json({'ok': False, 'error': '비밀번호는 4자 이상이어야 합니다'}); return
+            reset_password(user_id, new_pw)
+            self.send_json({'ok': True})
         elif self.path == '/api/auth/logout':
             delete_session(self.headers.get('X-Token',''))
             self.send_json({'ok': True})
