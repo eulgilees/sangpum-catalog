@@ -1475,18 +1475,22 @@ function renderOrderList(orders) {
   if (!orders.length) { container.innerHTML = '<div class="order-empty">주문 내역이 없습니다</div>'; return; }
   container.innerHTML = orders.map(o => `
     <div class="order-list-item${o.completed ? ' completed' : ''}">
-      <div class="order-item-name">${o.completed ? '✓ ' : ''}${esc(o.name)}</div>
-      <div class="order-item-row">
-        <span class="order-badge ${o.payment==='완불'?'badge-paid':'badge-unpaid'}">${esc(o.payment)}</span>
-        <span class="order-badge ${o.ordered==='완료'?'badge-done':'badge-pending'}">발주 ${esc(o.ordered)}</span>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+        <div class="order-item-name" style="margin-bottom:0;">${o.completed ? '✓ ' : ''}${esc(o.name)}</div>
+        <div style="display:flex;gap:5px;flex-shrink:0;margin-left:8px;">
+          <span class="order-badge ${o.payment==='완불'?'badge-paid':'badge-unpaid'}">${esc(o.payment)}</span>
+          <span class="order-badge ${o.ordered==='완료'?'badge-done':'badge-pending'}">발주 ${esc(o.ordered)}</span>
+        </div>
       </div>
-      <div class="order-item-detail">
-        주문일 ${o.order_date||'—'} · 수량 ${esc(String(o.qty))}부 · 수령 희망일 ${o.pickup_date||'미정'} · 담당 ${esc(o.staff||'—')}
-        ${o.customer ? `<br>고객 ${esc(o.customer)}${o.phone ? ' · ' + esc(o.phone) : ''}` : ''}
-        ${o.delivery==='발송' ? `<br>택배 발송${o.address ? ' · ' + esc(o.address) : ''}` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px;color:#5f5e5a;margin-bottom:8px;">
+        <div><span style="color:#aaa;font-size:11px;">주문일</span><br><b>${o.order_date||'—'}</b></div>
+        <div><span style="color:#aaa;font-size:11px;">수령희망일</span><br><b style="color:${o.pickup_date?'#185fa5':'#aaa'}">${o.pickup_date||'미정'}</b></div>
+        <div><span style="color:#aaa;font-size:11px;">수량</span><br><b>${esc(String(o.qty))}부</b></div>
+        <div><span style="color:#aaa;font-size:11px;">담당</span><br><b>${esc(o.staff||'—')}</b></div>
       </div>
+      ${o.customer ? `<div style="font-size:13px;color:#5f5e5a;margin-bottom:6px;">👤 ${esc(o.customer)}${o.phone?' · '+esc(o.phone):''}</div>` : ''}
+      ${o.delivery==='발송' ? `<div style="font-size:13px;color:#5f5e5a;margin-bottom:6px;">📦 택배 발송${o.address?' · '+esc(o.address):''}</div>` : ''}
       ${o.note ? `<div class="order-item-note">📝 ${esc(o.note)}</div>` : ''}
-      <div style="font-size:11px;color:#b4b2a9;margin-top:6px;">${esc(o.created_at||'')}</div>
       <div class="order-item-actions">
         ${!o.completed ? `<button class="order-edit-btn" onclick="editOrder(${o.id})">수정</button>` : ''}
         <button class="order-del-btn" onclick="deleteOrder(${o.id})">삭제</button>
