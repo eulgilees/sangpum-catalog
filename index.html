@@ -2220,11 +2220,8 @@ async function initAuth() {
   if (data.ok) {
     currentUser = data.user;
     localStorage.setItem('cachedUser', JSON.stringify(data.user));
-    if (!cached) hideAuthScreen(); // 처음 로그인 시
+    hideAuthScreen(); // 항상 호출 — 버튼 표시 + 최신 이름/점포 반영
     autoRequestPushIfStandalone();
-    // 헤더 이름 업데이트 (최신 정보 반영)
-    const btn = document.getElementById('profile-btn');
-    if (btn) btn.textContent = (currentUser.display_name || '') + (currentUser.store ? ' · ' + currentUser.store : '');
   } else {
     localStorage.removeItem('authToken');
     localStorage.removeItem('cachedUser');
