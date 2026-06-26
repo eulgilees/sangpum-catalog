@@ -223,7 +223,14 @@
     </div>
     <div class="order-field">
       <div class="order-label">상품</div>
-      <input class="order-input" id="of-name" placeholder="상품명 입력">
+      <input class="order-input" id="of-name" placeholder="상품명 입력" oninput="onOrderNameInput()">
+    </div>
+    <div class="order-field">
+      <div class="order-label" style="display:flex;align-items:center;justify-content:space-between;">
+        바코드
+        <span id="of-barcode-status" style="font-size:11px;color:#888780;"></span>
+      </div>
+      <input class="order-input" id="of-barcode" placeholder="상품명 입력 시 자동 조회" readonly style="background:#f5f5f3;color:#888780;">
     </div>
     <div class="order-field">
       <div class="order-label">주문일</div>
@@ -853,6 +860,43 @@ let orderPayVal = '미불';
 let orderOrdVal = '미완료';
 let orderDeliveryVal = '없음';
 
+let orderNameTimer = null;
+function onOrderNameInput() {
+  clearTimeout(orderNameTimer);
+  const name = document.getElementById('of-name').value.trim();
+  const barcodeInput = document.getElementById('of-barcode');
+  const status = document.getElementById('of-barcode-status');
+  if (!name) {
+    barcodeInput.value = '';
+    barcodeInput.readOnly = true;
+    barcodeInput.style.background = '#f5f5f3';
+    barcodeInput.style.color = '#888780';
+    status.textContent = '';
+    return;
+  }
+  status.textContent = '조회 중...';
+  orderNameTimer = setTimeout(async () => {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(name)}&limit=1`);
+    const data = await res.json();
+    if (data.products && data.products.length === 1) {
+      barcodeInput.value = data.products[0].barcode;
+      barcodeInput.readOnly = true;
+      barcodeInput.style.background = '#f5f5f3';
+      barcodeInput.style.color = '#888780';
+      status.textContent = '✓ 자동 입력됨';
+      status.style.color = '#3b6d11';
+    } else {
+      barcodeInput.value = '';
+      barcodeInput.readOnly = false;
+      barcodeInput.style.background = '#fff';
+      barcodeInput.style.color = '#1a1a18';
+      barcodeInput.placeholder = '직접 입력하세요';
+      status.textContent = '직접 입력 필요';
+      status.style.color = '#a32d2d';
+    }
+  }, 500);
+}
+
 function selectDelivery(idx) {
   orderDeliveryVal = idx === 1 ? '발송' : '없음';
   document.getElementById('of-delivery-0').classList.toggle('active', idx===0);
@@ -877,6 +921,14 @@ function openOrderForm(barcode, name, order=null) {
   orderFormId = order ? order.id : null;
   document.getElementById('order-form-title').textContent = order ? '주문 수정' : '주문 등록';
   document.getElementById('of-name').value = order ? order.name : name;
+  const barcodeInput = document.getElementById('of-barcode');
+  barcodeInput.value = barcode || (order ? order.barcode : '') || '';
+  const hasBarcode = !!barcodeInput.value;
+  barcodeInput.readOnly = hasBarcode;
+  barcodeInput.style.background = hasBarcode ? '#f5f5f3' : '#fff';
+  barcodeInput.style.color = hasBarcode ? '#888780' : '#1a1a18';
+  document.getElementById('of-barcode-status').textContent = hasBarcode ? '✓ 자동 입력됨' : '';
+  document.getElementById('of-barcode-status').style.color = '#3b6d11';
   document.getElementById('of-qty').value = order ? order.qty : 1;
   const today = new Date(); const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   document.getElementById('of-order-date').value = order ? (order.order_date||'') : todayStr;
@@ -903,13 +955,14 @@ async function submitOrder() {
   const staff = document.getElementById('of-staff').value.trim();
   const note = document.getElementById('of-note').value.trim();
   const d = new Date(); const created_at = `${String(d.getFullYear()).slice(2)}.${d.getMonth()+1}.${d.getDate()}`;
+  const barcode = document.getElementById('of-barcode').value.trim() || orderFormBarcode;
   if (orderFormId) {
     await fetch('/api/orders/update', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ id:orderFormId, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, customer, phone, delivery:orderDeliveryVal, address, staff, note }) });
   } else {
     const name = document.getElementById('of-name').value;
     await fetch('/api/orders', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ barcode:orderFormBarcode, name, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, customer, phone, delivery:orderDeliveryVal, address, staff, note, created_at }) });
+      body: JSON.stringify({ barcode, name, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, customer, phone, delivery:orderDeliveryVal, address, staff, note, created_at }) });
   }
   closeOrderForm();
   if (document.getElementById('order-list-overlay').classList.contains('open')) loadOrderList();
