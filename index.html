@@ -2062,17 +2062,23 @@ window.addEventListener('load', () => {
     if (el) initPTR(el, fn);
   });
 
-  // 스케줄 오버레이: iOS WebView bounce로 인한 모달 닫힘 완전 차단
-  const scheduleOverlay = document.getElementById('schedule-overlay');
-  scheduleOverlay.addEventListener('touchmove', (e) => {
-    // 스크롤 가능한 자식 안에서 터치하면 허용
-    let el = e.target;
-    while (el && el !== scheduleOverlay) {
-      if (el.scrollHeight > el.clientHeight + 1) return;
-      el = el.parentElement;
-    }
-    e.preventDefault();
-  }, { passive: false });
+  // 스케줄 오버레이: 상단/하단 경계에서 iOS overscroll 차단
+  function preventBounce(el) {
+    let touchStartY = 0;
+    el.addEventListener('touchstart', e => {
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    el.addEventListener('touchmove', e => {
+      const dy = e.touches[0].clientY - touchStartY;
+      const atTop    = el.scrollTop <= 0;
+      const atBottom = el.scrollTop >= el.scrollHeight - el.clientHeight - 1;
+      if ((atTop && dy > 0) || (atBottom && dy < 0)) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+  }
+  preventBounce(document.getElementById('schedule-list-view'));
+  preventBounce(document.getElementById('schedule-cal-view'));
 });
 </script>
 </body>
