@@ -2576,7 +2576,7 @@ function appendChatBubble(m) {
 }
 function startChatPoll() {
   stopChatPoll();
-  chatPollTimer = setInterval(loadChatMessages, 500);
+  chatPollTimer = setInterval(loadChatMessages, 2000);
 }
 function stopChatPoll() {
   if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; }

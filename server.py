@@ -27,12 +27,7 @@ NEON_DB   = 'neondb'
 NEON_USER = 'neondb_owner'
 NEON_PASS = 'npg_FudX2Rp4iYOw'
 
-import queue, threading as _threading
-
-_DB_POOL = queue.Queue(maxsize=5)
-_DB_POOL_LOCK = _threading.Lock()
-
-def _new_raw_conn():
+def data_db():
     import pg8000.dbapi as pg
     url = PG_URL if PG_URL.startswith('postgresql') else ''
     if url:
@@ -44,43 +39,6 @@ def _new_raw_conn():
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     return pg.connect(host=host, port=port, database=database, user=user, password=password, ssl_context=ctx)
-
-def _get_pool_conn():
-    try:
-        conn = _DB_POOL.get_nowait()
-        # 살아있는지 확인 (DBAPI 방식)
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT 1")
-            return conn
-        except Exception:
-            try: conn.close()
-            except: pass
-    except queue.Empty:
-        pass
-    return _new_raw_conn()
-
-def _return_pool_conn(conn):
-    try:
-        _DB_POOL.put_nowait(conn)
-    except queue.Full:
-        try: conn.close()
-        except: pass
-
-class _PooledConn:
-    def __init__(self):
-        self._conn = _get_pool_conn()
-    def cursor(self):
-        return self._conn.cursor()
-    def commit(self):
-        self._conn.commit()
-    def rollback(self):
-        self._conn.rollback()
-    def close(self):
-        _return_pool_conn(self._conn)
-
-def data_db():
-    return _PooledConn()
 
 def rows_to_dicts(cursor):
     cols = [d[0] for d in cursor.description]
@@ -656,16 +614,32 @@ class Handler(BaseHTTPRequestHandler):
             token = self.headers.get('X-Token','')
             user = verify_session(token)
             if not user: self.send_json({'ok': False}); return
-            self.send_json({'ok': True, 'rooms': get_my_rooms(user['id']), 'unread': chat_total_unread(user['id'])})
+            rooms = get_my_rooms(user['id'])
+            total = sum(r.get('unread', 0) for r in rooms)
+            self.send_json({'ok': True, 'rooms': rooms, 'unread': total})
         elif parsed.path == '/api/chat/messages':
             token = self.headers.get('X-Token','')
-            user = verify_session(token)
-            if not user: self.send_json({'ok': False}); return
             room_id = int(params.get('room_id', ['0'])[0])
             after = int(params.get('after', ['0'])[0])
-            msgs = get_messages(room_id, after)
-            chat_mark_read(room_id, user['id'])
-            self.send_json({'ok': True, 'messages': msgs})
+            # DB 연결 1번으로 세션확인+메시지조회+읽음처리 한번에
+            conn = data_db(); c = conn.cursor()
+            try:
+                c.execute('''SELECT u.id, u.username, u.display_name, u.phone, u.store
+                             FROM sessions s JOIN users u ON u.id=s.user_id
+                             WHERE s.token=%s AND s.expires_at>%s''', (token, int(time.time())))
+                rows = rows_to_dicts(c)
+                if not rows: self.send_json({'ok': False}); return
+                user = rows[0]
+                c.execute('''SELECT id, user_id, display_name, content, created_at
+                             FROM chat_messages WHERE room_id=%s AND id>%s
+                             ORDER BY id DESC LIMIT 100''', (room_id, after))
+                msgs = list(reversed(rows_to_dicts(c)))
+                c.execute('UPDATE chat_room_members SET last_read=%s WHERE room_id=%s AND user_id=%s',
+                          (int(time.time()), room_id, user['id']))
+                conn.commit()
+                self.send_json({'ok': True, 'messages': msgs})
+            finally:
+                conn.close()
         elif parsed.path == '/api/schedule':
             try:
                 now = time.localtime()
@@ -864,15 +838,6 @@ if __name__ == '__main__':
         print('PostgreSQL 연결 성공!')
     except Exception as e:
         print(f'DB 초기화 실패 (서버는 계속 실행): {e}')
-    # 커넥션 풀 예열 (3개 미리 연결)
-    print('커넥션 풀 예열 중...')
-    try:
-        for _ in range(3):
-            c = _new_raw_conn()
-            _return_pool_conn(c)
-        print(f'커넥션 풀 준비 완료 ({_DB_POOL.qsize()}개)')
-    except Exception as e:
-        print(f'풀 예열 실패 (무시): {e}')
     port = int(os.environ.get('PORT', 8747))
     print(f'서버 시작: http://localhost:{port}')
     ThreadedHTTPServer(('', port), Handler).serve_forever()
