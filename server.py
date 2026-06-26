@@ -81,6 +81,13 @@ def init_tables():
         content TEXT DEFAULT '', date TEXT DEFAULT '',
         status TEXT DEFAULT '미처리', created_at TEXT DEFAULT ''
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS suggestion_comments (
+        id SERIAL PRIMARY KEY,
+        suggestion_id INTEGER NOT NULL,
+        display_name TEXT DEFAULT '',
+        content TEXT DEFAULT '',
+        created_at TEXT DEFAULT ''
+    )''')
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
@@ -422,7 +429,24 @@ def set_suggestion_status(sid, status):
 
 def delete_suggestion(sid):
     conn = data_db(); c = conn.cursor()
+    c.execute('DELETE FROM suggestion_comments WHERE suggestion_id=%s', (sid,))
     c.execute('DELETE FROM suggestions WHERE id=%s', (sid,))
+    conn.commit(); conn.close()
+
+def get_suggestion_comments(suggestion_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT * FROM suggestion_comments WHERE suggestion_id=%s ORDER BY id', (suggestion_id,))
+    rows = rows_to_dicts(c); conn.close(); return rows
+
+def add_suggestion_comment(data):
+    conn = data_db(); c = conn.cursor()
+    c.execute('INSERT INTO suggestion_comments(suggestion_id,display_name,content,created_at) VALUES(%s,%s,%s,%s) RETURNING id',
+              (data.get('suggestion_id'), data.get('display_name',''), data.get('content',''), data.get('created_at','')))
+    new_id = c.fetchone()[0]; conn.commit(); conn.close(); return new_id
+
+def delete_suggestion_comment(cid):
+    conn = data_db(); c = conn.cursor()
+    c.execute('DELETE FROM suggestion_comments WHERE id=%s', (cid,))
     conn.commit(); conn.close()
 
 def toggle_complete(order_id):
@@ -599,6 +623,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(get_as_requests())
         elif parsed.path == '/api/suggestions':
             self.send_json(get_suggestions())
+        elif parsed.path == '/api/suggestions/comments':
+            sid = parsed.query.split('suggestion_id=')[-1].split('&')[0] if 'suggestion_id=' in parsed.query else None
+            if sid: self.send_json(get_suggestion_comments(int(sid)))
+            else: self.send_json([])
         elif parsed.path == '/api/issues':
             self.send_json(get_issues())
         elif parsed.path == '/api/auth/me':
@@ -786,6 +814,10 @@ class Handler(BaseHTTPRequestHandler):
             set_suggestion_status(body['id'], body['status']); self.send_json({'ok': True})
         elif self.path == '/api/suggestions/delete':
             delete_suggestion(body['id']); self.send_json({'ok': True})
+        elif self.path == '/api/suggestions/comment':
+            self.send_json({'ok': True, 'id': add_suggestion_comment(body)})
+        elif self.path == '/api/suggestions/comment/delete':
+            delete_suggestion_comment(body['id']); self.send_json({'ok': True})
         elif self.path == '/api/issues':
             self.send_json({'ok': True, 'id': add_issue(body)})
         elif self.path == '/api/issues/update':

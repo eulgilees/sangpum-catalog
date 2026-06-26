@@ -161,6 +161,8 @@
     /* 이슈사항 */
     .issue-badge-active { background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:6px; font-size:11px; padding:2px 7px; font-weight:600; }
     .issue-badge-closed { background:#f0f0ec; color:#888; border:1px solid #d4d4ce; border-radius:6px; font-size:11px; padding:2px 7px; }
+    .issue-badge-hold { background:#e8f4fd; color:#1971c2; border:1px solid #74c0fc; border-radius:6px; font-size:11px; padding:2px 7px; font-weight:600; }
+    .issue-btn-hold { background:#e8f4fd; color:#1971c2; border:1px solid #74c0fc; }
     /* 이슈 달력 */
     .issue-tab-bar { display:flex; border-bottom:1px solid #eee; margin-bottom:16px; }
     .issue-tab { flex:1; padding:10px; font-size:14px; font-weight:500; background:none; border:none; cursor:pointer; color:#888; border-bottom:2px solid transparent; }
@@ -1979,21 +1981,75 @@ async function loadSuggestionList() {
   const list = await fetch('/api/suggestions').then(r => r.json());
   const container = document.getElementById('suggestion-list-container');
   if (!list.length) { container.innerHTML = '<div class="order-empty">건의사항이 없습니다</div>'; return; }
-  container.innerHTML = list.map(s => `
-    <div class="issue-item${s.status==='처리완료' ? ' closed' : ''}" style="margin-bottom:10px;">
+  container.innerHTML = list.map(s => {
+    const badgeStyle = s.status==='처리완료' ? 'issue-badge-closed' : s.status==='처리보류' ? 'issue-badge-hold' : 'issue-badge-active';
+    const isClosed = s.status==='처리완료';
+    return `
+    <div class="issue-item${isClosed ? ' closed' : ''}" style="margin-bottom:10px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <span class="${s.status==='처리완료' ? 'issue-badge-closed' : 'issue-badge-active'}">${esc(s.status)}</span>
+        <span class="${badgeStyle}">${esc(s.status)}</span>
         <span style="font-size:12px;color:#888;">${esc(s.date||'')}</span>
       </div>
       <div class="issue-content">${esc(s.content)}</div>
-      <div class="issue-actions">
-        ${s.status==='처리완료'
+      <div class="issue-actions" style="flex-wrap:wrap;">
+        ${isClosed
           ? `<button class="issue-btn" onclick="setSuggestionStatus(${s.id},'미처리')">미처리로</button>`
-          : `<button class="issue-btn issue-btn-close" onclick="setSuggestionStatus(${s.id},'처리완료')">처리완료</button>`}
+          : `<button class="issue-btn issue-btn-close" onclick="setSuggestionStatus(${s.id},'처리완료')">처리완료</button>
+             <button class="issue-btn issue-btn-hold" onclick="setSuggestionStatus(${s.id},'처리보류')">처리보류</button>`}
+        <button class="issue-btn" onclick="toggleSuggestionComments(${s.id})">💬 댓글</button>
         <button class="issue-btn issue-btn-del" onclick="deleteSuggestion(${s.id})">삭제</button>
       </div>
+      <div id="sg-comments-${s.id}" style="display:none;margin-top:10px;border-top:1px solid #eee;padding-top:10px;">
+        <div id="sg-comment-list-${s.id}" style="margin-bottom:8px;"></div>
+        <div style="display:flex;gap:6px;">
+          <input id="sg-comment-input-${s.id}" type="text" placeholder="댓글 입력..." style="flex:1;border:1px solid #ddd;border-radius:8px;padding:7px 10px;font-size:13px;">
+          <button class="issue-btn issue-btn-active" onclick="addSuggestionComment(${s.id})" style="flex-shrink:0;">등록</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleSuggestionComments(id) {
+  const box = document.getElementById(`sg-comments-${id}`);
+  if (box.style.display === 'none') {
+    box.style.display = 'block';
+    await loadSuggestionComments(id);
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+async function loadSuggestionComments(id) {
+  const comments = await fetch(`/api/suggestions/comments?suggestion_id=${id}`).then(r => r.json());
+  const el = document.getElementById(`sg-comment-list-${id}`);
+  if (!el) return;
+  if (!comments.length) { el.innerHTML = '<div style="font-size:12px;color:#aaa;margin-bottom:6px;">댓글이 없습니다</div>'; return; }
+  el.innerHTML = comments.map(c => `
+    <div style="background:#f8f8f6;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:13px;">
+      <div style="font-weight:600;color:#333;margin-bottom:2px;">${esc(c.display_name)} <span style="font-weight:400;color:#aaa;font-size:11px;">${esc(c.created_at)}</span></div>
+      <div style="color:#444;">${esc(c.content)}</div>
+      <button onclick="deleteSuggestionComment(${c.id},${id})" style="background:none;border:none;color:#bbb;font-size:11px;cursor:pointer;padding:0;margin-top:2px;">삭제</button>
     </div>
   `).join('');
+}
+
+async function addSuggestionComment(id) {
+  const input = document.getElementById(`sg-comment-input-${id}`);
+  const content = input.value.trim();
+  if (!content) return;
+  const now = new Date();
+  const created_at = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  await fetch('/api/suggestions/comment', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({suggestion_id: id, display_name: currentUser?.display_name || '관리자', content, created_at})});
+  input.value = '';
+  await loadSuggestionComments(id);
+}
+
+async function deleteSuggestionComment(cid, sid) {
+  if (!confirm('댓글을 삭제할까요?')) return;
+  await fetch('/api/suggestions/comment/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: cid})});
+  await loadSuggestionComments(sid);
 }
 
 async function setSuggestionStatus(id, status) {
