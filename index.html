@@ -554,6 +554,7 @@
     </div>
     <div id="schedule-list-view" style="overflow-y:auto;flex:1;padding:12px 16px;"></div>
     <div id="schedule-cal-view" style="display:none;padding:12px 16px;overflow-y:auto;flex:1;">
+      <input id="schedule-person-filter" type="text" placeholder="이름 검색 (예: 슬기)" oninput="renderScheduleCal()" style="width:100%;box-sizing:border-box;border:1px solid #d4d4ce;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px;outline:none;">
       <div id="schedule-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-bottom:10px;"></div>
       <div id="schedule-day-detail" style="margin-top:8px;"></div>
     </div>
@@ -1112,8 +1113,9 @@ function renderScheduleList() {
 
 function renderScheduleCal() {
   const grid = document.getElementById('schedule-cal-grid');
+  const filterInput = document.getElementById('schedule-person-filter');
+  const filter = filterInput ? filterInput.value.trim() : '';
   const days = ['일','월','화','수','목','금','토'];
-  // 날짜 → 데이터 맵
   const dayMap = {};
   scheduleData.forEach(d => {
     const m = d.date.match(/(\d+)월\s*(\d+)일/);
@@ -1128,10 +1130,19 @@ function renderScheduleCal() {
   for (let i = 0; i < firstDay; i++) html += '<div></div>';
   for (let d = 1; d <= daysInMonth; d++) {
     const has = dayMap[d];
-    const hasOff = has && has['휴무'].length > 0;
-    html += `<div onclick="showScheduleDay(${d})" style="padding:6px 2px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:${has?'600':'400'};color:${has?'#222':'#bbb'};background:${hasOff?'#fff0f0':'transparent'};border:1px solid ${has?'#ddd':'transparent'};min-height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+    let isOff = false, isMatch = false;
+    if (has) {
+      if (filter) {
+        isOff = has['휴무'].some(p => p.includes(filter));
+        isMatch = isOff;
+      } else {
+        isOff = has['휴무'].length > 0;
+      }
+    }
+    const dim = filter && has && !isMatch;
+    html += `<div onclick="showScheduleDay(${d})" style="padding:6px 2px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:${has&&!dim?'600':'400'};color:${dim?'#ccc':has?'#222':'#bbb'};background:${isOff?'#fff0f0':'transparent'};border:1px solid ${has&&!dim?'#ddd':'transparent'};min-height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
       ${d}
-      ${hasOff ? '<span style="font-size:9px;color:#e03131;">휴무</span>' : ''}
+      ${isOff ? `<span style="font-size:9px;color:#e03131;">${filter?'휴무✓':'휴무'}</span>` : ''}
     </div>`;
   }
   grid.innerHTML = html;
