@@ -333,7 +333,8 @@ if __name__ == '__main__':
         urllib.request.urlretrieve(
             'https://github.com/eulgilees/sangpum-catalog/releases/download/v1.0/products.db', DB_PATH)
         print('다운로드 완료!')
-    print('=== 환경변수 전체 키 ===', list(os.environ.keys()))
+    db_url_val = os.environ.get('DATABASE_URL', 'NOT_SET')
+    print(f'=== DATABASE_URL 값 === [{db_url_val[:50] if db_url_val else "EMPTY"}]')
     print('PostgreSQL 테이블 초기화...')
     init_tables()
     print('PostgreSQL 연결 성공!')
