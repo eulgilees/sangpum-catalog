@@ -1006,6 +1006,29 @@ async function checkUpcomingOrders() {
 }
 checkUpcomingOrders();
 
+async function checkActiveIssues() {
+  try {
+    const issues = await fetch('/api/issues').then(r => r.json());
+    const today = new Date(); today.setHours(0,0,0,0);
+    const urgent = issues.filter(issue => {
+      if (issue.status !== '진행중') return false;
+      if (!issue.ended_at) return false;
+      const d = new Date(issue.ended_at); d.setHours(0,0,0,0);
+      const diff = Math.ceil((d - today) / (1000*60*60*24));
+      return diff >= 0 && diff <= 3;
+    }).map(issue => {
+      const d = new Date(issue.ended_at); d.setHours(0,0,0,0);
+      const diff = Math.ceil((d - today) / (1000*60*60*24));
+      const label = diff === 0 ? '오늘 종료' : diff === 1 ? '내일 종료' : `${diff}일 후 종료`;
+      return `• ${issue.title || '(제목없음)'} — ${label}`;
+    });
+    if (!urgent.length) return;
+    const msg = `⚠️ 종료 임박 이슈가 있습니다!\n\n${urgent.join('\n')}\n\n이슈사항을 확인해주세요.`;
+    alert(msg);
+  } catch(e) {}
+}
+checkActiveIssues();
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(async reg => {
 

@@ -35,6 +35,10 @@ def init_tables():
         title TEXT, occurred_at TEXT DEFAULT '', ended_at TEXT DEFAULT '',
         content TEXT DEFAULT '', status TEXT DEFAULT '진행중', created_at TEXT DEFAULT ''
     )''')
+    # 기존 issues 테이블에 ended_at 컬럼 없으면 추가
+    existing_cols = {row[1] for row in conn.execute('PRAGMA table_info(issues)')}
+    if 'ended_at' not in existing_cols:
+        conn.execute('ALTER TABLE issues ADD COLUMN ended_at TEXT DEFAULT ""')
     conn.execute('''CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         barcode TEXT, name TEXT, qty INTEGER DEFAULT 1,
@@ -228,6 +232,24 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'publicKey': VAPID_PUBLIC_KEY})
         elif parsed.path == '/api/push/debug':
             self.send_json({'count': len(get_subscriptions()), 'vapid_key_set': bool(VAPID_PUBLIC_KEY)})
+        elif parsed.path == '/api/dbinfo':
+            import subprocess
+            data_dir = os.path.dirname(os.path.abspath(DATA_DB_PATH))
+            db_exists = os.path.exists(DATA_DB_PATH)
+            db_size = os.path.getsize(DATA_DB_PATH) if db_exists else 0
+            try:
+                mounts = open('/proc/mounts').read()
+                data_mounted = '/data' in mounts
+            except:
+                data_mounted = None
+            self.send_json({
+                'DATA_DB_PATH': DATA_DB_PATH,
+                'data_dir_exists': os.path.exists(data_dir),
+                'db_file_exists': db_exists,
+                'db_size_bytes': db_size,
+                'data_mounted': data_mounted,
+                'data_dir_contents': os.listdir(data_dir) if os.path.exists(data_dir) else [],
+            })
         elif parsed.path == '/api/issues':
             self.send_json(get_issues())
         elif parsed.path == '/api/orders':
