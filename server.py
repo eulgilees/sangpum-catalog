@@ -19,10 +19,14 @@ VAPID_EMAIL       = os.environ.get('VAPID_EMAIL', 'mailto:admin@example.com')
 def pg():
     import psycopg2
     url = DATABASE_URL
-    # postgres:// → postgresql:// 변환
+    if not url:
+        raise Exception('DATABASE_URL 환경변수가 없습니다')
     if url.startswith('postgres://'):
         url = 'postgresql://' + url[len('postgres://'):]
-    conn = psycopg2.connect(url, sslmode='require')
+    try:
+        conn = psycopg2.connect(url, sslmode='require')
+    except Exception:
+        conn = psycopg2.connect(url)
     return conn
 
 def pg_row(cur):
@@ -330,6 +334,7 @@ if __name__ == '__main__':
         print(f'DB 다운로드 중...')
         urllib.request.urlretrieve(DB_URL, DB_PATH)
         print('DB 다운로드 완료!')
+    print(f'DATABASE_URL 설정: {bool(DATABASE_URL)} / 앞부분: {DATABASE_URL[:30] if DATABASE_URL else "없음"}')
     print('PostgreSQL 테이블 초기화...')
     init_pg_tables()
     port = int(os.environ.get('PORT', 8747))
