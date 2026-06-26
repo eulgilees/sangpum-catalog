@@ -235,6 +235,10 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/push/key':
             self.send_json({'publicKey': VAPID_PUBLIC_KEY})
 
+        elif parsed.path == '/api/push/debug':
+            subs = get_subscriptions()
+            self.send_json({'count': len(subs), 'vapid_key_set': bool(VAPID_PUBLIC_KEY)})
+
         elif parsed.path == '/api/orders':
             barcode = params.get('barcode', [''])[0]
             self.send_json(get_orders(barcode))

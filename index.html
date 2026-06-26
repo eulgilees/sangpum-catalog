@@ -362,6 +362,20 @@
         </div>
       </div>
     </div>
+
+    <div class="guide-step">
+      <div class="guide-num">5</div>
+      <div class="guide-step-body">
+        <div class="guide-step-title">주문 알림 받기</div>
+        <div class="guide-step-desc">
+          고객 주문이 등록되면 알림을 받을 수 있습니다.<br>
+          반드시 <b>홈 화면 앱</b>에서 아래 버튼을 눌러 알림을 켜주세요.
+        </div>
+        <div class="guide-step-sub">※ Safari 브라우저에서는 알림이 동작하지 않습니다. 홈 화면 앱으로 실행해야 합니다.</div>
+        <button id="push-btn" onclick="requestPush()" style="margin-top:12px; padding:10px 20px; background:#185fa5; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer;">🔔 알림 켜기</button>
+        <div id="push-status" style="margin-top:8px; font-size:13px; color:#555;"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -856,27 +870,53 @@ document.addEventListener('click', e => {
   }
 });
 
+let swReg = null;
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then(async reg => {
-    // 알림 권한 요청 및 구독
-    if (!('PushManager' in window)) return;
+  navigator.serviceWorker.register('/sw.js').then(reg => { swReg = reg; });
+}
+
+async function requestPush() {
+  const btn = document.getElementById('push-btn');
+  const status = document.getElementById('push-status');
+  btn.disabled = true;
+  btn.textContent = '처리 중...';
+  status.textContent = '';
+
+  try {
+    if (!('serviceWorker' in navigator)) throw new Error('서비스워커 미지원 브라우저');
+    if (!('PushManager' in window)) throw new Error('이 환경에서는 푸시 알림을 지원하지 않습니다. 홈 화면 앱으로 실행해주세요.');
+
+    const reg = swReg || await navigator.serviceWorker.ready;
     const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return;
-    try {
-      const keyRes = await fetch('/api/push/key');
-      const { publicKey } = await keyRes.json();
-      if (!publicKey) return;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey)
-      });
-      await fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sub)
-      });
-    } catch(e) {}
-  });
+    if (permission !== 'granted') throw new Error(`알림 권한 거부됨 (${permission}). 설정에서 허용해주세요.`);
+
+    const keyRes = await fetch('/api/push/key');
+    const { publicKey } = await keyRes.json();
+    if (!publicKey) throw new Error('서버에서 VAPID 키를 받지 못했습니다.');
+
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey)
+    });
+
+    const res = await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sub)
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error('서버 저장 실패');
+
+    btn.textContent = '✅ 알림 켜짐';
+    btn.style.background = '#2d7a1f';
+    status.style.color = '#2d7a1f';
+    status.textContent = '알림이 정상적으로 설정되었습니다.';
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '🔔 알림 켜기';
+    status.style.color = '#c0392b';
+    status.textContent = '오류: ' + e.message;
+  }
 }
 
 function urlBase64ToUint8Array(base64String) {
