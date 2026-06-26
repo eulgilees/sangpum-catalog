@@ -439,6 +439,11 @@
       <i class="ti ti-calendar"></i>
       휴무일정
     </button>
+    <button class="header-nav-btn" onclick="openChat()">
+      <i class="ti ti-message-circle"></i>
+      채팅
+      <span id="chat-badge" style="display:none;background:#e03131;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 5px;min-width:16px;text-align:center;line-height:16px;"></span>
+    </button>
     <button class="header-nav-btn" onclick="openGuide()">
       <i class="ti ti-help-circle"></i>
       설치 후 가이드
@@ -2311,6 +2316,189 @@ async function doResetPw() {
   showToast('✅ 비밀번호가 변경되었습니다. 로그인해주세요.', true);
 }
 
+// ── 채팅 ──
+let chatRoomId = null;
+let chatPollTimer = null;
+let chatLastMsgId = 0;
+let chatAllUsers = [];
+
+function openChat() {
+  lockScroll();
+  const el = document.getElementById('chat-overlay');
+  el.style.display = 'flex';
+  showChatList();
+  loadChatRooms();
+}
+function closeChat() {
+  stopChatPoll();
+  document.getElementById('chat-overlay').style.display = 'none';
+  unlockScroll();
+}
+function showChatList() {
+  document.getElementById('chat-list-view').style.display = 'flex';
+  document.getElementById('chat-new-view').style.display = 'none';
+  document.getElementById('chat-room-view').style.display = 'none';
+  stopChatPoll();
+  loadChatRooms();
+}
+function backToChatList() { showChatList(); }
+
+async function loadChatRooms() {
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  const res = await fetch('/api/chat/rooms', { headers: { 'X-Token': token } });
+  const data = await res.json();
+  if (!data.ok) return;
+  updateChatBadge(data.unread);
+  const el = document.getElementById('chat-rooms-list');
+  if (!data.rooms.length) {
+    el.innerHTML = '<div style="text-align:center;color:#aaa;padding:48px 16px;font-size:14px;">채팅방이 없습니다.<br>새 채팅을 시작해보세요.</div>';
+    return;
+  }
+  el.innerHTML = data.rooms.map(r => {
+    const ts = r.last_ts ? formatChatTime(r.last_ts) : '';
+    const unread = r.unread > 0 ? `<span style="background:#e03131;color:#fff;font-size:11px;font-weight:700;border-radius:10px;padding:2px 7px;min-width:18px;text-align:center;">${r.unread}</span>` : '';
+    const sub = r.other_store ? `<div style="font-size:12px;color:#aaa;">${r.other_store}</div>` : '';
+    return `<div onclick="openChatRoom(${r.id},'${(r.other_name||'').replace(/'/g,"\\'")}','${(r.other_store||'').replace(/'/g,"\\'")}','${r.id}')"
+      style="display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;border-bottom:1px solid #f0f0ec;">
+      <div style="width:44px;height:44px;border-radius:50%;background:#e8f0f9;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👤</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="font-size:15px;font-weight:600;color:#222;">${r.other_name||'알 수 없음'}</div>
+          ${sub}
+        </div>
+        <div style="font-size:13px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">${r.last_msg||''}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
+        <div style="font-size:11px;color:#bbb;">${ts}</div>
+        ${unread}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openNewChat() {
+  document.getElementById('chat-list-view').style.display = 'none';
+  document.getElementById('chat-new-view').style.display = 'flex';
+  document.getElementById('chat-user-search').value = '';
+  const token = localStorage.getItem('authToken');
+  const res = await fetch('/api/chat/users', { headers: { 'X-Token': token } });
+  const data = await res.json();
+  chatAllUsers = (data.users || []).filter(u => u.id !== currentUser?.id);
+  renderChatUsers(chatAllUsers);
+}
+function filterChatUsers() {
+  const q = document.getElementById('chat-user-search').value.trim().toLowerCase();
+  renderChatUsers(q ? chatAllUsers.filter(u => u.display_name.toLowerCase().includes(q) || (u.store||'').includes(q)) : chatAllUsers);
+}
+function renderChatUsers(users) {
+  const el = document.getElementById('chat-users-list');
+  if (!users.length) { el.innerHTML = '<div style="text-align:center;color:#aaa;padding:32px;font-size:14px;">검색 결과가 없습니다</div>'; return; }
+  el.innerHTML = users.map(u => `
+    <div onclick="startChat(${u.id})" style="display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;border-bottom:1px solid #f0f0ec;">
+      <div style="width:40px;height:40px;border-radius:50%;background:#e8f0f9;display:flex;align-items:center;justify-content:center;font-size:16px;">👤</div>
+      <div>
+        <div style="font-size:15px;font-weight:600;color:#222;">${u.display_name}</div>
+        <div style="font-size:12px;color:#aaa;">${u.store||''}</div>
+      </div>
+    </div>`).join('');
+}
+async function startChat(otherUserId) {
+  const token = localStorage.getItem('authToken');
+  const res = await fetch('/api/chat/room', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token },
+    body: JSON.stringify({ other_user_id: otherUserId })
+  });
+  const data = await res.json();
+  if (!data.ok) return;
+  const user = chatAllUsers.find(u => u.id === otherUserId) || {};
+  document.getElementById('chat-new-view').style.display = 'none';
+  enterChatRoom(data.room_id, user.display_name || '', user.store || '');
+}
+async function openChatRoom(roomId, name, store) {
+  document.getElementById('chat-list-view').style.display = 'none';
+  enterChatRoom(roomId, name, store);
+}
+function enterChatRoom(roomId, name, store) {
+  chatRoomId = roomId;
+  chatLastMsgId = 0;
+  document.getElementById('chat-room-title').textContent = name;
+  document.getElementById('chat-room-subtitle').textContent = store;
+  document.getElementById('chat-room-view').style.display = 'flex';
+  document.getElementById('chat-messages-area').innerHTML = '';
+  document.getElementById('chat-input').value = '';
+  loadChatMessages(true);
+  startChatPoll();
+}
+async function loadChatMessages(initial = false) {
+  const token = localStorage.getItem('authToken');
+  const res = await fetch(`/api/chat/messages?room_id=${chatRoomId}&after=${chatLastMsgId}`, { headers: { 'X-Token': token } });
+  const data = await res.json();
+  if (!data.ok || !data.messages.length) return;
+  const area = document.getElementById('chat-messages-area');
+  const atBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 60;
+  data.messages.forEach(m => {
+    chatLastMsgId = Math.max(chatLastMsgId, m.id);
+    const mine = m.user_id === currentUser?.id;
+    const timeStr = formatChatTime(m.created_at);
+    const div = document.createElement('div');
+    div.style.cssText = `display:flex;flex-direction:column;align-items:${mine?'flex-end':'flex-start'};gap:2px;`;
+    div.innerHTML = `
+      ${!mine ? `<div style="font-size:11px;color:#aaa;padding:0 4px;">${m.display_name}</div>` : ''}
+      <div style="display:flex;align-items:flex-end;gap:6px;flex-direction:${mine?'row-reverse':'row'};">
+        <div style="max-width:70%;background:${mine?'#185fa5':'#fff'};color:${mine?'#fff':'#222'};border-radius:${mine?'16px 4px 16px 16px':'4px 16px 16px 16px'};padding:10px 14px;font-size:14px;line-height:1.5;word-break:break-word;box-shadow:0 1px 4px rgba(0,0,0,0.08);">${escHtml(m.content)}</div>
+        <div style="font-size:10px;color:#bbb;white-space:nowrap;">${timeStr}</div>
+      </div>`;
+    area.appendChild(div);
+  });
+  if (initial || atBottom) area.scrollTop = area.scrollHeight;
+}
+async function chatSend() {
+  const input = document.getElementById('chat-input');
+  const content = input.value.trim();
+  if (!content || !chatRoomId) return;
+  input.value = '';
+  const token = localStorage.getItem('authToken');
+  await fetch('/api/chat/message', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token },
+    body: JSON.stringify({ room_id: chatRoomId, content })
+  });
+  loadChatMessages();
+}
+function startChatPoll() {
+  stopChatPoll();
+  chatPollTimer = setInterval(loadChatMessages, 3000);
+}
+function stopChatPoll() {
+  if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; }
+}
+function updateChatBadge(count) {
+  const el = document.getElementById('chat-badge');
+  if (count > 0) { el.textContent = count > 99 ? '99+' : count; el.style.display = 'inline-block'; }
+  else { el.style.display = 'none'; }
+}
+function formatChatTime(ts) {
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  if (sameDay) return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+// 백그라운드 채팅 배지 폴링 (30초마다)
+setInterval(async () => {
+  if (!currentUser) return;
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  const res = await fetch('/api/chat/rooms', { headers: { 'X-Token': token } }).catch(()=>null);
+  if (!res) return;
+  const data = await res.json();
+  if (data.ok) updateChatBadge(data.unread);
+}, 30000);
+
 // ── 전화번호 자동 하이픈 ──
 function formatPhone(input) {
   const digits = input.value.replace(/\D/g, '').slice(0, 11);
@@ -2412,6 +2600,52 @@ window.addEventListener('load', () => {
   preventBounce(document.getElementById('schedule-cal-view'));
 });
 </script>
+
+<!-- 채팅 오버레이 -->
+<div id="chat-overlay" style="display:none;position:fixed;inset:0;background:#f5f5f3;z-index:8000;flex-direction:column;">
+
+  <!-- 채팅 목록 -->
+  <div id="chat-list-view" style="display:flex;flex-direction:column;height:100%;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:#fff;border-bottom:1px solid #ebebeb;">
+      <div style="font-size:17px;font-weight:700;color:#222;">채팅</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="openNewChat()" style="background:#185fa5;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;">+ 새 채팅</button>
+        <button onclick="closeChat()" style="background:none;border:none;font-size:22px;color:#aaa;cursor:pointer;padding:0 4px;">✕</button>
+      </div>
+    </div>
+    <div id="chat-rooms-list" style="flex:1;overflow-y:auto;padding:8px 0;"></div>
+  </div>
+
+  <!-- 새 채팅 (사람 선택) -->
+  <div id="chat-new-view" style="display:none;flex-direction:column;height:100%;">
+    <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;background:#fff;border-bottom:1px solid #ebebeb;">
+      <button onclick="backToChatList()" style="background:none;border:none;font-size:20px;color:#555;cursor:pointer;padding:0;">←</button>
+      <div style="font-size:17px;font-weight:700;color:#222;">대화 상대 선택</div>
+    </div>
+    <input id="chat-user-search" type="text" placeholder="이름으로 검색..." oninput="filterChatUsers()"
+      style="margin:12px 16px;padding:10px 14px;border:1px solid #d4d4ce;border-radius:10px;font-size:14px;outline:none;">
+    <div id="chat-users-list" style="flex:1;overflow-y:auto;padding:0 0 8px;"></div>
+  </div>
+
+  <!-- 채팅방 -->
+  <div id="chat-room-view" style="display:none;flex-direction:column;height:100%;">
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#fff;border-bottom:1px solid #ebebeb;">
+      <button onclick="backToChatList()" style="background:none;border:none;font-size:20px;color:#555;cursor:pointer;padding:0;">←</button>
+      <div>
+        <div id="chat-room-title" style="font-size:16px;font-weight:700;color:#222;"></div>
+        <div id="chat-room-subtitle" style="font-size:12px;color:#888;"></div>
+      </div>
+    </div>
+    <div id="chat-messages-area" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;"></div>
+    <div style="padding:12px 12px 24px;background:#fff;border-top:1px solid #ebebeb;display:flex;gap:8px;">
+      <input id="chat-input" type="text" placeholder="메시지 입력..." maxlength="500"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSend();}"
+        style="flex:1;padding:10px 14px;border:1px solid #d4d4ce;border-radius:20px;font-size:14px;outline:none;">
+      <button onclick="chatSend()" style="background:#185fa5;color:#fff;border:none;border-radius:20px;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer;">전송</button>
+    </div>
+  </div>
+
+</div>
 
 <!-- 내 정보 수정 모달 -->
 <div id="profile-modal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);" onclick="if(event.target===this)closeProfile()">

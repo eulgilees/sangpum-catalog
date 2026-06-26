@@ -99,6 +99,30 @@ def init_tables():
         user_id INTEGER NOT NULL,
         expires_at BIGINT NOT NULL
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS chat_rooms (
+        id SERIAL PRIMARY KEY,
+        created_at BIGINT DEFAULT 0
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS chat_room_members (
+        room_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        last_read BIGINT DEFAULT 0,
+        PRIMARY KEY (room_id, user_id)
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS chat_messages (
+        id SERIAL PRIMARY KEY,
+        room_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        display_name TEXT DEFAULT '',
+        content TEXT NOT NULL,
+        created_at BIGINT DEFAULT 0
+    )''')
+    # push_subscriptions에 user_id 컬럼 추가 (채팅 알림 대상 특정용)
+    try:
+        conn2 = data_db(); c2 = conn2.cursor()
+        c2.execute("ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT NULL")
+        conn2.commit(); conn2.close()
+    except: pass
     conn.commit(); conn.close()
 
 def search_products(query='', barcode='', limit=50, offset=0):
@@ -161,24 +185,27 @@ def search_comments(query):
                   'publisher': p.get('publisher',''), 'price': p.get('price',0)})
     return rows
 
-def save_subscription(endpoint, p256dh, auth):
+def save_subscription(endpoint, p256dh, auth, user_id=None):
     conn = data_db(); c = conn.cursor()
-    c.execute('''INSERT INTO push_subscriptions(endpoint,p256dh,auth) VALUES(%s,%s,%s)
-                 ON CONFLICT(endpoint) DO UPDATE SET p256dh=EXCLUDED.p256dh, auth=EXCLUDED.auth''',
-              (endpoint, p256dh, auth))
+    c.execute('''INSERT INTO push_subscriptions(endpoint,p256dh,auth,user_id) VALUES(%s,%s,%s,%s)
+                 ON CONFLICT(endpoint) DO UPDATE SET p256dh=EXCLUDED.p256dh, auth=EXCLUDED.auth, user_id=EXCLUDED.user_id''',
+              (endpoint, p256dh, auth, user_id))
     conn.commit(); conn.close()
 
-def get_subscriptions():
+def get_subscriptions(user_id=None):
     conn = data_db(); c = conn.cursor()
-    c.execute('SELECT * FROM push_subscriptions')
+    if user_id is not None:
+        c.execute('SELECT * FROM push_subscriptions WHERE user_id=%s', (user_id,))
+    else:
+        c.execute('SELECT * FROM push_subscriptions')
     rows = rows_to_dicts(c); conn.close(); return rows
 
-def send_push_notification(title, body):
+def send_push_notification(title, body, target_user_id=None):
     if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
         print('VAPID 키 없음'); return
     try:
         from pywebpush import webpush, WebPushException
-        subs = get_subscriptions()
+        subs = get_subscriptions(target_user_id)
         print(f'푸시 발송: {len(subs)}명')
         for sub in subs:
             try:
@@ -190,6 +217,93 @@ def send_push_notification(title, body):
                 print(f'푸시 실패: {e}')
     except Exception as e:
         print(f'푸시 오류: {e}')
+
+# ── 채팅 함수 ──
+def get_all_users():
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT id, display_name, store FROM users ORDER BY display_name')
+    rows = rows_to_dicts(c); conn.close(); return rows
+
+def get_or_create_dm_room(user_id1, user_id2):
+    conn = data_db(); c = conn.cursor()
+    c.execute('''SELECT a.room_id FROM chat_room_members a
+                 JOIN chat_room_members b ON a.room_id=b.room_id AND b.user_id=%s
+                 WHERE a.user_id=%s''', (user_id2, user_id1))
+    rows = c.fetchall()
+    for row in rows:
+        rid = row[0]
+        c.execute('SELECT COUNT(*) FROM chat_room_members WHERE room_id=%s', (rid,))
+        if c.fetchone()[0] == 2:
+            conn.close(); return rid
+    c.execute('INSERT INTO chat_rooms (created_at) VALUES (%s) RETURNING id', (int(time.time()),))
+    rid = c.fetchone()[0]
+    c.execute('INSERT INTO chat_room_members (room_id, user_id, last_read) VALUES (%s,%s,0),(%s,%s,0)',
+              (rid, user_id1, rid, user_id2))
+    conn.commit(); conn.close(); return rid
+
+def get_my_rooms(user_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('''
+        SELECT r.id,
+               (SELECT u.display_name FROM users u
+                JOIN chat_room_members m2 ON m2.user_id=u.id
+                WHERE m2.room_id=r.id AND m2.user_id != %s LIMIT 1) as other_name,
+               (SELECT u.store FROM users u
+                JOIN chat_room_members m2 ON m2.user_id=u.id
+                WHERE m2.room_id=r.id AND m2.user_id != %s LIMIT 1) as other_store,
+               (SELECT content FROM chat_messages WHERE room_id=r.id ORDER BY id DESC LIMIT 1) as last_msg,
+               (SELECT created_at FROM chat_messages WHERE room_id=r.id ORDER BY id DESC LIMIT 1) as last_ts,
+               (SELECT COUNT(*) FROM chat_messages
+                WHERE room_id=r.id AND created_at >
+                    (SELECT last_read FROM chat_room_members WHERE room_id=r.id AND user_id=%s)) as unread
+        FROM chat_rooms r
+        JOIN chat_room_members m ON m.room_id=r.id AND m.user_id=%s
+        ORDER BY last_ts DESC NULLS LAST
+    ''', (user_id, user_id, user_id, user_id))
+    rows = rows_to_dicts(c); conn.close(); return rows
+
+def get_messages(room_id, after=0, limit=100):
+    conn = data_db(); c = conn.cursor()
+    c.execute('''SELECT id, user_id, display_name, content, created_at
+                 FROM chat_messages WHERE room_id=%s AND id > %s
+                 ORDER BY id DESC LIMIT %s''', (room_id, after, limit))
+    rows = list(reversed(rows_to_dicts(c))); conn.close(); return rows
+
+def chat_send_message(room_id, user_id, display_name, content):
+    conn = data_db(); c = conn.cursor()
+    ts = int(time.time())
+    c.execute('''INSERT INTO chat_messages (room_id, user_id, display_name, content, created_at)
+                 VALUES (%s,%s,%s,%s,%s) RETURNING id''',
+              (room_id, user_id, display_name, content, ts))
+    msg_id = c.fetchone()[0]
+    c.execute('UPDATE chat_room_members SET last_read=%s WHERE room_id=%s AND user_id=%s',
+              (ts, room_id, user_id))
+    conn.commit(); conn.close()
+    return {'id': msg_id, 'room_id': room_id, 'user_id': user_id,
+            'display_name': display_name, 'content': content, 'created_at': ts}
+
+def chat_mark_read(room_id, user_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('UPDATE chat_room_members SET last_read=%s WHERE room_id=%s AND user_id=%s',
+              (int(time.time()), room_id, user_id))
+    conn.commit(); conn.close()
+
+def chat_get_other_user_id(room_id, my_user_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT user_id FROM chat_room_members WHERE room_id=%s AND user_id != %s LIMIT 1',
+              (room_id, my_user_id))
+    row = c.fetchone(); conn.close()
+    return row[0] if row else None
+
+def chat_total_unread(user_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('''SELECT COALESCE(SUM(cnt),0) FROM (
+        SELECT COUNT(*) as cnt FROM chat_messages cm
+        JOIN chat_room_members rm ON rm.room_id=cm.room_id AND rm.user_id=%s
+        WHERE cm.created_at > rm.last_read AND cm.user_id != %s
+    ) t''', (user_id, user_id))
+    row = c.fetchone(); conn.close()
+    return int(row[0]) if row else 0
 
 def get_orders(barcode=''):
     conn = data_db(); c = conn.cursor()
@@ -487,6 +601,24 @@ class Handler(BaseHTTPRequestHandler):
             user = verify_session(token)
             if user: self.send_json({'ok': True, 'user': user})
             else: self.send_json({'ok': False})
+        elif parsed.path == '/api/chat/users':
+            token = self.headers.get('X-Token','')
+            if not verify_session(token): self.send_json({'ok': False}); return
+            self.send_json({'ok': True, 'users': get_all_users()})
+        elif parsed.path == '/api/chat/rooms':
+            token = self.headers.get('X-Token','')
+            user = verify_session(token)
+            if not user: self.send_json({'ok': False}); return
+            self.send_json({'ok': True, 'rooms': get_my_rooms(user['id']), 'unread': chat_total_unread(user['id'])})
+        elif parsed.path == '/api/chat/messages':
+            token = self.headers.get('X-Token','')
+            user = verify_session(token)
+            if not user: self.send_json({'ok': False}); return
+            room_id = int(params.get('room_id', ['0'])[0])
+            after = int(params.get('after', ['0'])[0])
+            msgs = get_messages(room_id, after)
+            chat_mark_read(room_id, user['id'])
+            self.send_json({'ok': True, 'messages': msgs})
         elif parsed.path == '/api/schedule':
             try:
                 now = time.localtime()
@@ -567,13 +699,44 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == '/api/auth/logout':
             delete_session(self.headers.get('X-Token',''))
             self.send_json({'ok': True})
+        elif self.path == '/api/chat/room':
+            token = self.headers.get('X-Token','')
+            user = verify_session(token)
+            if not user: self.send_json({'ok': False}); return
+            other_id = body.get('other_user_id')
+            if not other_id: self.send_json({'ok': False, 'error': '상대방을 선택해주세요'}); return
+            room_id = get_or_create_dm_room(user['id'], int(other_id))
+            self.send_json({'ok': True, 'room_id': room_id})
+        elif self.path == '/api/chat/message':
+            token = self.headers.get('X-Token','')
+            user = verify_session(token)
+            if not user: self.send_json({'ok': False}); return
+            room_id = body.get('room_id')
+            content = body.get('content','').strip()
+            if not room_id or not content: self.send_json({'ok': False}); return
+            msg = chat_send_message(int(room_id), user['id'], user['display_name'], content)
+            other_uid = chat_get_other_user_id(int(room_id), user['id'])
+            if other_uid:
+                import threading
+                threading.Thread(target=send_push_notification,
+                    args=(f'💬 {user["display_name"]}', content, other_uid), daemon=True).start()
+            self.send_json({'ok': True, 'message': msg})
+        elif self.path == '/api/chat/read':
+            token = self.headers.get('X-Token','')
+            user = verify_session(token)
+            if not user: self.send_json({'ok': False}); return
+            chat_mark_read(body.get('room_id'), user['id'])
+            self.send_json({'ok': True})
         elif self.path == '/api/comments':
             self.send_json({'ok': True, 'id': add_comment(body['barcode'], body['content'], body['created_at'], body.get('parent_id'))})
         elif self.path == '/api/comments/delete':
             delete_comment(body['id']); self.send_json({'ok': True})
         elif self.path == '/api/push/subscribe':
             keys = body.get('keys', {})
-            save_subscription(body.get('endpoint',''), keys.get('p256dh',''), keys.get('auth',''))
+            token = self.headers.get('X-Token','')
+            user = verify_session(token)
+            uid = user['id'] if user else None
+            save_subscription(body.get('endpoint',''), keys.get('p256dh',''), keys.get('auth',''), uid)
             print(f'[PUSH] 구독 저장. 총: {len(get_subscriptions())}명')
             self.send_json({'ok': True})
         elif self.path == '/api/orders':
