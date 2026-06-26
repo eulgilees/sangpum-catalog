@@ -252,6 +252,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'publicKey': VAPID_PUBLIC_KEY})
         elif parsed.path == '/api/push/debug':
             self.send_json({'count': len(get_subscriptions()), 'vapid_key_set': bool(VAPID_PUBLIC_KEY)})
+        elif parsed.path == '/api/env':
+            self.send_json({'keys': sorted(os.environ.keys()), 'PG_URL': os.environ.get('PG_URL','NOT_SET')[:30]})
         elif parsed.path == '/api/dbinfo':
             db_url = os.environ.get('DATABASE_URL', '')
             self.send_json({'DATABASE_URL_set': bool(db_url), 'backend': 'postgresql'})
@@ -338,8 +340,11 @@ if __name__ == '__main__':
     pg_url_val = os.environ.get('PG_URL', 'NOT_SET')
     print(f'=== PG_URL 값 === [{pg_url_val[:30] if pg_url_val != "NOT_SET" else "NOT_SET"}]')
     print('PostgreSQL 테이블 초기화...')
-    init_tables()
-    print('PostgreSQL 연결 성공!')
+    try:
+        init_tables()
+        print('PostgreSQL 연결 성공!')
+    except Exception as e:
+        print(f'DB 초기화 실패 (서버는 계속 실행): {e}')
     port = int(os.environ.get('PORT', 8747))
     print(f'서버 시작: http://localhost:{port}')
     HTTPServer(('', port), Handler).serve_forever()
