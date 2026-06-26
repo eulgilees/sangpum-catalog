@@ -35,6 +35,11 @@ self.addEventListener('fetch', e => {
     e.respondWith(fetch(e.request).catch(() => new Response('{"error":"offline"}', { headers: { 'Content-Type': 'application/json' } })));
     return;
   }
-  // 정적 파일은 캐시 우선, 없으면 네트워크
+  // index.html은 항상 네트워크 우선 (업데이트 즉시 반영)
+  if (url.pathname === '/' || url.pathname === '/index.html') {
+    e.respondWith(fetch(e.request).catch(() => caches.match('/index.html')));
+    return;
+  }
+  // 나머지 정적 파일은 캐시 우선
   e.respondWith(caches.match(e.request).then(cached => cached || fetch(e.request)));
 });
