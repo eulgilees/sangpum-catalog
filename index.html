@@ -2365,18 +2365,20 @@ async function initAuth() {
 
   // 백그라운드에서 토큰 검증 + 최신 유저 정보 동기화
   const res = await fetch('/api/auth/me', { headers: { 'X-Token': token } }).catch(() => null);
-  if (!res) {
+  if (!res || res.status !== 200) {
+    // 네트워크 오류 또는 서버 오류 — 캐시 상태 유지, 로그아웃 안 함
     if (!currentUser) showAuthScreen();
     return;
   }
   const data = await res.json().catch(() => null);
-  if (!data) return; // 서버 오류 시 현재 상태 유지
+  if (!data) return; // JSON 파싱 오류 시 현재 상태 유지
   if (data.ok) {
     currentUser = data.user;
     localStorage.setItem('cachedUser', JSON.stringify(data.user));
     hideAuthScreen(); // 항상 호출 — 버튼 표시 + 최신 이름/점포 반영
     autoRequestPushIfStandalone();
-  } else {
+  } else if (data.ok === false) {
+    // 서버가 명확히 세션 만료라고 응답한 경우에만 로그아웃
     localStorage.removeItem('authToken');
     localStorage.removeItem('cachedUser');
     currentUser = null;
