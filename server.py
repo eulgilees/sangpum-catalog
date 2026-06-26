@@ -479,12 +479,12 @@ def register_user(username, password, display_name, phone, store=''):
 
 def login_user(username, password):
     conn = data_db(); c = conn.cursor()
-    c.execute('SELECT id, username, display_name, password_hash FROM users WHERE username=%s', (username.strip(),))
+    c.execute('SELECT id, username, display_name, password_hash, phone, store FROM users WHERE username=%s', (username.strip(),))
     rows = rows_to_dicts(c); conn.close()
     if not rows: return None
     u = rows[0]
     if not verify_password(password, u['password_hash']): return None
-    return {'id': u['id'], 'username': u['username'], 'display_name': u['display_name']}
+    return {'id': u['id'], 'username': u['username'], 'display_name': u['display_name'], 'phone': u['phone'], 'store': u['store']}
 
 def find_user_by_phone(username, phone):
     conn = data_db(); c = conn.cursor()
