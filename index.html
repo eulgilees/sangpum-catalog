@@ -1344,23 +1344,26 @@ function renderMyScheduleBanner() {
 
   function shiftColor(s) {
     if (s === '휴무') return '#e03131';
-    if (s === '미등록') return '#bbb';
+    if (!s) return '#bbb';
     return '#185fa5';
   }
-  function row(label, dateLabel, shift) {
-    const color = shiftColor(shift || '미등록');
+  function cell(label, dateLabel, shift) {
+    const color = shiftColor(shift);
     const text = shift || '일정 없음';
-    return `<div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:12px;color:#888;min-width:52px;">${label} <span style="color:#bbb;">${dateLabel}</span></span>
-      <span style="font-size:14px;font-weight:700;color:${color};">${text}</span>
+    return `<div style="flex:1;background:#fff;border-radius:12px;padding:14px 12px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">${label}</div>
+      <div style="font-size:11px;color:#bbb;margin-bottom:8px;">${dateLabel}</div>
+      <div style="font-size:18px;font-weight:800;color:${color};">${text}</div>
     </div>`;
   }
 
   banner.style.display = 'block';
   banner.innerHTML = `
-    <div style="font-size:12px;color:#185fa5;font-weight:600;margin-bottom:8px;">👤 ${esc(name)} 님의 근무</div>
-    ${row('오늘', todayStr, todayShift)}
-    ${row('내일', tomorrowStr, tomorrowShift)}
+    <div style="font-size:12px;color:#185fa5;font-weight:600;margin-bottom:10px;">👤 ${esc(name)} 님의 근무</div>
+    <div style="display:flex;gap:10px;">
+      ${cell('오늘', todayStr, todayShift)}
+      ${cell('내일', tomorrowStr, tomorrowShift)}
+    </div>
   `;
 }
 
