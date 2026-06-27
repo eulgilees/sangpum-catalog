@@ -46,10 +46,23 @@ def _new_conn():
     ctx.verify_mode = ssl.CERT_NONE
     return pg.connect(host=host, port=port, database=database, user=user, password=password, ssl_context=ctx)
 
+def _is_alive(conn):
+    try:
+        conn.run('SELECT 1')
+        return True
+    except Exception:
+        return False
+
 def data_db():
-    with _pool_lock:
-        if _pool:
-            return _pool.pop()
+    while True:
+        with _pool_lock:
+            if not _pool:
+                break
+            conn = _pool.pop()
+        if _is_alive(conn):
+            return conn
+        try: conn.close()
+        except Exception: pass
     return _new_conn()
 
 def release_db(conn):
@@ -63,6 +76,18 @@ def release_db(conn):
         pass
     try: conn.close()
     except Exception: pass
+
+def _warm_pool():
+    def _do():
+        for _ in range(3):
+            try:
+                conn = _new_conn()
+                with _pool_lock:
+                    _pool.append(conn)
+            except Exception:
+                break
+    t = threading.Thread(target=_do, daemon=True)
+    t.start()
 
 def rows_to_dicts(cursor):
     cols = [d[0] for d in cursor.description]
@@ -1051,6 +1076,8 @@ if __name__ == '__main__':
     try:
         init_tables()
         print('PostgreSQL 연결 성공!')
+        _warm_pool()
+        print('커넥션 풀 예열 시작')
     except Exception as e:
         print(f'DB 초기화 실패 (서버는 계속 실행): {e}')
     port = int(os.environ.get('PORT', 8747))
