@@ -8,6 +8,7 @@ import time
 import ssl
 import hashlib
 import secrets
+from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
@@ -78,6 +79,13 @@ def init_tables():
         delivery TEXT DEFAULT '없음', staff TEXT DEFAULT '',
         note TEXT DEFAULT '', status TEXT DEFAULT '진행중', created_at TEXT DEFAULT '',
         store TEXT DEFAULT ''
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS as_logs (
+        id SERIAL PRIMARY KEY,
+        as_id INTEGER NOT NULL,
+        log_date TEXT DEFAULT '',
+        content TEXT DEFAULT '',
+        created_at TEXT DEFAULT ''
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS suggestions (
         id SERIAL PRIMARY KEY,
@@ -456,6 +464,24 @@ def set_as_status(as_id, status):
 def delete_as_request(as_id):
     conn = data_db(); c = conn.cursor()
     c.execute('DELETE FROM as_requests WHERE id=%s', (as_id,))
+    c.execute('DELETE FROM as_logs WHERE as_id=%s', (as_id,))
+    conn.commit(); conn.close()
+
+def get_as_logs(as_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT * FROM as_logs WHERE as_id=%s ORDER BY log_date ASC, id ASC', (as_id,))
+    rows = rows_to_dicts(c); conn.close(); return rows
+
+def add_as_log(as_id, log_date, content):
+    conn = data_db(); c = conn.cursor()
+    c.execute('INSERT INTO as_logs(as_id, log_date, content, created_at) VALUES(%s,%s,%s,%s) RETURNING id',
+              (as_id, log_date, content, datetime.now().isoformat()))
+    row = c.fetchone(); conn.commit(); conn.close()
+    return row[0]
+
+def delete_as_log(log_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('DELETE FROM as_logs WHERE id=%s', (log_id,))
     conn.commit(); conn.close()
 
 def get_suggestions():
@@ -669,6 +695,9 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/as':
             user = verify_session(self.headers.get('X-Token',''))
             self.send_json(get_as_requests(user['store'] if user else ''))
+        elif parsed.path == '/api/as/logs':
+            as_id = int(params.get('as_id', ['0'])[0])
+            self.send_json({'ok': True, 'logs': get_as_logs(as_id)})
         elif parsed.path == '/api/suggestions':
             self.send_json(get_suggestions())
         elif parsed.path == '/api/suggestions/comments':
@@ -889,6 +918,11 @@ class Handler(BaseHTTPRequestHandler):
             set_as_status(body['id'], body['status']); self.send_json({'ok': True})
         elif self.path == '/api/as/delete':
             delete_as_request(body['id']); self.send_json({'ok': True})
+        elif self.path == '/api/as/log':
+            log_id = add_as_log(body['as_id'], body['log_date'], body['content'])
+            self.send_json({'ok': True, 'id': log_id})
+        elif self.path == '/api/as/log/delete':
+            delete_as_log(body['id']); self.send_json({'ok': True})
         elif self.path == '/api/suggestions':
             self.send_json({'ok': True, 'id': add_suggestion(body)})
         elif self.path == '/api/suggestions/status':

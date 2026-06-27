@@ -2168,6 +2168,18 @@ function loadAsList_render(list) {
         📋 ${esc(a.content||'—')}
       </div>
       ${a.note ? `<div class="order-item-note">💬 ${esc(a.note)}</div>` : ''}
+      <!-- 진행 내용 타임라인 -->
+      <div id="as-log-${a.id}" style="margin-top:10px;border-top:1px solid #f0f0ec;padding-top:10px;">
+        <div style="font-size:12px;font-weight:600;color:#888;margin-bottom:6px;">진행 내용</div>
+        <div id="as-log-list-${a.id}" style="margin-bottom:8px;"></div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="font-size:12px;color:#aaa;white-space:nowrap;">${new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\. /g,'-').replace('.','')} </span>
+          <input type="text" id="as-log-input-${a.id}" placeholder="진행 내용 입력..." maxlength="200"
+            style="flex:1;padding:7px 10px;border:1px solid #d4d4ce;border-radius:8px;font-size:13px;outline:none;"
+            onkeydown="if(event.key==='Enter')addAsLog(${a.id})">
+          <button onclick="addAsLog(${a.id})" style="background:#185fa5;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">추가</button>
+        </div>
+      </div>
       <div class="order-item-actions">
         <button class="order-edit-btn" onclick="openAsForm(window._asRequests.find(x=>x.id===${a.id}))">수정</button>
         <button class="order-del-btn" onclick="deleteAs(${a.id})">삭제</button>
@@ -2183,6 +2195,7 @@ async function loadAsList() {
   const list = await fetch('/api/as', {headers:{'X-Token':token}}).then(r=>r.json());
   window._asRequests = list;
   loadAsList_render(list);
+  list.forEach(a => loadAsLogs(a.id));
 }
 
 async function setAsStatus(id, status) {
@@ -2193,6 +2206,43 @@ async function deleteAs(id) {
   if (!confirm('삭제할까요?')) return;
   await fetch('/api/as/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id})});
   loadAsList();
+}
+
+async function loadAsLogs(asId) {
+  const res = await fetch(`/api/as/logs?as_id=${asId}`);
+  const data = await res.json();
+  if (!data.ok) return;
+  renderAsLogs(asId, data.logs);
+}
+function renderAsLogs(asId, logs) {
+  const el = document.getElementById(`as-log-list-${asId}`);
+  if (!el) return;
+  if (!logs.length) { el.innerHTML = '<div style="font-size:12px;color:#ccc;padding:2px 0;">아직 진행 내용이 없습니다.</div>'; return; }
+  el.innerHTML = logs.map(l => `
+    <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid #f5f5f3;">
+      <span style="font-size:12px;color:#888;white-space:nowrap;flex-shrink:0;">${esc(l.log_date)}</span>
+      <span style="font-size:13px;color:#333;flex:1;line-height:1.5;">${esc(l.content)}</span>
+      <button onclick="deleteAsLog(${l.id},${asId})" style="background:none;border:none;color:#ccc;font-size:14px;cursor:pointer;padding:0;flex-shrink:0;line-height:1;">✕</button>
+    </div>`).join('');
+}
+async function addAsLog(asId) {
+  const input = document.getElementById(`as-log-input-${asId}`);
+  const content = input.value.trim();
+  if (!content) return;
+  const today = new Date();
+  const log_date = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const res = await fetch('/api/as/log', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({as_id: asId, log_date, content})
+  });
+  const data = await res.json();
+  if (!data.ok) return;
+  input.value = '';
+  await loadAsLogs(asId);
+}
+async function deleteAsLog(logId, asId) {
+  await fetch('/api/as/log/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: logId})});
+  await loadAsLogs(asId);
 }
 
 /* ── 건의사항 ──────────────────────────────── */
