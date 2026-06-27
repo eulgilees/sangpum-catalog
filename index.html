@@ -1316,10 +1316,34 @@ async function loadSchedule(silent = false) {
     document.getElementById('schedule-cal-view').style.display = 'none';
   }
   try {
-    const res = await fetch(`/api/schedule?year=${scheduleYear}&month=${scheduleMonth}`);
+    // 현재 달 + 다음 달을 동시에 가져와서 이전달 넘침 날짜(예: 6월 29일이 7월 시트에 있는 경우) 합치기
+    const nextMonth = scheduleMonth === 12 ? 1 : scheduleMonth + 1;
+    const nextYear  = scheduleMonth === 12 ? scheduleYear + 1 : scheduleYear;
+    const [res, resNext] = await Promise.all([
+      fetch(`/api/schedule?year=${scheduleYear}&month=${scheduleMonth}`),
+      fetch(`/api/schedule?year=${nextYear}&month=${nextMonth}`)
+    ]);
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || '오류');
-    scheduleData = json.data;
+    let data = json.data;
+    // 다음 달 시트에서 현재 달 날짜만 추출해서 앞에 붙이기
+    try {
+      const jsonNext = await resNext.json();
+      if (jsonNext.ok) {
+        const overflow = jsonNext.data.filter(d => {
+          const m = d.date.match(/(\d+)월/);
+          return m && parseInt(m[1]) === scheduleMonth;
+        });
+        // 이미 현재 데이터에 없는 날짜만 추가
+        const existingDates = new Set(data.map(d => d.date.replace(/\s/g,'')));
+        const newOverflow = overflow.filter(d => !existingDates.has(d.date.replace(/\s/g,'')));
+        data = [...data, ...newOverflow].sort((a, b) => {
+          const parse = s => { const m = s.match(/(\d+)월\s*(\d+)일/); return m ? parseInt(m[1])*100+parseInt(m[2]) : 0; };
+          return parse(a.date) - parse(b.date);
+        });
+      }
+    } catch {}
+    scheduleData = data;
     document.getElementById('schedule-loading').style.display = 'none';
     renderScheduleList();
     renderScheduleCal();
