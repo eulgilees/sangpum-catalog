@@ -1355,9 +1355,12 @@ function renderMyScheduleBanner() {
   const tomorrow = new Date(now); tomorrow.setDate(now.getDate()+1);
   const tomorrowStr = toKoreanDate(tomorrow);
 
+  function normDate(s) {
+    return s.replace(/\s/g,'').replace(/^0*(\d+)월/, '$1월').replace(/0*(\d+)일/, '$1일');
+  }
   function getShift(dateStr) {
     if (!scheduleData.length) return null;
-    const entry = scheduleData.find(d => d.date.replace(/\s/g,'') === dateStr.replace(/\s/g,''));
+    const entry = scheduleData.find(d => normDate(d.date) === normDate(dateStr));
     if (!entry) return null;
     const isOff = entry['휴무'] && entry['휴무'].some(n => n.includes(matchName));
     if (isOff) return '휴무';
