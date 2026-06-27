@@ -3151,41 +3151,42 @@ async function enterChatRoom(roomId, name, store, isGroup) {
   const area = document.getElementById('chat-messages-area');
   area.innerHTML = '';
 
-  // localStorage에서 캐시 복원 (없을 경우)
-  loadChatMsgCacheFromStorage(roomId);
+  chatLastMsgId = 0;
+  area.innerHTML = '<div id="chat-loading-placeholder" style="text-align:center;color:#ccc;padding:32px;font-size:13px;">메시지를 불러오는 중...</div>';
 
-  // 캐시된 메시지 즉시 표시
+  // 캐시 즉시 표시 (서버 응답 전 빠른 미리보기)
+  loadChatMsgCacheFromStorage(roomId);
   const cache = chatMsgCache[roomId];
   if (cache && cache.msgs.length) {
+    area.innerHTML = '';
     cache.msgs.forEach(m => appendChatBubble(m));
-    chatLastMsgId = cache.lastId;
     area.scrollTop = area.scrollHeight;
-  } else {
-    chatLastMsgId = 0;
-    area.innerHTML = '<div style="text-align:center;color:#ccc;padding:32px;font-size:13px;">메시지를 불러오는 중...</div>';
   }
 
-  await loadChatMessages(true);  // 완전히 로드된 후에 폴링 시작
+  await loadChatMessages(true);  // after=0으로 전체 재로드
   startChatPoll();
 }
 async function loadChatMessages(initial = false) {
   const token = localStorage.getItem('authToken');
-  const res = await fetch(`/api/chat/messages?room_id=${chatRoomId}&after=${chatLastMsgId}`, { headers: { 'X-Token': token } });
+  const after = initial ? 0 : chatLastMsgId;
+  const res = await fetch(`/api/chat/messages?room_id=${chatRoomId}&after=${after}`, { headers: { 'X-Token': token } });
   const data = await res.json();
-  if (!data.ok || !data.messages.length) return;
   const area = document.getElementById('chat-messages-area');
   const atBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 60;
-  // 처음 로드 시 로딩 텍스트 제거
-  if (initial) area.innerHTML = '';
-
+  if (!data.ok) return;
+  if (initial) {
+    // 전체 재로드: 로딩 플레이스홀더·캐시 화면 모두 지우고 새로 그리기
+    area.innerHTML = '';
+    chatLastMsgId = 0;
+    chatMsgCache[chatRoomId] = { msgs: [], lastId: 0 };
+  }
+  if (!data.messages.length) return;
   data.messages.forEach(m => {
     chatLastMsgId = Math.max(chatLastMsgId, m.id);
     appendChatBubble(m);
-    // 캐시 업데이트
     if (!chatMsgCache[chatRoomId]) chatMsgCache[chatRoomId] = { msgs: [], lastId: 0 };
     chatMsgCache[chatRoomId].msgs.push(m);
     chatMsgCache[chatRoomId].lastId = chatLastMsgId;
-    // 캐시 최대 100개 유지
     if (chatMsgCache[chatRoomId].msgs.length > 100) chatMsgCache[chatRoomId].msgs.shift();
   });
   saveChatMsgCache(chatRoomId);
