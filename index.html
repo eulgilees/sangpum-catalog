@@ -1462,7 +1462,7 @@ function renderMyScheduleBanner() {
   const tomorrowStr = toKoreanDate(tomorrow);
 
   function normDate(s) {
-    return s.replace(/\s/g,'').replace(/^0*(\d+)월/, '$1월').replace(/0*(\d+)일/, '$1일');
+    return s.replace(/\(.*?\)/g,'').replace(/\s/g,'').replace(/^0*(\d+)월/, '$1월').replace(/0*(\d+)일/, '$1일');
   }
   function getShift(dateStr) {
     const src = scheduleTodayData.length ? scheduleTodayData : scheduleData;
