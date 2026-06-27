@@ -182,16 +182,48 @@
     .issue-cal-legend { display:flex; gap:16px; font-size: 12px; color:#555; margin-top:8px; }
     .issue-cal-legend span { display:flex; align-items:center; gap:5px; }
     .issue-cal-legend b { display:inline-block; width:16px; height:5px; border-radius:3px; }
-    .issue-item { background:#fff; border:1px solid #e5e5e0; border-radius:12px; padding:16px; margin-bottom:10px; }
+    /* ── 통합 카드 디자인 ── */
+    .uc { background:#fff; border:1px solid #e8e8e3; border-radius:14px; padding:16px; margin-bottom:10px; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+    .uc:last-child { margin-bottom:0; }
+    .uc.done { background:#f8f8f6; border-color:#e4e4df; opacity:0.72; }
+    .uc-head { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:10px; }
+    .uc-title { font-size:15px; font-weight:700; color:#1a1a18; line-height:1.4; flex:1; min-width:0; word-break:break-all; }
+    .uc-badges { display:flex; gap:5px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; }
+    .uc-badge { font-size:12px; font-weight:600; padding:3px 9px; border-radius:20px; white-space:nowrap; }
+    .ub-gray   { background:#f0f0ec; color:#666; }
+    .ub-blue   { background:#e8f1fb; color:#185fa5; }
+    .ub-green  { background:#e6f4ea; color:#2d7a1f; }
+    .ub-red    { background:#fdecea; color:#c0392b; }
+    .ub-yellow { background:#fff8e1; color:#856404; }
+    .ub-navy   { background:#dce8ff; color:#084298; }
+    .uc-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; margin-bottom:10px; }
+    .uc-row { display:flex; flex-direction:column; gap:2px; }
+    .uc-lbl { font-size:12px; color:#aaa; font-weight:500; }
+    .uc-val { font-size:14px; color:#333; font-weight:600; }
+    .uc-val.hi { color:#185fa5; }
+    .uc-val.muted { color:#aaa; font-weight:400; }
+    .uc-text { font-size:14px; color:#5f5e5a; line-height:1.65; margin-bottom:8px; white-space:pre-wrap; word-break:break-all; }
+    .uc-note { font-size:13px; color:#999; margin-bottom:8px; white-space:pre-wrap; }
+    .uc-divider { border:none; border-top:1px solid #f0f0ec; margin:10px 0; }
+    .uc-actions { display:flex; gap:7px; flex-wrap:wrap; align-items:center; }
+    .uc-btn { font-size:13px; font-weight:600; padding:6px 13px; border-radius:8px; cursor:pointer; border:none; white-space:nowrap; }
+    .ub-edit  { background:#eaf3ff; color:#185fa5; }
+    .ub-del   { background:#fdecea; color:#c0392b; }
+    .ub-done  { background:#185fa5; color:#fff; margin-left:auto; }
+    .ub-undo  { background:#f0f0ec; color:#666; margin-left:auto; }
+    .ub-close { background:#6c757d; color:#fff; margin-left:auto; }
+    /* 이전 클래스 호환 */
+    .issue-item { background:#fff; border:1px solid #e8e8e3; border-radius:14px; padding:16px; margin-bottom:10px; }
     .issue-item.closed { background:#f8f8f6; opacity:0.7; }
-    .issue-title { font-size: 14px; font-weight:600; margin-bottom:6px; }
-    .issue-meta { font-size: 14px; color:#888; margin-bottom:8px; }
-    .issue-content { font-size: 14px; color:#444; line-height:1.6; white-space:pre-wrap; margin-bottom:10px; }
-    .issue-actions { display:flex; gap:8px; }
-    .issue-btn { padding:6px 14px; border-radius:8px; font-size: 14px; cursor:pointer; border:1px solid #d4d4ce; background:#fff; color:#444; }
-    .issue-btn-active { background:#185fa5; color:#fff; border-color:#185fa5; }
-    .issue-btn-close { background:#6c757d; color:#fff; border-color:#6c757d; }
-    .issue-btn-del { background:#fff; color:#c0392b; border-color:#e5b4b4; }
+    .issue-title { font-size:15px; font-weight:700; margin-bottom:6px; }
+    .issue-meta { font-size:14px; color:#888; margin-bottom:8px; }
+    .issue-content { font-size:14px; color:#444; line-height:1.6; white-space:pre-wrap; margin-bottom:10px; }
+    .issue-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .issue-btn { padding:6px 13px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:none; background:#f0f0ec; color:#444; }
+    .issue-btn-active { background:#185fa5; color:#fff; }
+    .issue-btn-close { background:#6c757d; color:#fff; }
+    .issue-btn-hold { background:#e8f1fb; color:#185fa5; }
+    .issue-btn-del { background:#fdecea; color:#c0392b; }
     .order-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1100; align-items:flex-end; justify-content:center; }
     .order-overlay.open { display:flex; }
     .order-box { background:#fff; border-radius:20px 20px 0 0; padding:24px 24px 36px; width:100%; max-width:640px; max-height:92vh; overflow-y:auto; overflow-x:hidden; }
@@ -210,23 +242,23 @@
     .toggle-btn.active { background:#185fa5; color:#fff; border-color:#185fa5; font-weight:500; }
     .order-submit-btn { width:100%; background:#185fa5; color:#fff; border:none; border-radius:10px; padding:14px; font-size: 14px; font-weight:500; cursor:pointer; margin-top:8px; position:sticky; bottom:0; z-index:10; }
     .order-submit-btn:hover { background:#0c447c; }
-    .order-list-item { border:1px solid #e5e5e0; border-radius:12px; padding:16px; margin-bottom:10px; }
+    .order-list-item { border:1px solid #e8e8e3; border-radius:14px; padding:16px; margin-bottom:10px; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
     .order-list-item:last-child { margin-bottom:0; }
-    .order-item-name { font-size: 14px; font-weight:600; color:#1a1a18; margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .order-item-name { font-size:15px; font-weight:700; color:#1a1a18; margin-bottom:8px; }
     .order-item-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
-    .order-badge { font-size: 12px; padding:3px 10px; border-radius:20px; font-weight:500; }
-    .badge-unpaid { background:#fff3cd; color:#856404; }
-    .badge-paid { background:#d1e7dd; color:#0a3622; }
-    .badge-pending { background:#f8d7da; color:#842029; }
-    .badge-done { background:#cfe2ff; color:#084298; }
-    .order-item-detail { font-size: 14px; color:#5f5e5a; line-height:1.7; }
-    .order-item-note { font-size: 14px; color:#888780; margin-top:6px; white-space:pre-wrap; }
-    .order-item-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
-    .order-edit-btn { font-size: 14px; color:#185fa5; background:none; border:1px solid #b5d4f4; border-radius:6px; padding:4px 12px; cursor:pointer; }
-    .order-del-btn { font-size: 14px; color:#a32d2d; background:none; border:1px solid #f5c2c7; border-radius:6px; padding:4px 12px; cursor:pointer; }
-    .order-complete-btn { font-size: 14px; color:#fff; background:#3b6d11; border:none; border-radius:6px; padding:4px 12px; cursor:pointer; margin-left:auto; }
-    .order-undo-btn { font-size: 14px; color:#5f5e5a; background:none; border:1px solid #d4d4ce; border-radius:6px; padding:4px 12px; cursor:pointer; margin-left:auto; }
-    .order-list-item.completed { background:#f5f5f3; border-color:#e0e0dc; opacity:0.7; }
+    .order-badge { font-size:12px; padding:3px 9px; border-radius:20px; font-weight:600; }
+    .badge-unpaid { background:#fff8e1; color:#856404; }
+    .badge-paid   { background:#e6f4ea; color:#2d7a1f; }
+    .badge-pending { background:#fdecea; color:#c0392b; }
+    .badge-done   { background:#dce8ff; color:#084298; }
+    .order-item-detail { font-size:14px; color:#5f5e5a; line-height:1.7; }
+    .order-item-note { font-size:13px; color:#999; margin-top:6px; white-space:pre-wrap; }
+    .order-item-actions { display:flex; gap:7px; margin-top:12px; flex-wrap:wrap; align-items:center; }
+    .order-edit-btn { font-size:13px; font-weight:600; color:#185fa5; background:#eaf3ff; border:none; border-radius:8px; padding:6px 13px; cursor:pointer; }
+    .order-del-btn  { font-size:13px; font-weight:600; color:#c0392b; background:#fdecea; border:none; border-radius:8px; padding:6px 13px; cursor:pointer; }
+    .order-complete-btn { font-size:13px; font-weight:600; color:#fff; background:#185fa5; border:none; border-radius:8px; padding:6px 13px; cursor:pointer; margin-left:auto; }
+    .order-undo-btn { font-size:13px; font-weight:600; color:#666; background:#f0f0ec; border:none; border-radius:8px; padding:6px 13px; cursor:pointer; margin-left:auto; }
+    .order-list-item.completed { background:#f8f8f6; border-color:#e4e4df; opacity:0.72; }
     .order-empty { text-align:center; padding:40px 0; color:#888780; font-size: 14px; }
     .list-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:48px 0; gap:12px; color:#aaa; font-size:14px; }
     .list-loading-spinner { width:28px; height:28px; border:3px solid #e8e8e8; border-top-color:#185fa5; border-radius:50%; animation:spin 0.7s linear infinite; }
@@ -2187,22 +2219,23 @@ function renderOrderList(orders) {
   if (!orders.length) { container.innerHTML = '<div class="order-empty">주문 내역이 없습니다</div>'; return; }
   container.innerHTML = orders.map(o => `
     <div class="order-list-item${o.completed ? ' completed' : ''}">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
-        <div class="order-item-name" style="margin-bottom:0;">${o.completed ? '✓ ' : ''}${esc(o.name)}</div>
-        <div style="display:flex;gap:5px;flex-shrink:0;margin-left:8px;">
+      <div class="uc-head">
+        <div class="order-item-name">${o.completed ? '✓ ' : ''}${esc(o.name)}</div>
+        <div class="uc-badges">
           <span class="order-badge ${o.payment==='완불'?'badge-paid':'badge-unpaid'}">${esc(o.payment)}</span>
           <span class="order-badge ${o.ordered==='완료'?'badge-done':'badge-pending'}">발주 ${esc(o.ordered)}</span>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:14px;color:#5f5e5a;margin-bottom:8px;">
-        <div><span style="color:#aaa;font-size:14px;">주문일</span><br><b>${o.order_date||'—'}</b></div>
-        <div><span style="color:#aaa;font-size:14px;">수령희망일</span><br><b style="color:${o.pickup_date?'#185fa5':'#aaa'}">${o.pickup_date||'미정'}</b></div>
-        <div><span style="color:#aaa;font-size:14px;">수량</span><br><b>${esc(String(o.qty))}부</b></div>
-        <div><span style="color:#aaa;font-size:14px;">담당</span><br><b>${esc(o.staff||'—')}</b></div>
+      <div class="uc-grid">
+        <div class="uc-row"><span class="uc-lbl">주문일</span><span class="uc-val">${o.order_date||'—'}</span></div>
+        <div class="uc-row"><span class="uc-lbl">수령희망일</span><span class="uc-val ${o.pickup_date?'hi':'muted'}">${o.pickup_date||'미정'}</span></div>
+        <div class="uc-row"><span class="uc-lbl">수량</span><span class="uc-val">${esc(String(o.qty))}부</span></div>
+        <div class="uc-row"><span class="uc-lbl">담당</span><span class="uc-val">${esc(o.staff||'—')}</span></div>
       </div>
-      <div style="font-size:14px;color:${o.customer?'#5f5e5a':'#aaa'};margin-bottom:6px;">👤 ${o.customer ? esc(o.customer)+(o.phone?' · '+esc(o.phone):'') : '고객정보 미입력'}</div>
-      ${o.delivery==='발송' ? `<div style="font-size:14px;color:#5f5e5a;margin-bottom:6px;">📦 택배 발송${o.address?' · '+esc(o.address):''}</div>` : ''}
-      ${o.note ? `<div class="order-item-note">📝 ${esc(o.note)}</div>` : ''}
+      <div class="uc-text" style="margin-bottom:${o.note?'4px':'0'};">👤 ${o.customer ? esc(o.customer)+(o.phone?' · '+esc(o.phone):'') : '<span style="color:#bbb">고객정보 미입력</span>'}</div>
+      ${o.delivery==='발송' ? `<div class="uc-text" style="margin-bottom:${o.note?'4px':'0'};">📦 택배 발송${o.address?' · '+esc(o.address):''}</div>` : ''}
+      ${o.note ? `<div class="uc-note">📝 ${esc(o.note)}</div>` : ''}
+      <hr class="uc-divider">
       <div class="order-item-actions">
         ${!o.completed ? `<button class="order-edit-btn" onclick="editOrder(${o.id})">수정</button>` : ''}
         <button class="order-del-btn" onclick="deleteOrder(${o.id})">삭제</button>
@@ -2301,29 +2334,31 @@ function loadAsList_render(list) {
   const sorted = [...list].sort((a, b) => (a.status==='완료') - (b.status==='완료'));
   container.innerHTML = sorted.map(a => `
     <div class="order-list-item${a.status==='완료' ? ' completed' : ''}">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <span class="order-badge ${a.status==='완료' ? 'badge-done' : 'badge-pending'}">${esc(a.status)}</span>
-        ${a.delivery==='택배' ? '<span class="order-badge badge-unpaid">택배</span>' : ''}
-        <span class="order-item-name" style="flex:1;">${esc(a.product_name)}</span>
-      </div>
-      <div class="order-item-detail">
-        📅 ${esc(a.received_date||'—')} · 접수자 ${esc(a.staff||'—')}<br>
-        👤 ${esc(a.customer||'—')} · ${esc(a.phone||'—')}<br>
-        📋 ${esc(a.content||'—')}
-      </div>
-      ${a.note ? `<div class="order-item-note">💬 ${esc(a.note)}</div>` : ''}
-      <!-- 진행 내용 타임라인 -->
-      <div id="as-log-${a.id}" style="margin-top:10px;border-top:1px solid #f0f0ec;padding-top:10px;">
-        <div style="font-size:14px;font-weight:600;color:#888;margin-bottom:6px;">진행 내용</div>
-        <div id="as-log-list-${a.id}" style="margin-bottom:8px;"></div>
-        <div style="display:flex;gap:6px;align-items:center;">
-          <span style="font-size:14px;color:#aaa;white-space:nowrap;">${new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\. /g,'-').replace('.','')} </span>
-          <input type="text" id="as-log-input-${a.id}" placeholder="진행 내용 입력..." maxlength="200"
-            style="flex:1;padding:7px 10px;border:1px solid #d4d4ce;border-radius:8px;font-size:14px;outline:none;"
-            onkeydown="if(event.key==='Enter')addAsLog(${a.id})">
-          <button onclick="addAsLog(${a.id})" style="background:#185fa5;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;">추가</button>
+      <div class="uc-head">
+        <div class="order-item-name">${esc(a.product_name)}</div>
+        <div class="uc-badges">
+          <span class="order-badge ${a.status==='완료'?'badge-done':'badge-pending'}">${esc(a.status)}</span>
+          ${a.delivery==='택배' ? '<span class="order-badge badge-unpaid">택배</span>' : ''}
         </div>
       </div>
+      <div class="uc-grid">
+        <div class="uc-row"><span class="uc-lbl">접수일</span><span class="uc-val">${esc(a.received_date||'—')}</span></div>
+        <div class="uc-row"><span class="uc-lbl">접수자</span><span class="uc-val">${esc(a.staff||'—')}</span></div>
+        <div class="uc-row"><span class="uc-lbl">고객</span><span class="uc-val">${esc(a.customer||'—')}</span></div>
+        <div class="uc-row"><span class="uc-lbl">연락처</span><span class="uc-val">${esc(a.phone||'—')}</span></div>
+      </div>
+      ${a.content ? `<div class="uc-text">📋 ${esc(a.content)}</div>` : ''}
+      ${a.note ? `<div class="uc-note">📝 ${esc(a.note)}</div>` : ''}
+      <hr class="uc-divider">
+      <div style="font-size:13px;font-weight:600;color:#888;margin-bottom:8px;">진행 내용</div>
+      <div id="as-log-list-${a.id}" style="margin-bottom:8px;"></div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;">
+        <input type="text" id="as-log-input-${a.id}" placeholder="진행 내용 입력..." maxlength="200"
+          style="flex:1;padding:8px 10px;border:1px solid #d4d4ce;border-radius:8px;font-size:14px;outline:none;background:#f8f8f6;"
+          onkeydown="if(event.key==='Enter')addAsLog(${a.id})">
+        <button onclick="addAsLog(${a.id})" style="background:#185fa5;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">추가</button>
+      </div>
+      <hr class="uc-divider">
       <div class="order-item-actions">
         <button class="order-edit-btn" onclick="openAsForm(window._asRequests.find(x=>x.id===${a.id}))">수정</button>
         <button class="order-del-btn" onclick="deleteAs(${a.id})">삭제</button>
@@ -2443,28 +2478,30 @@ function renderSuggestionList(list) {
   if (!list.length) { container.innerHTML = '<div class="order-empty">건의사항이 없습니다</div>'; return; }
   const sorted = [...list].sort((a, b) => (a.status==='처리완료') - (b.status==='처리완료'));
   container.innerHTML = sorted.map(s => {
-    const badgeStyle = s.status==='처리완료' ? 'issue-badge-closed' : s.status==='처리보류' ? 'issue-badge-hold' : 'issue-badge-active';
     const isClosed = s.status==='처리완료';
+    const isHold   = s.status==='처리보류';
+    const badgeCls = isClosed ? 'badge-done' : isHold ? 'badge-unpaid' : 'badge-pending';
     return `
-    <div class="issue-item${isClosed ? ' closed' : ''}" style="margin-bottom:10px;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <span class="${badgeStyle}">${esc(s.status)}</span>
-        <span style="font-size:14px;color:#888;">${esc(s.date||'')}</span>
+    <div class="order-list-item${isClosed ? ' completed' : ''}">
+      <div class="uc-head">
+        <span class="uc-lbl" style="font-size:13px;">${esc(s.date||'')}</span>
+        <span class="order-badge ${badgeCls}">${esc(s.status)}</span>
       </div>
-      <div class="issue-content">${esc(s.content)}</div>
-      <div class="issue-actions" style="flex-wrap:wrap;">
+      <div class="uc-text" style="margin-bottom:10px;">${esc(s.content)}</div>
+      <hr class="uc-divider">
+      <div class="order-item-actions" style="flex-wrap:wrap;">
         ${isClosed
-          ? `<button class="issue-btn" onclick="setSuggestionStatus(${s.id},'미처리')">미처리로</button>`
-          : `<button class="issue-btn issue-btn-close" onclick="setSuggestionStatus(${s.id},'처리완료')">처리완료</button>
-             <button class="issue-btn issue-btn-hold" onclick="setSuggestionStatus(${s.id},'처리보류')">처리보류</button>`}
-        <button class="issue-btn" onclick="toggleSuggestionComments(${s.id})">💬 댓글</button>
-        <button class="issue-btn issue-btn-del" onclick="deleteSuggestion(${s.id})">삭제</button>
+          ? `<button class="order-undo-btn" style="margin-left:0;" onclick="setSuggestionStatus(${s.id},'미처리')">미처리로</button>`
+          : `<button class="order-complete-btn" style="margin-left:0;" onclick="setSuggestionStatus(${s.id},'처리완료')">처리완료</button>
+             <button class="order-edit-btn" onclick="setSuggestionStatus(${s.id},'처리보류')">처리보류</button>`}
+        <button class="order-del-btn" onclick="deleteSuggestion(${s.id})">삭제</button>
+        <button class="order-edit-btn" style="margin-left:auto;" onclick="toggleSuggestionComments(${s.id})">💬 댓글</button>
       </div>
-      <div id="sg-comments-${s.id}" style="display:none;margin-top:10px;border-top:1px solid #eee;padding-top:10px;">
+      <div id="sg-comments-${s.id}" style="display:none;margin-top:12px;border-top:1px solid #f0f0ec;padding-top:12px;">
         <div id="sg-comment-list-${s.id}" style="margin-bottom:8px;"></div>
         <div style="display:flex;gap:6px;">
-          <input id="sg-comment-input-${s.id}" type="text" placeholder="댓글 입력..." style="flex:1;border:1px solid #ddd;border-radius:8px;padding:7px 10px;font-size:14px;">
-          <button class="issue-btn issue-btn-active" onclick="addSuggestionComment(${s.id})" style="flex-shrink:0;">등록</button>
+          <input id="sg-comment-input-${s.id}" type="text" placeholder="댓글 입력..." style="flex:1;border:1px solid #d4d4ce;border-radius:8px;padding:8px 10px;font-size:14px;outline:none;background:#f8f8f6;">
+          <button onclick="addSuggestionComment(${s.id})" style="background:#185fa5;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;">등록</button>
         </div>
       </div>
     </div>`;
@@ -2580,19 +2617,23 @@ function loadIssueList_render(issues) {
   if (!issues.length) { container.innerHTML = '<div class="order-empty">이슈사항이 없습니다</div>'; return; }
   const sorted = [...issues].sort((a, b) => (a.status==='종료') - (b.status==='종료'));
   container.innerHTML = sorted.map(is => `
-    <div class="issue-item${is.status==='종료' ? ' closed' : ''}">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <span class="${is.status==='종료' ? 'issue-badge-closed' : 'issue-badge-active'}">${esc(is.status)}</span>
-        <span class="issue-title">${esc(is.title)}</span>
+    <div class="order-list-item${is.status==='종료' ? ' completed' : ''}">
+      <div class="uc-head">
+        <div class="order-item-name">${esc(is.title)}</div>
+        <span class="order-badge ${is.status==='종료'?'badge-done':'badge-pending'}">${esc(is.status)}</span>
       </div>
-      <div class="issue-meta">발생일 ${esc(is.occurred_at||'—')}${is.ended_at ? ' — ' + esc(is.ended_at) : ''}</div>
-      ${is.content ? `<div class="issue-content">${esc(is.content)}</div>` : ''}
-      <div class="issue-actions">
+      <div class="uc-grid">
+        <div class="uc-row"><span class="uc-lbl">발생일</span><span class="uc-val">${esc(is.occurred_at||'—')}</span></div>
+        ${is.ended_at ? `<div class="uc-row"><span class="uc-lbl">종료일</span><span class="uc-val">${esc(is.ended_at)}</span></div>` : '<div></div>'}
+      </div>
+      ${is.content ? `<div class="uc-text">${esc(is.content)}</div>` : ''}
+      <hr class="uc-divider">
+      <div class="order-item-actions">
+        <button class="order-edit-btn" onclick="openIssueFormById(${is.id})">수정</button>
+        <button class="order-del-btn" onclick="deleteIssue(${is.id})">삭제</button>
         ${is.status==='종료'
-          ? `<button class="issue-btn" onclick="setIssueStatus(${is.id},'진행중')">진행중으로</button>`
-          : `<button class="issue-btn issue-btn-close" onclick="setIssueStatus(${is.id},'종료')">종료</button>`}
-        <button class="issue-btn issue-btn-active" onclick="openIssueFormById(${is.id})">수정</button>
-        <button class="issue-btn issue-btn-del" onclick="deleteIssue(${is.id})">삭제</button>
+          ? `<button class="order-undo-btn" onclick="setIssueStatus(${is.id},'진행중')">진행중으로</button>`
+          : `<button class="order-complete-btn" onclick="setIssueStatus(${is.id},'종료')">종료</button>`}
       </div>
     </div>
   `).join('');
