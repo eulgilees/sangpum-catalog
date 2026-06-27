@@ -2672,12 +2672,17 @@ async function submitIssue() {
     content: document.getElementById('if-content').value.trim()
   };
   if (issueFormId) body.id = issueFormId;
-  const token = localStorage.getItem('authToken') || '';
-  await fetch(issueFormId ? '/api/issues/update' : '/api/issues', {
-    method: 'POST', headers: {'Content-Type':'application/json', 'X-Token': token}, body: JSON.stringify(body)
-  });
+  // 로컬 캐시 즉시 업데이트
+  if (issueFormId && window._issues) {
+    const idx = window._issues.findIndex(x => x.id === issueFormId);
+    if (idx !== -1) Object.assign(window._issues[idx], body);
+    loadIssueList_render(window._issues);
+  }
   closeIssueForm();
-  openIssueList();
+  const token = localStorage.getItem('authToken') || '';
+  fetch(issueFormId ? '/api/issues/update' : '/api/issues', {
+    method: 'POST', headers: {'Content-Type':'application/json', 'X-Token': token}, body: JSON.stringify(body)
+  }).then(() => loadIssueList());
 }
 
 function loadIssueList_render(issues) {
