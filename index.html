@@ -176,9 +176,11 @@
     .issue-cal-day.today .day-num { background:#185fa5; color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; margin:0 auto; }
     .issue-cal-day.other-month .day-num { color:#ccc; }
     .day-num { width:22px; height:22px; display:flex; align-items:center; justify-content:center; margin:0 auto; font-size: 12px; }
-    .issue-cal-bar { height:5px; border-radius:3px; margin-top:2px; font-size:0; }
+    .issue-cal-bar { height:6px; border-radius:3px; margin-top:2px; font-size:0; position:relative; cursor:pointer; }
     .issue-cal-bar.active-bar { background:#e03131; }
     .issue-cal-bar.closed-bar { background:#adb5bd; }
+    .issue-cal-bar::after { content:attr(data-title); position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:#222; color:#fff; font-size:12px; font-weight:500; white-space:nowrap; padding:4px 8px; border-radius:6px; pointer-events:none; opacity:0; transition:opacity 0.15s; z-index:999; max-width:160px; overflow:hidden; text-overflow:ellipsis; }
+    .issue-cal-bar:hover::after { opacity:1; }
     .issue-cal-legend { display:flex; gap:16px; font-size: 12px; color:#555; margin-top:8px; }
     .issue-cal-legend span { display:flex; align-items:center; gap:5px; }
     .issue-cal-legend b { display:inline-block; width:16px; height:5px; border-radius:3px; }
@@ -2811,7 +2813,7 @@ function renderIssueCalendar() {
       return ds >= start && ds <= end;
     }).map(is => {
       const color = is.status==='종료' ? '#adb5bd' : (is.color || '#e03131');
-      return `<div class="issue-cal-bar" style="background:${color};" title="${esc(is.title)}"></div>`;
+      return `<div class="issue-cal-bar" style="background:${color};" data-title="${esc(is.title)}"></div>`;
     }).join('');
     html += `<div class="issue-cal-day${isToday ? ' today' : ''}"><div class="day-num">${d}</div>${bars}</div>`;
   }
