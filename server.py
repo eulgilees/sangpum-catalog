@@ -142,6 +142,13 @@ def init_tables():
         c2.execute("ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT NULL")
         conn2.commit(); conn2.close()
     except: pass
+    # chat_rooms에 그룹 채팅 컬럼 추가
+    try:
+        conn3 = data_db(); c3 = conn3.cursor()
+        c3.execute("ALTER TABLE chat_rooms ADD COLUMN IF NOT EXISTS is_group BOOLEAN DEFAULT FALSE")
+        c3.execute("ALTER TABLE chat_rooms ADD COLUMN IF NOT EXISTS group_name TEXT DEFAULT ''")
+        conn3.commit(); conn3.close()
+    except: pass
     conn.commit(); conn.close()
 
 def search_products(query='', barcode='', limit=50, offset=0):
@@ -245,6 +252,22 @@ def get_all_users():
     c.execute('SELECT id, display_name, store FROM users ORDER BY display_name')
     rows = rows_to_dicts(c); conn.close(); return rows
 
+def create_group_room(creator_id, member_ids, group_name):
+    conn = data_db(); c = conn.cursor()
+    c.execute("INSERT INTO chat_rooms (created_at, is_group, group_name) VALUES (%s, TRUE, %s) RETURNING id",
+              (int(time.time()), group_name))
+    rid = c.fetchone()[0]
+    all_members = list(set([creator_id] + member_ids))
+    for uid in all_members:
+        c.execute("INSERT INTO chat_room_members (room_id, user_id, last_read) VALUES (%s, %s, 0)", (rid, uid))
+    conn.commit(); conn.close(); return rid
+
+def chat_get_other_member_ids(room_id, my_user_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT user_id FROM chat_room_members WHERE room_id=%s AND user_id != %s', (room_id, my_user_id))
+    rows = c.fetchall(); conn.close()
+    return [row[0] for row in rows]
+
 def get_or_create_dm_room(user_id1, user_id2):
     conn = data_db(); c = conn.cursor()
     c.execute('''SELECT a.room_id FROM chat_room_members a
@@ -265,7 +288,7 @@ def get_or_create_dm_room(user_id1, user_id2):
 def get_my_rooms(user_id):
     conn = data_db(); c = conn.cursor()
     c.execute('''
-        SELECT r.id,
+        SELECT r.id, COALESCE(r.is_group, FALSE) as is_group, COALESCE(r.group_name, '') as group_name,
                (SELECT u.display_name FROM users u
                 JOIN chat_room_members m2 ON m2.user_id=u.id
                 WHERE m2.room_id=r.id AND m2.user_id != %s LIMIT 1) as other_name,
@@ -276,12 +299,23 @@ def get_my_rooms(user_id):
                (SELECT created_at FROM chat_messages WHERE room_id=r.id ORDER BY id DESC LIMIT 1) as last_ts,
                (SELECT COUNT(*) FROM chat_messages
                 WHERE room_id=r.id AND created_at >
-                    (SELECT last_read FROM chat_room_members WHERE room_id=r.id AND user_id=%s)) as unread
+                    (SELECT last_read FROM chat_room_members WHERE room_id=r.id AND user_id=%s)) as unread,
+               (SELECT COUNT(*) FROM chat_room_members WHERE room_id=r.id) as member_count
         FROM chat_rooms r
         JOIN chat_room_members m ON m.room_id=r.id AND m.user_id=%s
         ORDER BY last_ts DESC NULLS LAST
     ''', (user_id, user_id, user_id, user_id))
-    rows = rows_to_dicts(c); conn.close(); return rows
+    rooms = rows_to_dicts(c)
+    # 그룹 채팅의 경우 멤버 이름 목록 추가
+    for room in rooms:
+        if room.get('is_group'):
+            c.execute('''SELECT u.display_name FROM users u
+                         JOIN chat_room_members m ON m.user_id=u.id
+                         WHERE m.room_id=%s AND u.id != %s''', (room['id'], user_id))
+            room['member_names'] = [row[0] for row in c.fetchall()]
+        else:
+            room['member_names'] = []
+    conn.close(); return rooms
 
 def get_messages(room_id, after=0, limit=100):
     conn = data_db(); c = conn.cursor()
@@ -772,6 +806,16 @@ class Handler(BaseHTTPRequestHandler):
             if not other_id: self.send_json({'ok': False, 'error': '상대방을 선택해주세요'}); return
             room_id = get_or_create_dm_room(user['id'], int(other_id))
             self.send_json({'ok': True, 'room_id': room_id})
+        elif self.path == '/api/chat/group':
+            token = self.headers.get('X-Token','')
+            user = verify_session(token)
+            if not user: self.send_json({'ok': False}); return
+            member_ids = body.get('member_ids', [])
+            group_name = body.get('group_name', '').strip()
+            if len(member_ids) < 1: self.send_json({'ok': False, 'error': '멤버를 선택해주세요'}); return
+            if not group_name: self.send_json({'ok': False, 'error': '그룹 이름을 입력해주세요'}); return
+            room_id = create_group_room(user['id'], [int(m) for m in member_ids], group_name)
+            self.send_json({'ok': True, 'room_id': room_id})
         elif self.path == '/api/chat/message':
             token = self.headers.get('X-Token','')
             user = verify_session(token)
@@ -780,11 +824,13 @@ class Handler(BaseHTTPRequestHandler):
             content = body.get('content','').strip()
             if not room_id or not content: self.send_json({'ok': False}); return
             msg = chat_send_message(int(room_id), user['id'], user['display_name'], content)
-            other_uid = chat_get_other_user_id(int(room_id), user['id'])
-            if other_uid:
+            other_uids = chat_get_other_member_ids(int(room_id), user['id'])
+            if other_uids:
                 import threading
-                threading.Thread(target=send_push_notification,
-                    args=(f'💬 {user["display_name"]}', content, other_uid, f'chat-{room_id}', f'/?room={room_id}'), daemon=True).start()
+                def push_all(uids):
+                    for uid in uids:
+                        send_push_notification(f'💬 {user["display_name"]}', content, uid, f'chat-{room_id}', f'/?room={room_id}')
+                threading.Thread(target=push_all, args=(other_uids,), daemon=True).start()
             self.send_json({'ok': True, 'message': msg})
         elif self.path == '/api/chat/read':
             token = self.headers.get('X-Token','')
