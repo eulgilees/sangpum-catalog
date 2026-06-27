@@ -2558,9 +2558,15 @@ function openIssueFormById(id) {
 }
 
 async function setIssueStatus(id, status) {
-  await fetch('/api/issues/status', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, status})});
-  loadIssueList();
-  checkActiveIssues();
+  if (window._issues) {
+    const issue = window._issues.find(i => i.id === id);
+    if (issue) {
+      issue.status = status;
+      loadIssueList_render(window._issues);
+    }
+  }
+  fetch('/api/issues/status', {method:'POST', headers:{'Content-Type':'application/json','X-Token':localStorage.getItem('authToken')||''}, body: JSON.stringify({id, status})})
+    .then(() => { loadIssueList(); checkActiveIssues(); });
 }
 
 async function deleteIssue(id) {
