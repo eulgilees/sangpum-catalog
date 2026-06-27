@@ -228,6 +228,9 @@
     .order-undo-btn { font-size: 14px; color:#5f5e5a; background:none; border:1px solid #d4d4ce; border-radius:6px; padding:4px 12px; cursor:pointer; margin-left:auto; }
     .order-list-item.completed { background:#f5f5f3; border-color:#e0e0dc; opacity:0.7; }
     .order-empty { text-align:center; padding:40px 0; color:#888780; font-size: 14px; }
+    .list-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:48px 0; gap:12px; color:#aaa; font-size:14px; }
+    .list-loading-spinner { width:28px; height:28px; border:3px solid #e8e8e8; border-top-color:#185fa5; border-radius:50%; animation:spin 0.7s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
 
     /* 시작 가이드 */
     .guide-btn { background: none; border: none; cursor: pointer; color: #888780; font-size: 20px; display: flex; align-items: center; padding: 4px; }
@@ -2135,11 +2138,14 @@ async function submitOrder() {
   await openOrderList();
 }
 
+const LOADING_HTML = '<div class="list-loading"><div class="list-loading-spinner"></div><span>불러오는 중...</span></div>';
+
 async function openOrderList() {
   lockScroll();
   document.getElementById('order-list-overlay').classList.add('open');
   document.getElementById('order-search-input').value = '';
   if (window._orders) renderOrderList(window._orders);
+  else document.getElementById('order-list-container').innerHTML = LOADING_HTML;
   loadOrderList();
 }
 function closeOrderList() { unlockScroll(); document.getElementById('order-list-overlay').classList.remove('open'); }
@@ -2245,6 +2251,7 @@ async function openAsList() {
   lockScroll();
   document.getElementById('as-list-overlay').classList.add('open');
   if (window._asRequests) loadAsList_render(window._asRequests);
+  else document.getElementById('as-list-container').innerHTML = LOADING_HTML;
   loadAsList();
 }
 function closeAsList() { unlockScroll(); document.getElementById('as-list-overlay').classList.remove('open'); }
@@ -2412,6 +2419,8 @@ async function openSuggestionList() {
   setDateValue('sg-date', todayStr, '날짜');
   document.getElementById('sg-content').value = '';
   document.getElementById('suggestion-overlay').classList.add('open');
+  if (window._suggestions) renderSuggestionList(window._suggestions);
+  else document.getElementById('suggestion-list-container').innerHTML = LOADING_HTML;
   await loadSuggestionList();
 }
 function closeSuggestionList() { unlockScroll(); document.getElementById('suggestion-overlay').classList.remove('open'); }
@@ -2530,6 +2539,7 @@ function openIssueList() {
   lockScroll();
   document.getElementById('issue-list-overlay').classList.add('open');
   if (window._issues) loadIssueList_render(window._issues);
+  else document.getElementById('issue-list-container').innerHTML = LOADING_HTML;
   loadIssueList();
 }
 function closeIssueList() { unlockScroll(); document.getElementById('issue-list-overlay').classList.remove('open'); checkActiveIssues(); }
