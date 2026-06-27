@@ -1263,6 +1263,7 @@ function closeGuide() { unlockScroll(); document.getElementById('guide-overlay')
 
 // ── 휴무일정 ──
 let scheduleData = [];
+let scheduleTodayData = []; // 배너 전용: 항상 오늘 달 기준
 let scheduleYear = 0;
 let scheduleMonth = 0;
 let scheduleTab = 'list';
@@ -1344,6 +1345,11 @@ async function loadSchedule(silent = false) {
       }
     } catch {}
     scheduleData = data;
+    // 오늘 달과 같을 때만 배너용 데이터 갱신
+    const now = new Date();
+    if (scheduleYear === now.getFullYear() % 100 && scheduleMonth === now.getMonth() + 1) {
+      scheduleTodayData = data;
+    }
     document.getElementById('schedule-loading').style.display = 'none';
     renderScheduleList();
     renderScheduleCal();
@@ -1383,8 +1389,9 @@ function renderMyScheduleBanner() {
     return s.replace(/\s/g,'').replace(/^0*(\d+)월/, '$1월').replace(/0*(\d+)일/, '$1일');
   }
   function getShift(dateStr) {
-    if (!scheduleData.length) return null;
-    const entry = scheduleData.find(d => normDate(d.date) === normDate(dateStr));
+    const src = scheduleTodayData.length ? scheduleTodayData : scheduleData;
+    if (!src.length) return null;
+    const entry = src.find(d => normDate(d.date) === normDate(dateStr));
     if (!entry) return null;
     const isOff = entry['휴무'] && entry['휴무'].some(n => n.includes(matchName));
     if (isOff) return '휴무';
