@@ -1488,8 +1488,8 @@ function renderMyScheduleBanner() {
     const color = shiftColor(shift);
     const text = shift || '일정 없음';
     return `<div style="flex:1;background:#fff;border-radius:12px;padding:14px 12px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
-      <div style="font-size:14px;color:#888;margin-bottom:4px;">${label}</div>
-      <div style="font-size:14px;color:#bbb;margin-bottom:8px;">${dateLabel}</div>
+      <div style="font-size:14px;color:#444;font-weight:600;margin-bottom:4px;">${label}</div>
+      <div style="font-size:14px;color:#222;font-weight:500;margin-bottom:8px;">${dateLabel}</div>
       <div style="font-size:14px;font-weight:800;color:${color};">${text}</div>
     </div>`;
   }
