@@ -838,6 +838,21 @@ class Handler(BaseHTTPRequestHandler):
             if not user: self.send_json({'ok': False}); return
             chat_mark_read(body.get('room_id'), user['id'])
             self.send_json({'ok': True})
+        elif self.path == '/api/chat/leave':
+            token = self.headers.get('X-Token','')
+            user = verify_session(token)
+            if not user: self.send_json({'ok': False}); return
+            room_id = body.get('room_id')
+            if not room_id: self.send_json({'ok': False}); return
+            conn = data_db(); c = conn.cursor()
+            c.execute('DELETE FROM chat_room_members WHERE room_id=%s AND user_id=%s', (int(room_id), user['id']))
+            # 방에 멤버가 없으면 방과 메시지도 삭제
+            c.execute('SELECT COUNT(*) FROM chat_room_members WHERE room_id=%s', (int(room_id),))
+            if c.fetchone()[0] == 0:
+                c.execute('DELETE FROM chat_messages WHERE room_id=%s', (int(room_id),))
+                c.execute('DELETE FROM chat_rooms WHERE id=%s', (int(room_id),))
+            conn.commit(); conn.close()
+            self.send_json({'ok': True})
         elif self.path == '/api/comments':
             self.send_json({'ok': True, 'id': add_comment(body['barcode'], body['content'], body['created_at'], body.get('parent_id'))})
         elif self.path == '/api/comments/delete':

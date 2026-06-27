@@ -2797,6 +2797,34 @@ function chatSearchScrollTo(idx) {
   document.getElementById('chat-search-count').textContent = `${idx+1}/${_chatSearchMatches.length}`;
 }
 
+function toggleChatMenu() {
+  const menu = document.getElementById('chat-room-menu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+  if (menu.style.display === 'block') {
+    setTimeout(() => document.addEventListener('click', closeChatMenuOutside, {once: true}), 0);
+  }
+}
+function closeChatMenuOutside(e) {
+  const menu = document.getElementById('chat-room-menu');
+  if (menu && !menu.contains(e.target)) menu.style.display = 'none';
+}
+async function leaveChatRoom() {
+  document.getElementById('chat-room-menu').style.display = 'none';
+  if (!confirm('이 채팅방에서 나가시겠습니까?\n나가면 대화 내용을 다시 볼 수 없습니다.')) return;
+  const token = localStorage.getItem('authToken');
+  const res = await fetch('/api/chat/leave', {
+    method: 'POST', headers: {'Content-Type':'application/json','X-Token':token},
+    body: JSON.stringify({room_id: chatRoomId})
+  });
+  const data = await res.json();
+  if (!data.ok) { alert('나가기 실패. 다시 시도해주세요.'); return; }
+  // 캐시 삭제
+  delete chatMsgCache[chatRoomId];
+  try { localStorage.removeItem('chatMsgCache_' + chatRoomId); } catch {}
+  stopChatPoll();
+  await loadChatRooms();
+  showChatList();
+}
 function backToChatList() {
   closeChatSearch();
   chatIsGroup = false;
@@ -3285,6 +3313,11 @@ window.addEventListener('load', () => {
         <div id="chat-room-subtitle" style="font-size:12px;color:#888;"></div>
       </div>
       <button onclick="toggleChatSearch()" style="background:none;border:none;font-size:20px;color:#888;cursor:pointer;padding:4px;">🔍</button>
+      <button onclick="toggleChatMenu()" style="background:none;border:none;font-size:22px;color:#888;cursor:pointer;padding:4px;line-height:1;">⋯</button>
+    </div>
+    <!-- 채팅방 메뉴 드롭다운 -->
+    <div id="chat-room-menu" style="display:none;position:absolute;top:56px;right:12px;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:8500;overflow:hidden;min-width:130px;">
+      <button onclick="leaveChatRoom()" style="display:block;width:100%;text-align:left;padding:14px 18px;font-size:14px;font-weight:600;color:#e03131;border:none;background:none;cursor:pointer;">방 나가기</button>
     </div>
     <div id="chat-search-bar" style="display:none;flex-shrink:0;padding:8px 12px;background:#f5f5f3;border-bottom:1px solid #e5e5e0;gap:8px;align-items:center;">
       <input id="chat-search-input" type="text" placeholder="메시지 검색..." oninput="chatSearch()"
