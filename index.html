@@ -594,6 +594,25 @@
   </div>
 </div>
 
+<!-- 이슈사항 상세보기 모달 -->
+<div class="order-overlay" id="issue-detail-overlay" onclick="if(event.target===this)closeIssueDetail()">
+  <div class="order-box" style="max-height:88vh;overflow-y:auto;">
+    <div class="order-header">
+      <h2 id="id-title" style="font-size:16px;font-weight:700;color:#1a1a18;flex:1;line-height:1.4;"></h2>
+      <button class="order-close" onclick="closeIssueDetail()"><i class="ti ti-x"></i></button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+      <span id="id-badge" class="order-badge"></span>
+      <span id="id-dates" style="font-size:13px;color:#888;"></span>
+    </div>
+    <div id="id-content" style="font-size:15px;color:#222;line-height:1.8;white-space:pre-wrap;word-break:break-all;background:#f8f8f6;border-radius:12px;padding:16px;min-height:80px;margin-bottom:20px;"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button id="id-edit-btn" class="order-edit-btn" style="font-size:14px;padding:10px 20px;">수정</button>
+      <button id="id-status-btn" class="order-complete-btn" style="font-size:14px;padding:10px 20px;margin-left:0;"></button>
+    </div>
+  </div>
+</div>
+
 <!-- 이슈사항 등록 모달 -->
 <div class="order-overlay" id="issue-form-overlay">
   <div class="order-box">
@@ -2615,6 +2634,34 @@ function openIssueForm(issue=null) {
 }
 function closeIssueForm() { document.getElementById('issue-form-overlay').classList.remove('open'); }
 
+function openIssueDetail(id) {
+  const is = (window._issues||[]).find(x => x.id === id);
+  if (!is) return;
+  document.getElementById('id-title').textContent = is.title;
+  const badge = document.getElementById('id-badge');
+  badge.textContent = is.status;
+  badge.className = 'order-badge ' + (is.status==='종료' ? 'badge-done' : 'badge-pending');
+  const dates = is.occurred_at ? `발생일 ${is.occurred_at}${is.ended_at ? '  →  종료일 ' + is.ended_at : ''}` : '';
+  document.getElementById('id-dates').textContent = dates;
+  document.getElementById('id-content').textContent = is.content || '(내용 없음)';
+  const editBtn = document.getElementById('id-edit-btn');
+  editBtn.onclick = () => { closeIssueDetail(); openIssueFormById(id); };
+  const statusBtn = document.getElementById('id-status-btn');
+  if (is.status === '종료') {
+    statusBtn.textContent = '진행중으로';
+    statusBtn.className = 'order-undo-btn';
+    statusBtn.style.marginLeft = '0';
+    statusBtn.onclick = () => { setIssueStatus(id, '진행중'); closeIssueDetail(); };
+  } else {
+    statusBtn.textContent = '종료';
+    statusBtn.className = 'order-complete-btn';
+    statusBtn.style.marginLeft = '0';
+    statusBtn.onclick = () => { setIssueStatus(id, '종료'); closeIssueDetail(); };
+  }
+  document.getElementById('issue-detail-overlay').classList.add('open');
+}
+function closeIssueDetail() { document.getElementById('issue-detail-overlay').classList.remove('open'); }
+
 async function submitIssue() {
   const title = document.getElementById('if-title').value.trim();
   if (!title) { alert('제목을 입력해주세요.'); return; }
@@ -2638,18 +2685,18 @@ function loadIssueList_render(issues) {
   if (!issues.length) { container.innerHTML = '<div class="order-empty">이슈사항이 없습니다</div>'; return; }
   const sorted = [...issues].sort((a, b) => (a.status==='종료') - (b.status==='종료'));
   container.innerHTML = sorted.map(is => `
-    <div class="order-list-item${is.status==='종료' ? ' completed' : ''}">
+    <div class="order-list-item${is.status==='종료' ? ' completed' : ''}" onclick="openIssueDetail(${is.id})" style="cursor:pointer;">
       <div class="uc-head">
         <div class="order-item-name">${esc(is.title)}</div>
         <span class="order-badge ${is.status==='종료'?'badge-done':'badge-pending'}">${esc(is.status)}</span>
       </div>
-      <div class="uc-grid">
+      <div class="uc-grid" style="margin-bottom:${is.content?'10px':'0'};">
         <div class="uc-row"><span class="uc-lbl">발생일</span><span class="uc-val">${esc(is.occurred_at||'—')}</span></div>
         ${is.ended_at ? `<div class="uc-row"><span class="uc-lbl">종료일</span><span class="uc-val">${esc(is.ended_at)}</span></div>` : '<div></div>'}
       </div>
-      ${is.content ? `<div class="uc-text">${esc(is.content)}</div>` : ''}
+      ${is.content ? `<div style="font-size:14px;color:#444;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${esc(is.content)}</div>` : ''}
       <hr class="uc-divider">
-      <div class="order-item-actions">
+      <div class="order-item-actions" onclick="event.stopPropagation()">
         <button class="order-edit-btn" onclick="openIssueFormById(${is.id})">수정</button>
         <button class="order-del-btn" onclick="deleteIssue(${is.id})">삭제</button>
         ${is.status==='종료'
