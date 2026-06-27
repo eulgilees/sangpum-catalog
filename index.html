@@ -1291,6 +1291,7 @@ function switchScheduleTab(tab) {
   calBtn.style.color       = tab === 'cal'  ? '#fff' : '#555';
   document.getElementById('schedule-list-view').style.display = tab === 'list' ? 'block' : 'none';
   document.getElementById('schedule-cal-view').style.display  = tab === 'cal'  ? 'block' : 'none';
+  renderMyScheduleBanner();
 }
 
 async function loadSchedule(silent = false) {
