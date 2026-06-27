@@ -1291,6 +1291,15 @@ function switchScheduleTab(tab) {
   calBtn.style.color       = tab === 'cal'  ? '#fff' : '#555';
   document.getElementById('schedule-list-view').style.display = tab === 'list' ? 'block' : 'none';
   document.getElementById('schedule-cal-view').style.display  = tab === 'cal'  ? 'block' : 'none';
+  // 달력 탭으로 전환 시 본인 이름 자동 필터
+  if (tab === 'cal') {
+    const filterEl = document.getElementById('schedule-person-filter');
+    if (filterEl && !filterEl.value && currentUser) {
+      const name = currentUser.display_name || '';
+      filterEl.value = name.length >= 2 ? name.slice(-2) : name;
+    }
+    renderScheduleCal();
+  }
   renderMyScheduleBanner();
 }
 
