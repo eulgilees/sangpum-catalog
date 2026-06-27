@@ -873,7 +873,7 @@ class Handler(BaseHTTPRequestHandler):
                 import threading
                 def push_all(uids):
                     for uid in uids:
-                        send_push_notification(f'💬 {user["display_name"]}', content, uid, f'chat-{room_id}', f'/?room={room_id}')
+                        send_push_notification(f'{user["display_name"]}에게 메시지가 도착했습니다', content, uid, f'chat-{room_id}', f'/?room={room_id}')
                 threading.Thread(target=push_all, args=(other_uids,), daemon=True).start()
             self.send_json({'ok': True, 'message': msg})
         elif self.path == '/api/chat/read':

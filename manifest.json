@@ -1,6 +1,6 @@
 {
-  "name": "상품 조회",
-  "short_name": "상품조회",
+  "name": "교보문고",
+  "short_name": "교보문고",
   "description": "교보문고 상품 바코드 조회 시스템",
   "start_url": "/",
   "display": "standalone",
