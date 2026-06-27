@@ -2685,6 +2685,23 @@ function isStandaloneMode() {
          window.navigator.standalone === true;
 }
 
+navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', e => {
+  if (e.data && e.data.type === 'OPEN_CHAT_ROOM') {
+    const roomId = e.data.roomId;
+    const token = localStorage.getItem('authToken') || '';
+    openChat();
+    fetch('/api/chat/rooms', {headers:{'X-Token':token}}).then(r=>r.json()).then(d=>{
+      if (!d.ok) return;
+      const room = d.rooms.find(r => String(r.id) === String(roomId));
+      if (room) {
+        const rName = room.is_group ? (room.group_name||'그룹') : (room.other_name||'');
+        const rSub = room.is_group ? (room.member_names||[]).join(', ') : (room.other_store||'');
+        openChatRoom(room.id, rName, rSub, room.is_group);
+      }
+    }).catch(()=>{});
+  }
+});
+
 async function autoRequestPushIfStandalone() {
   if (!isStandaloneMode()) return;
   if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
