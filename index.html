@@ -2398,6 +2398,18 @@ async function initAuth() {
     localStorage.setItem('cachedUser', JSON.stringify(data.user));
     hideAuthScreen(); // 항상 호출 — 버튼 표시 + 최신 이름/점포 반영
     autoRequestPushIfStandalone();
+    // 알림 클릭으로 진입 시 해당 채팅방 자동 열기
+    const roomParam = new URLSearchParams(location.search).get('room');
+    if (roomParam) {
+      history.replaceState(null, '', '/');
+      openChat();
+      const token = localStorage.getItem('authToken') || '';
+      fetch('/api/chat/rooms', {headers:{'X-Token':token}}).then(r=>r.json()).then(d=>{
+        if (!d.ok) return;
+        const room = d.rooms.find(r => String(r.id) === String(roomParam));
+        if (room) openChatRoom(room.id, room.other_name, room.other_store);
+      }).catch(()=>{});
+    }
   } else if (data.ok === false) {
     // 서버가 명확히 세션 만료라고 응답한 경우에만 로그아웃
     localStorage.removeItem('authToken');
