@@ -8,6 +8,7 @@ import time
 import ssl
 import hashlib
 import secrets
+import threading
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
@@ -28,7 +29,11 @@ NEON_DB   = 'neondb'
 NEON_USER = 'neondb_owner'
 NEON_PASS = 'npg_FudX2Rp4iYOw'
 
-def data_db():
+_pool = []
+_pool_lock = threading.Lock()
+_pool_max = 5
+
+def _new_conn():
     import pg8000.dbapi as pg
     url = PG_URL if PG_URL.startswith('postgresql') else ''
     if url:
@@ -40,6 +45,24 @@ def data_db():
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     return pg.connect(host=host, port=port, database=database, user=user, password=password, ssl_context=ctx)
+
+def data_db():
+    with _pool_lock:
+        if _pool:
+            return _pool.pop()
+    return _new_conn()
+
+def release_db(conn):
+    try:
+        conn.rollback()
+        with _pool_lock:
+            if len(_pool) < _pool_max:
+                _pool.append(conn)
+                return
+    except Exception:
+        pass
+    try: conn.close()
+    except Exception: pass
 
 def rows_to_dicts(cursor):
     cols = [d[0] for d in cursor.description]
@@ -157,7 +180,7 @@ def init_tables():
         c3.execute("ALTER TABLE chat_rooms ADD COLUMN IF NOT EXISTS group_name TEXT DEFAULT ''")
         conn3.commit(); conn3.close()
     except: pass
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def search_products(query='', barcode='', limit=50, offset=0):
     conn = sqlite3.connect(PRODUCTS_DB)
@@ -178,13 +201,13 @@ def search_products(query='', barcode='', limit=50, offset=0):
         c.execute('SELECT COUNT(*) FROM products'); total = c.fetchone()[0]
         c.execute('SELECT * FROM products LIMIT ? OFFSET ?', (limit,offset)); rows = c.fetchall()
     result = [dict(r) for r in rows]
-    conn.close()
+    release_db(conn)
     return result, total
 
 def get_comments(barcode):
     conn = data_db(); c = conn.cursor()
     c.execute('SELECT id,content,created_at,parent_id FROM comments WHERE barcode=%s ORDER BY id', (barcode,))
-    rows = rows_to_dicts(c); conn.close()
+    rows = rows_to_dicts(c); release_db(conn)
     top = [r for r in rows if not r['parent_id']]
     replies = {}
     for r in rows:
@@ -196,13 +219,13 @@ def add_comment(barcode, content, created_at, parent_id=None):
     conn = data_db(); c = conn.cursor()
     c.execute('INSERT INTO comments(barcode,content,created_at,parent_id) VALUES(%s,%s,%s,%s) RETURNING id',
               (barcode, content, created_at, parent_id))
-    new_id = c.fetchone()[0]; conn.commit(); conn.close()
+    new_id = c.fetchone()[0]; conn.commit(); release_db(conn)
     return new_id
 
 def delete_comment(comment_id):
     conn = data_db(); c = conn.cursor()
     c.execute('DELETE FROM comments WHERE id=%s', (comment_id,))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def search_comments(query):
     pconn = sqlite3.connect(PRODUCTS_DB); pconn.row_factory = sqlite3.Row
@@ -212,7 +235,7 @@ def search_comments(query):
     like = f"%{query.lower().replace(' ','')}%"
     c.execute('''SELECT id,barcode,content,created_at FROM comments
                  WHERE replace(lower(content),' ','') LIKE %s ORDER BY id DESC LIMIT 100''', (like,))
-    rows = rows_to_dicts(c); conn.close()
+    rows = rows_to_dicts(c); release_db(conn)
     for r in rows:
         p = products.get(r['barcode'], {})
         r.update({'name': p.get('name',''), 'author': p.get('author',''),
@@ -224,7 +247,7 @@ def save_subscription(endpoint, p256dh, auth, user_id=None):
     c.execute('''INSERT INTO push_subscriptions(endpoint,p256dh,auth,user_id) VALUES(%s,%s,%s,%s)
                  ON CONFLICT(endpoint) DO UPDATE SET p256dh=EXCLUDED.p256dh, auth=EXCLUDED.auth, user_id=EXCLUDED.user_id''',
               (endpoint, p256dh, auth, user_id))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def get_subscriptions(user_id=None):
     conn = data_db(); c = conn.cursor()
@@ -233,7 +256,7 @@ def get_subscriptions(user_id=None):
     else:
         # 로그인된 사용자(user_id 있는)의 구독만 반환
         c.execute('SELECT * FROM push_subscriptions WHERE user_id IS NOT NULL')
-    rows = rows_to_dicts(c); conn.close(); return rows
+    rows = rows_to_dicts(c); release_db(conn); return rows
 
 def send_push_notification(title, body, target_user_id=None, tag='sangpum', url='/'):
     if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
@@ -258,7 +281,7 @@ def send_push_notification(title, body, target_user_id=None, tag='sangpum', url=
 def get_all_users():
     conn = data_db(); c = conn.cursor()
     c.execute('SELECT id, display_name, store FROM users ORDER BY display_name')
-    rows = rows_to_dicts(c); conn.close(); return rows
+    rows = rows_to_dicts(c); release_db(conn); return rows
 
 def create_group_room(creator_id, member_ids, group_name):
     conn = data_db(); c = conn.cursor()
@@ -268,12 +291,12 @@ def create_group_room(creator_id, member_ids, group_name):
     all_members = list(set([creator_id] + member_ids))
     for uid in all_members:
         c.execute("INSERT INTO chat_room_members (room_id, user_id, last_read) VALUES (%s, %s, 0)", (rid, uid))
-    conn.commit(); conn.close(); return rid
+    conn.commit(); release_db(conn); return rid
 
 def chat_get_other_member_ids(room_id, my_user_id):
     conn = data_db(); c = conn.cursor()
     c.execute('SELECT user_id FROM chat_room_members WHERE room_id=%s AND user_id != %s', (room_id, my_user_id))
-    rows = c.fetchall(); conn.close()
+    rows = c.fetchall(); release_db(conn)
     return [row[0] for row in rows]
 
 def get_or_create_dm_room(user_id1, user_id2):
@@ -286,12 +309,12 @@ def get_or_create_dm_room(user_id1, user_id2):
         rid = row[0]
         c.execute('SELECT COUNT(*) FROM chat_room_members WHERE room_id=%s', (rid,))
         if c.fetchone()[0] == 2:
-            conn.close(); return rid
+            release_db(conn); return rid
     c.execute('INSERT INTO chat_rooms (created_at) VALUES (%s) RETURNING id', (int(time.time()),))
     rid = c.fetchone()[0]
     c.execute('INSERT INTO chat_room_members (room_id, user_id, last_read) VALUES (%s,%s,0),(%s,%s,0)',
               (rid, user_id1, rid, user_id2))
-    conn.commit(); conn.close(); return rid
+    conn.commit(); release_db(conn); return rid
 
 def get_my_rooms(user_id):
     conn = data_db(); c = conn.cursor()
@@ -323,14 +346,14 @@ def get_my_rooms(user_id):
             room['member_names'] = [row[0] for row in c.fetchall()]
         else:
             room['member_names'] = []
-    conn.close(); return rooms
+    release_db(conn); return rooms
 
 def get_messages(room_id, after=0, limit=100):
     conn = data_db(); c = conn.cursor()
     c.execute('''SELECT id, user_id, display_name, content, created_at
                  FROM chat_messages WHERE room_id=%s AND id > %s
                  ORDER BY id DESC LIMIT %s''', (room_id, after, limit))
-    rows = list(reversed(rows_to_dicts(c))); conn.close(); return rows
+    rows = list(reversed(rows_to_dicts(c))); release_db(conn); return rows
 
 def chat_send_message(room_id, user_id, display_name, content):
     conn = data_db(); c = conn.cursor()
@@ -341,7 +364,7 @@ def chat_send_message(room_id, user_id, display_name, content):
     msg_id = c.fetchone()[0]
     c.execute('UPDATE chat_room_members SET last_read=%s WHERE room_id=%s AND user_id=%s',
               (ts, room_id, user_id))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
     return {'id': msg_id, 'room_id': room_id, 'user_id': user_id,
             'display_name': display_name, 'content': content, 'created_at': ts}
 
@@ -349,13 +372,13 @@ def chat_mark_read(room_id, user_id):
     conn = data_db(); c = conn.cursor()
     c.execute('UPDATE chat_room_members SET last_read=%s WHERE room_id=%s AND user_id=%s',
               (int(time.time()), room_id, user_id))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def chat_get_other_user_id(room_id, my_user_id):
     conn = data_db(); c = conn.cursor()
     c.execute('SELECT user_id FROM chat_room_members WHERE room_id=%s AND user_id != %s LIMIT 1',
               (room_id, my_user_id))
-    row = c.fetchone(); conn.close()
+    row = c.fetchone(); release_db(conn)
     return row[0] if row else None
 
 def chat_total_unread(user_id):
@@ -365,7 +388,7 @@ def chat_total_unread(user_id):
         JOIN chat_room_members rm ON rm.room_id=cm.room_id AND rm.user_id=%s
         WHERE cm.created_at > rm.last_read AND cm.user_id != %s
     ) t''', (user_id, user_id))
-    row = c.fetchone(); conn.close()
+    row = c.fetchone(); release_db(conn)
     return int(row[0]) if row else 0
 
 def get_orders(store='', barcode=''):
@@ -374,7 +397,7 @@ def get_orders(store='', barcode=''):
         c.execute('SELECT * FROM orders WHERE barcode=%s AND store=%s ORDER BY completed, id DESC', (barcode, store))
     else:
         c.execute('SELECT * FROM orders WHERE store=%s ORDER BY completed, id DESC', (store,))
-    rows = rows_to_dicts(c); conn.close(); return rows
+    rows = rows_to_dicts(c); release_db(conn); return rows
 
 def add_order(data):
     conn = data_db(); c = conn.cursor()
@@ -386,7 +409,7 @@ def add_order(data):
                data.get('delivery','없음'), data.get('address',''),
                data.get('staff',''), data.get('note',''), data.get('created_at',''),
                data.get('store','')))
-    new_id = c.fetchone()[0]; conn.commit(); conn.close(); return new_id
+    new_id = c.fetchone()[0]; conn.commit(); release_db(conn); return new_id
 
 def update_order(data):
     conn = data_db(); c = conn.cursor()
@@ -396,12 +419,12 @@ def update_order(data):
                data.get('ordered','미완료'), data.get('pickup_date',''), data.get('customer',''),
                data.get('phone',''), data.get('delivery','없음'), data.get('address',''),
                data.get('staff',''), data.get('note',''), data['id']))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def delete_order(order_id):
     conn = data_db(); c = conn.cursor()
     c.execute('DELETE FROM orders WHERE id=%s', (order_id,))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def get_issues(store=''):
     from datetime import date
@@ -414,36 +437,36 @@ def get_issues(store=''):
               (store, today))
     conn.commit()
     c.execute("SELECT * FROM issues WHERE store=%s ORDER BY CASE WHEN status='종료' THEN 1 ELSE 0 END, id DESC", (store,))
-    rows = rows_to_dicts(c); conn.close(); return rows
+    rows = rows_to_dicts(c); release_db(conn); return rows
 
 def add_issue(data):
     conn = data_db(); c = conn.cursor()
     c.execute('INSERT INTO issues(title,occurred_at,ended_at,content,status,created_at,store) VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id',
               (data.get('title',''), data.get('occurred_at',''), data.get('ended_at',''),
                data.get('content',''), '진행중', data.get('created_at',''), data.get('store','')))
-    new_id = c.fetchone()[0]; conn.commit(); conn.close(); return new_id
+    new_id = c.fetchone()[0]; conn.commit(); release_db(conn); return new_id
 
 def update_issue(data):
     conn = data_db(); c = conn.cursor()
     c.execute('UPDATE issues SET title=%s,occurred_at=%s,ended_at=%s,content=%s WHERE id=%s',
               (data.get('title',''), data.get('occurred_at',''), data.get('ended_at',''),
                data.get('content',''), data['id']))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def set_issue_status(issue_id, status):
     conn = data_db(); c = conn.cursor()
     c.execute('UPDATE issues SET status=%s WHERE id=%s', (status, issue_id))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def delete_issue(issue_id):
     conn = data_db(); c = conn.cursor()
     c.execute('DELETE FROM issues WHERE id=%s', (issue_id,))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def get_as_requests(store=''):
     conn = data_db(); c = conn.cursor()
     c.execute("SELECT * FROM as_requests WHERE store=%s ORDER BY CASE WHEN status='완료' THEN 1 ELSE 0 END, id DESC", (store,))
-    rows = rows_to_dicts(c); conn.close(); return rows
+    rows = rows_to_dicts(c); release_db(conn); return rows
 
 def add_as_request(data):
     conn = data_db(); c = conn.cursor()
@@ -453,7 +476,7 @@ def add_as_request(data):
                data.get('customer',''), data.get('phone',''), data.get('delivery','없음'),
                data.get('staff',''), data.get('note',''), '진행중', data.get('created_at',''),
                data.get('store','')))
-    new_id = c.fetchone()[0]; conn.commit(); conn.close(); return new_id
+    new_id = c.fetchone()[0]; conn.commit(); release_db(conn); return new_id
 
 def update_as_request(data):
     conn = data_db(); c = conn.cursor()
@@ -462,78 +485,78 @@ def update_as_request(data):
               (data.get('received_date',''), data.get('product_name',''), data.get('content',''),
                data.get('customer',''), data.get('phone',''), data.get('delivery','없음'),
                data.get('staff',''), data.get('note',''), data['id']))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def set_as_status(as_id, status):
     conn = data_db(); c = conn.cursor()
     c.execute('UPDATE as_requests SET status=%s WHERE id=%s', (status, as_id))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def delete_as_request(as_id):
     conn = data_db(); c = conn.cursor()
     c.execute('DELETE FROM as_requests WHERE id=%s', (as_id,))
     c.execute('DELETE FROM as_logs WHERE as_id=%s', (as_id,))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def get_as_logs(as_id):
     conn = data_db(); c = conn.cursor()
     c.execute('SELECT * FROM as_logs WHERE as_id=%s ORDER BY log_date ASC, id ASC', (as_id,))
-    rows = rows_to_dicts(c); conn.close(); return rows
+    rows = rows_to_dicts(c); release_db(conn); return rows
 
 def add_as_log(as_id, log_date, content):
     conn = data_db(); c = conn.cursor()
     c.execute('INSERT INTO as_logs(as_id, log_date, content, created_at) VALUES(%s,%s,%s,%s) RETURNING id',
               (as_id, log_date, content, datetime.now().isoformat()))
-    row = c.fetchone(); conn.commit(); conn.close()
+    row = c.fetchone(); conn.commit(); release_db(conn)
     return row[0]
 
 def delete_as_log(log_id):
     conn = data_db(); c = conn.cursor()
     c.execute('DELETE FROM as_logs WHERE id=%s', (log_id,))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def get_suggestions():
     conn = data_db(); c = conn.cursor()
     c.execute('SELECT * FROM suggestions ORDER BY id DESC')
-    rows = rows_to_dicts(c); conn.close(); return rows
+    rows = rows_to_dicts(c); release_db(conn); return rows
 
 def add_suggestion(data):
     conn = data_db(); c = conn.cursor()
     c.execute('INSERT INTO suggestions(content,date,status,created_at) VALUES(%s,%s,%s,%s) RETURNING id',
               (data.get('content',''), data.get('date',''), '미처리', data.get('created_at','')))
-    new_id = c.fetchone()[0]; conn.commit(); conn.close(); return new_id
+    new_id = c.fetchone()[0]; conn.commit(); release_db(conn); return new_id
 
 def set_suggestion_status(sid, status):
     conn = data_db(); c = conn.cursor()
     c.execute('UPDATE suggestions SET status=%s WHERE id=%s', (status, sid))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def delete_suggestion(sid):
     conn = data_db(); c = conn.cursor()
     c.execute('DELETE FROM suggestion_comments WHERE suggestion_id=%s', (sid,))
     c.execute('DELETE FROM suggestions WHERE id=%s', (sid,))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def get_suggestion_comments(suggestion_id):
     conn = data_db(); c = conn.cursor()
     c.execute('SELECT * FROM suggestion_comments WHERE suggestion_id=%s ORDER BY id', (suggestion_id,))
-    rows = rows_to_dicts(c); conn.close(); return rows
+    rows = rows_to_dicts(c); release_db(conn); return rows
 
 def add_suggestion_comment(data):
     conn = data_db(); c = conn.cursor()
     c.execute('INSERT INTO suggestion_comments(suggestion_id,display_name,content,created_at) VALUES(%s,%s,%s,%s) RETURNING id',
               (data.get('suggestion_id'), data.get('display_name',''), data.get('content',''), data.get('created_at','')))
-    new_id = c.fetchone()[0]; conn.commit(); conn.close(); return new_id
+    new_id = c.fetchone()[0]; conn.commit(); release_db(conn); return new_id
 
 def delete_suggestion_comment(cid):
     conn = data_db(); c = conn.cursor()
     c.execute('DELETE FROM suggestion_comments WHERE id=%s', (cid,))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def toggle_complete(order_id):
     conn = data_db(); c = conn.cursor()
     c.execute('UPDATE orders SET completed=1-completed WHERE id=%s', (order_id,))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def hash_password(pw):
     salt = secrets.token_hex(16)
@@ -556,12 +579,12 @@ def register_user(username, password, display_name, phone, store=''):
         return {'id': user_id, 'username': username, 'display_name': display_name, 'store': store}
     except Exception as e:
         conn.rollback(); raise e
-    finally: conn.close()
+    finally: release_db(conn)
 
 def login_user(username, password):
     conn = data_db(); c = conn.cursor()
     c.execute('SELECT id, username, display_name, password_hash, phone, store FROM users WHERE username=%s', (username.strip(),))
-    rows = rows_to_dicts(c); conn.close()
+    rows = rows_to_dicts(c); release_db(conn)
     if not rows: return None
     u = rows[0]
     if not verify_password(password, u['password_hash']): return None
@@ -571,20 +594,20 @@ def find_user_by_phone(username, phone):
     conn = data_db(); c = conn.cursor()
     c.execute('SELECT id, username, display_name FROM users WHERE username=%s AND phone=%s',
               (username.strip(), phone.strip()))
-    rows = rows_to_dicts(c); conn.close()
+    rows = rows_to_dicts(c); release_db(conn)
     return rows[0] if rows else None
 
 def reset_password(user_id, new_password):
     conn = data_db(); c = conn.cursor()
     c.execute('UPDATE users SET password_hash=%s WHERE id=%s', (hash_password(new_password), user_id))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def create_session(user_id):
     token = secrets.token_hex(32)
     expires = int(time.time()) + 30 * 24 * 3600  # 30일
     conn = data_db(); c = conn.cursor()
     c.execute('INSERT INTO sessions (token, user_id, expires_at) VALUES (%s,%s,%s)', (token, user_id, expires))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
     return token
 
 def verify_session(token):
@@ -593,7 +616,7 @@ def verify_session(token):
     c.execute('''SELECT u.id, u.username, u.display_name, u.phone, u.store FROM sessions s
                  JOIN users u ON u.id = s.user_id
                  WHERE s.token=%s AND s.expires_at > %s''', (token, int(time.time())))
-    rows = rows_to_dicts(c); conn.close()
+    rows = rows_to_dicts(c); release_db(conn)
     return rows[0] if rows else None
 
 def update_profile(user_id, display_name, phone, store, new_password=None):
@@ -604,12 +627,12 @@ def update_profile(user_id, display_name, phone, store, new_password=None):
     else:
         c.execute('UPDATE users SET display_name=%s, phone=%s, store=%s WHERE id=%s',
                   (display_name.strip(), phone.strip(), store.strip(), user_id))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def delete_session(token):
     conn = data_db(); c = conn.cursor()
     c.execute('DELETE FROM sessions WHERE token=%s', (token,))
-    conn.commit(); conn.close()
+    conn.commit(); release_db(conn)
 
 def fetch_schedule(year_short, month):
     import urllib.request, csv, io
@@ -707,7 +730,7 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/as/logs/all':
             conn = data_db(); c = conn.cursor()
             c.execute('SELECT * FROM as_logs ORDER BY log_date ASC, id ASC')
-            all_logs = rows_to_dicts(c); conn.close()
+            all_logs = rows_to_dicts(c); release_db(conn)
             grouped = {}
             for l in all_logs:
                 grouped.setdefault(l['as_id'], []).append(l)
@@ -774,7 +797,7 @@ class Handler(BaseHTTPRequestHandler):
                 conn.commit()
                 self.send_json({'ok': True, 'messages': msgs, 'has_more': has_more})
             finally:
-                conn.close()
+                release_db(conn)
         elif parsed.path == '/api/schedule':
             try:
                 now = time.localtime()
@@ -923,7 +946,7 @@ class Handler(BaseHTTPRequestHandler):
             if c.fetchone()[0] == 0:
                 c.execute('DELETE FROM chat_messages WHERE room_id=%s', (int(room_id),))
                 c.execute('DELETE FROM chat_rooms WHERE id=%s', (int(room_id),))
-            conn.commit(); conn.close()
+            conn.commit(); release_db(conn)
             self.send_json({'ok': True})
         elif self.path == '/api/comments':
             self.send_json({'ok': True, 'id': add_comment(body['barcode'], body['content'], body['created_at'], body.get('parent_id'))})
