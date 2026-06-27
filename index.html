@@ -757,6 +757,7 @@
         <button id="sch-tab-cal" onclick="switchScheduleTab('cal')" style="background:none;color:#555;border:none;padding:6px 14px;font-size:13px;cursor:pointer;">달력</button>
       </div>
     </div>
+    <div id="schedule-my-banner" style="display:none;padding:12px 16px;background:#f0f5ff;border-bottom:1px solid #d8e6ff;"></div>
     <div id="schedule-list-view" style="overflow-y:auto;flex:1;padding:14px 16px;overscroll-behavior:contain;"></div>
     <div id="schedule-cal-view" style="display:none;padding:14px 16px;overflow-y:auto;flex:1;overscroll-behavior:contain;">
       <input id="schedule-person-filter" type="text" placeholder="이름 검색 (예: 슬기)" oninput="renderScheduleCal()" style="width:100%;box-sizing:border-box;border:1px solid #d4d4ce;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:12px;outline:none;">
@@ -1294,12 +1295,59 @@ async function loadSchedule(silent = false) {
     document.getElementById('schedule-loading').style.display = 'none';
     renderScheduleList();
     renderScheduleCal();
+    renderMyScheduleBanner();
     switchScheduleTab(scheduleTab);
     if (silent) showToast('✅ 새로고침 완료', true);
   } catch(e) {
     if (silent) { showToast('❌ 새로고침 실패', false); return; }
     document.getElementById('schedule-loading').textContent = '❌ 데이터를 불러올 수 없습니다. 탭 이름을 확인해주세요.';
   }
+}
+
+function renderMyScheduleBanner() {
+  const banner = document.getElementById('schedule-my-banner');
+  if (!banner || !currentUser) { if (banner) banner.style.display = 'none'; return; }
+  const name = currentUser.display_name || '';
+  if (!name || !scheduleData.length) { banner.style.display = 'none'; return; }
+
+  const now = new Date();
+  function toKoreanDate(d) {
+    return `${d.getMonth()+1}월 ${d.getDate()}일`;
+  }
+  const todayStr = toKoreanDate(now);
+  const tomorrow = new Date(now); tomorrow.setDate(now.getDate()+1);
+  const tomorrowStr = toKoreanDate(tomorrow);
+
+  function getShift(dateStr) {
+    const entry = scheduleData.find(d => d.date.replace(/\s/g,'') === dateStr.replace(/\s/g,''));
+    if (!entry) return null;
+    const isOff = entry['휴무'] && entry['휴무'].some(n => n.includes(name));
+    if (isOff) return '휴무';
+    const shifts = [];
+    if (entry['오전'] && entry['오전'].includes(name)) shifts.push('오전');
+    if (entry['오후'] && entry['오후'].includes(name)) shifts.push('오후');
+    return shifts.length ? shifts.join(' · ') + ' 근무' : null;
+  }
+
+  const todayShift = getShift(todayStr);
+  const tomorrowShift = getShift(tomorrowStr);
+  if (!todayShift && !tomorrowShift) { banner.style.display = 'none'; return; }
+
+  function shiftColor(s) { return s === '휴무' ? '#e03131' : '#185fa5'; }
+  function row(label, shift) {
+    if (!shift) return '';
+    return `<div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:12px;color:#888;min-width:24px;">${label}</span>
+      <span style="font-size:14px;font-weight:700;color:${shiftColor(shift)};">${shift}</span>
+    </div>`;
+  }
+
+  banner.style.display = 'block';
+  banner.innerHTML = `
+    <div style="font-size:12px;color:#185fa5;font-weight:600;margin-bottom:6px;">👤 ${name} 님의 근무</div>
+    ${row('오늘', todayShift)}
+    ${row('내일', tomorrowShift)}
+  `;
 }
 
 function renderScheduleList() {
