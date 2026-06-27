@@ -1381,12 +1381,26 @@ function renderMyScheduleBanner() {
   `;
 }
 
+const _dayNames = ['일','월','화','수','목','금','토'];
+function getScheduleDayName(dateStr) {
+  const m = dateStr.match(/(\d+)월\s*(\d+)일/);
+  if (!m) return '';
+  const year = 2000 + scheduleYear;
+  const dow = new Date(year, scheduleMonth - 1, parseInt(m[2])).getDay();
+  return _dayNames[dow];
+}
 function renderScheduleList() {
   const el = document.getElementById('schedule-list-view');
   if (!scheduleData.length) { el.innerHTML = '<div style="text-align:center;color:#aaa;padding:30px;">일정 없음</div>'; return; }
-  el.innerHTML = scheduleData.map(d => `
+  el.innerHTML = scheduleData.map(d => {
+    const dayName = getScheduleDayName(d.date);
+    const isSun = dayName === '일', isSat = dayName === '토';
+    const dayColor = isSun ? '#e03131' : isSat ? '#185fa5' : '#888';
+    return `
     <div style="border:1px solid #e8e8e4;border-radius:10px;padding:12px 14px;margin-bottom:10px;">
-      <div style="font-weight:700;font-size:14px;color:#222;margin-bottom:8px;">${d.date}</div>
+      <div style="font-weight:700;font-size:14px;color:#222;margin-bottom:8px;">
+        ${d.date} <span style="font-size:13px;font-weight:600;color:${dayColor};">(${dayName})</span>
+      </div>
       <div style="display:flex;flex-direction:column;gap:5px;font-size:13px;">
         <div style="display:flex;gap:8px;align-items:baseline;">
           <span style="min-width:32px;color:#185fa5;font-weight:600;">오전</span>
@@ -1401,7 +1415,8 @@ function renderScheduleList() {
           <span style="color:#555;">${d['휴무'].join(', ')}</span>
         </div>` : ''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderScheduleCal() {
