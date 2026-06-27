@@ -1453,8 +1453,9 @@ function renderMyScheduleBanner() {
   const matchName = name.length >= 2 ? name.slice(-2) : name;
 
   const now = new Date();
+  const DOW = ['일','월','화','수','목','금','토'];
   function toKoreanDate(d) {
-    return `${d.getMonth()+1}월 ${d.getDate()}일`;
+    return `${d.getMonth()+1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`;
   }
   const todayStr = toKoreanDate(now);
   const tomorrow = new Date(now); tomorrow.setDate(now.getDate()+1);
