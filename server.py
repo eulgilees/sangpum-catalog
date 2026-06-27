@@ -728,7 +728,8 @@ class Handler(BaseHTTPRequestHandler):
             token = self.headers.get('X-Token','')
             room_id = int(params.get('room_id', ['0'])[0])
             after = int(params.get('after', ['0'])[0])
-            # DB 연결 1번으로 세션확인+메시지조회+읽음처리 한번에
+            before = int(params.get('before', ['0'])[0])
+            limit = 50
             conn = data_db(); c = conn.cursor()
             try:
                 c.execute('''SELECT u.id, u.username, u.display_name, u.phone, u.store
@@ -737,14 +738,25 @@ class Handler(BaseHTTPRequestHandler):
                 rows = rows_to_dicts(c)
                 if not rows: self.send_json({'ok': False}); return
                 user = rows[0]
-                c.execute('''SELECT id, user_id, display_name, content, created_at
-                             FROM chat_messages WHERE room_id=%s AND id>%s
-                             ORDER BY id DESC LIMIT 100''', (room_id, after))
-                msgs = list(reversed(rows_to_dicts(c)))
+                if before:
+                    # 이전 메시지 불러오기: before ID보다 오래된 것
+                    c.execute('''SELECT id, user_id, display_name, content, created_at
+                                 FROM chat_messages WHERE room_id=%s AND id<%s
+                                 ORDER BY id DESC LIMIT %s''', (room_id, before, limit))
+                    msgs = list(reversed(rows_to_dicts(c)))
+                    has_more = len(msgs) == limit
+                    self.send_json({'ok': True, 'messages': msgs, 'has_more': has_more}); return
+                else:
+                    # 최초 로드 or 폴링: after ID 이후 최신
+                    c.execute('''SELECT id, user_id, display_name, content, created_at
+                                 FROM chat_messages WHERE room_id=%s AND id>%s
+                                 ORDER BY id DESC LIMIT %s''', (room_id, after, limit))
+                    msgs = list(reversed(rows_to_dicts(c)))
+                    has_more = after == 0 and len(msgs) == limit
                 c.execute('UPDATE chat_room_members SET last_read=%s WHERE room_id=%s AND user_id=%s',
                           (int(time.time()), room_id, user['id']))
                 conn.commit()
-                self.send_json({'ok': True, 'messages': msgs})
+                self.send_json({'ok': True, 'messages': msgs, 'has_more': has_more})
             finally:
                 conn.close()
         elif parsed.path == '/api/schedule':

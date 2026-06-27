@@ -3166,6 +3166,10 @@ async function enterChatRoom(roomId, name, store, isGroup) {
   await loadChatMessages(true);  // after=0으로 전체 재로드
   startChatPoll();
 }
+let chatOldestMsgId = 0;
+let chatHasMore = false;
+let chatLoadingMore = false;
+
 async function loadChatMessages(initial = false) {
   const token = localStorage.getItem('authToken');
   const after = initial ? 0 : chatLastMsgId;
@@ -3175,14 +3179,15 @@ async function loadChatMessages(initial = false) {
   const atBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 60;
   if (!data.ok) return;
   if (initial) {
-    // 전체 재로드: 로딩 플레이스홀더·캐시 화면 모두 지우고 새로 그리기
     area.innerHTML = '';
     chatLastMsgId = 0;
+    chatOldestMsgId = 0;
     chatMsgCache[chatRoomId] = { msgs: [], lastId: 0 };
   }
   if (!data.messages.length) return;
   data.messages.forEach(m => {
     chatLastMsgId = Math.max(chatLastMsgId, m.id);
+    if (!chatOldestMsgId || m.id < chatOldestMsgId) chatOldestMsgId = m.id;
     appendChatBubble(m);
     if (!chatMsgCache[chatRoomId]) chatMsgCache[chatRoomId] = { msgs: [], lastId: 0 };
     chatMsgCache[chatRoomId].msgs.push(m);
@@ -3191,6 +3196,51 @@ async function loadChatMessages(initial = false) {
   });
   saveChatMsgCache(chatRoomId);
   if (initial || atBottom) area.scrollTop = area.scrollHeight;
+  // 이전 메시지 버튼
+  if (initial) {
+    chatHasMore = !!data.has_more;
+    renderChatLoadMoreBtn();
+  }
+}
+
+function renderChatLoadMoreBtn() {
+  const area = document.getElementById('chat-messages-area');
+  const existing = document.getElementById('chat-load-more-btn');
+  if (existing) existing.remove();
+  if (!chatHasMore) return;
+  const btn = document.createElement('div');
+  btn.id = 'chat-load-more-btn';
+  btn.style.cssText = 'text-align:center;padding:10px;';
+  btn.innerHTML = `<button onclick="loadMoreChatMessages()" style="background:none;border:1px solid #d4d4ce;border-radius:20px;padding:6px 18px;font-size:12px;color:#888;cursor:pointer;">이전 메시지 불러오기</button>`;
+  area.insertBefore(btn, area.firstChild);
+}
+
+async function loadMoreChatMessages() {
+  if (chatLoadingMore || !chatOldestMsgId) return;
+  chatLoadingMore = true;
+  const btn = document.getElementById('chat-load-more-btn');
+  if (btn) btn.querySelector('button').textContent = '불러오는 중...';
+  const token = localStorage.getItem('authToken');
+  const area = document.getElementById('chat-messages-area');
+  const prevHeight = area.scrollHeight;
+  const res = await fetch(`/api/chat/messages?room_id=${chatRoomId}&before=${chatOldestMsgId}`, { headers: { 'X-Token': token } });
+  const data = await res.json();
+  if (btn) btn.remove();
+  if (data.ok && data.messages.length) {
+    // 위에 붙이기
+    const frag = document.createDocumentFragment();
+    data.messages.forEach(m => {
+      if (m.id < chatOldestMsgId) chatOldestMsgId = m.id;
+      const div = createChatBubbleEl(m);
+      frag.appendChild(div);
+    });
+    area.insertBefore(frag, area.firstChild);
+    // 스크롤 위치 유지
+    area.scrollTop = area.scrollHeight - prevHeight;
+    chatHasMore = !!data.has_more;
+    renderChatLoadMoreBtn();
+  }
+  chatLoadingMore = false;
 }
 async function chatSend() {
   if (chatSending) return;
@@ -3215,8 +3265,7 @@ async function chatSend() {
   startChatPoll();
 }
 
-function appendChatBubble(m) {
-  const area = document.getElementById('chat-messages-area');
+function createChatBubbleEl(m) {
   const mine = m.user_id === currentUser?.id;
   const timeStr = formatChatTime(m.created_at);
   const div = document.createElement('div');
@@ -3227,7 +3276,11 @@ function appendChatBubble(m) {
       <div style="max-width:min(70%,calc(100% - 60px));background:${mine?'#185fa5':'#fff'};color:${mine?'#fff':'#222'};border-radius:${mine?'16px 4px 16px 16px':'4px 16px 16px 16px'};padding:10px 14px;font-size:14px;line-height:1.5;word-break:break-word;overflow-wrap:anywhere;white-space:pre-wrap;box-shadow:0 1px 4px rgba(0,0,0,0.08);">${escHtml(m.content)}</div>
       <div style="font-size:10px;color:#bbb;white-space:nowrap;flex-shrink:0;">${timeStr}</div>
     </div>`;
-  area.appendChild(div);
+  return div;
+}
+function appendChatBubble(m) {
+  const area = document.getElementById('chat-messages-area');
+  area.appendChild(createChatBubbleEl(m));
   area.scrollTop = area.scrollHeight;
 }
 function startChatPoll() {
