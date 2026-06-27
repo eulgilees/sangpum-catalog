@@ -2523,7 +2523,8 @@ async function submitIssue() {
 function loadIssueList_render(issues) {
   const container = document.getElementById('issue-list-container');
   if (!issues.length) { container.innerHTML = '<div class="order-empty">이슈사항이 없습니다</div>'; return; }
-  container.innerHTML = issues.map(is => `
+  const sorted = [...issues].sort((a, b) => (a.status==='종료') - (b.status==='종료'));
+  container.innerHTML = sorted.map(is => `
     <div class="issue-item${is.status==='종료' ? ' closed' : ''}">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
         <span class="${is.status==='종료' ? 'issue-badge-closed' : 'issue-badge-active'}">${esc(is.status)}</span>
