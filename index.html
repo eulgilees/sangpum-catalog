@@ -228,7 +228,7 @@
     .issue-btn-del { background:#fdecea; color:#c0392b; }
     .order-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1100; align-items:flex-end; justify-content:center; }
     .order-overlay.open { display:flex; }
-    .order-box { background:#fff; border-radius:20px 20px 0 0; padding:24px 24px 36px; width:100%; max-width:640px; max-height:92vh; overflow-y:auto; overflow-x:hidden; }
+    .order-box { background:#fff; border-radius:20px 20px 0 0; padding:24px 24px 36px; width:100%; max-width:640px; max-height:92vh; overflow-y:auto; overflow-x:hidden; -webkit-mask-image: -webkit-radial-gradient(white, black); mask-image: radial-gradient(white, black); }
     #order-list-overlay .order-box { min-height:67vh; display:flex; flex-direction:column; }
     #order-list-overlay .order-box #order-list-container { flex:1; }
     .order-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
