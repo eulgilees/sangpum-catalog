@@ -2279,10 +2279,14 @@ function loadAsList_render(list) {
 }
 async function loadAsList() {
   const token = localStorage.getItem('authToken') || '';
-  const list = await fetch('/api/as', {headers:{'X-Token':token}}).then(r=>r.json());
+  const [list, logsRes] = await Promise.all([
+    fetch('/api/as', {headers:{'X-Token':token}}).then(r=>r.json()),
+    fetch('/api/as/logs/all').then(r=>r.json())
+  ]);
   window._asRequests = list;
+  window._asLogs = logsRes.ok ? logsRes.logs : {};
   loadAsList_render(list);
-  list.forEach(a => loadAsLogs(a.id));
+  list.forEach(a => renderAsLogs(a.id, window._asLogs[a.id] || []));
 }
 
 async function setAsStatus(id, status) {
@@ -2318,18 +2322,32 @@ async function addAsLog(asId) {
   if (!content) return;
   const today = new Date();
   const log_date = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  input.value = '';
+  // 즉시 로컬에 추가 후 렌더링
+  const tempLog = { id: Date.now(), as_id: asId, log_date, content };
+  if (!window._asLogs) window._asLogs = {};
+  if (!window._asLogs[asId]) window._asLogs[asId] = [];
+  window._asLogs[asId].push(tempLog);
+  renderAsLogs(asId, window._asLogs[asId]);
+  // 서버 저장 후 실제 id로 교체
   const res = await fetch('/api/as/log', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({as_id: asId, log_date, content})
   });
   const data = await res.json();
-  if (!data.ok) return;
-  input.value = '';
-  await loadAsLogs(asId);
+  if (data.ok) {
+    const idx = window._asLogs[asId].findIndex(l => l.id === tempLog.id);
+    if (idx !== -1) window._asLogs[asId][idx].id = data.id;
+    renderAsLogs(asId, window._asLogs[asId]);
+  }
 }
 async function deleteAsLog(logId, asId) {
-  await fetch('/api/as/log/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: logId})});
-  await loadAsLogs(asId);
+  // 즉시 로컬에서 제거
+  if (window._asLogs && window._asLogs[asId]) {
+    window._asLogs[asId] = window._asLogs[asId].filter(l => l.id !== logId);
+    renderAsLogs(asId, window._asLogs[asId]);
+  }
+  fetch('/api/as/log/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: logId})});
 }
 
 /* ── 건의사항 ──────────────────────────────── */

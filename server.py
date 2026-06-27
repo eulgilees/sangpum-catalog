@@ -696,6 +696,14 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/as':
             user = verify_session(self.headers.get('X-Token',''))
             self.send_json(get_as_requests(user['store'] if user else ''))
+        elif parsed.path == '/api/as/logs/all':
+            conn = data_db(); c = conn.cursor()
+            c.execute('SELECT * FROM as_logs ORDER BY log_date ASC, id ASC')
+            all_logs = rows_to_dicts(c); conn.close()
+            grouped = {}
+            for l in all_logs:
+                grouped.setdefault(l['as_id'], []).append(l)
+            self.send_json({'ok': True, 'logs': grouped})
         elif parsed.path == '/api/as/logs':
             as_id = int(params.get('as_id', ['0'])[0])
             self.send_json({'ok': True, 'logs': get_as_logs(as_id)})
