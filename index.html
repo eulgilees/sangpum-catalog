@@ -2250,8 +2250,9 @@ async function submitAs() {
     created_at: new Date().toISOString()
   };
   if (asFormId) body.id = asFormId;
+  const asToken = localStorage.getItem('authToken') || '';
   await fetch(asFormId ? '/api/as/update' : '/api/as', {
-    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    method: 'POST', headers: {'Content-Type':'application/json', 'X-Token': asToken}, body: JSON.stringify(body)
   });
   closeAsForm();
   await loadAsList();
@@ -2385,7 +2386,7 @@ async function submitSuggestion() {
   if (!content) { alert('내용을 입력해주세요.'); return; }
   const today = new Date().toISOString();
   await fetch('/api/suggestions', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
+    method: 'POST', headers: {'Content-Type':'application/json', 'X-Token': localStorage.getItem('authToken')||''},
     body: JSON.stringify({ content, date: document.getElementById('sg-date').value, created_at: today })
   });
   document.getElementById('sg-content').value = '';
@@ -2511,8 +2512,9 @@ async function submitIssue() {
     content: document.getElementById('if-content').value.trim()
   };
   if (issueFormId) body.id = issueFormId;
+  const token = localStorage.getItem('authToken') || '';
   await fetch(issueFormId ? '/api/issues/update' : '/api/issues', {
-    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    method: 'POST', headers: {'Content-Type':'application/json', 'X-Token': token}, body: JSON.stringify(body)
   });
   closeIssueForm();
   openIssueList();
