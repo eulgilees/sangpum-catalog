@@ -2101,7 +2101,7 @@ async function submitOrder() {
       body: JSON.stringify({ id:orderFormId, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, customer, phone, delivery:orderDeliveryVal, address, staff, note }) });
   } else {
     const name = document.getElementById('of-name').value;
-    await fetch('/api/orders', { method:'POST', headers:{'Content-Type':'application/json'},
+    await fetch('/api/orders', { method:'POST', headers:{'Content-Type':'application/json','X-Token':localStorage.getItem('authToken')||''},
       body: JSON.stringify({ barcode, name, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, customer, phone, delivery:orderDeliveryVal, address, staff, note, created_at }) });
   }
   _orderSubmitting = false;
