@@ -2178,8 +2178,10 @@ async function toggleComplete(id) {
 
 async function deleteOrder(id) {
   if (!confirm('주문을 삭제할까요?')) return;
-  await fetch('/api/orders/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id}) });
-  loadOrderList();
+  // 즉시 로컬에서 제거 후 렌더링 (서버 응답 기다리지 않음)
+  window._orders = (window._orders || []).filter(o => o.id !== id);
+  filterOrders();
+  fetch('/api/orders/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id}) });
 }
 /* ── 고객AS ──────────────────────────────── */
 let asFormId = null;
