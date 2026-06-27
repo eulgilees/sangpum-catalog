@@ -404,7 +404,15 @@ def delete_order(order_id):
     conn.commit(); conn.close()
 
 def get_issues(store=''):
+    from datetime import date
+    today = date.today().isoformat()
     conn = data_db(); c = conn.cursor()
+    # 종료일이 오늘 이전이고 아직 종료 처리 안 된 이슈 자동 종료
+    c.execute("""UPDATE issues SET status='종료'
+                 WHERE store=%s AND status != '종료'
+                 AND ended_at != '' AND ended_at IS NOT NULL AND ended_at <= %s""",
+              (store, today))
+    conn.commit()
     c.execute("SELECT * FROM issues WHERE store=%s ORDER BY CASE WHEN status='종료' THEN 1 ELSE 0 END, id DESC", (store,))
     rows = rows_to_dicts(c); conn.close(); return rows
 
