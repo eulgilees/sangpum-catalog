@@ -2691,7 +2691,26 @@ let chatPollTimer = null;
 let chatLastMsgId = 0;
 let chatAllUsers = [];
 let chatSending = false;
-const chatMsgCache = {}; // room_id → {msgs: [], lastId: 0}
+const chatMsgCache = (() => {
+  try {
+    const saved = localStorage.getItem('chatMsgCache');
+    return saved ? JSON.parse(saved) : {};
+  } catch { return {}; }
+})(); // room_id → {msgs: [], lastId: 0}
+
+function saveChatMsgCache(roomId) {
+  try {
+    const entry = chatMsgCache[roomId];
+    if (entry) localStorage.setItem('chatMsgCache_' + roomId, JSON.stringify(entry));
+  } catch {}
+}
+function loadChatMsgCacheFromStorage(roomId) {
+  if (chatMsgCache[roomId]) return;
+  try {
+    const saved = localStorage.getItem('chatMsgCache_' + roomId);
+    if (saved) chatMsgCache[roomId] = JSON.parse(saved);
+  } catch {}
+}
 let chatRoomsCache = null; // 마지막으로 받은 방 목록
 let chatRoomsBgTimer = null; // 백그라운드 목록 갱신 타이머
 
@@ -2970,6 +2989,9 @@ async function enterChatRoom(roomId, name, store, isGroup) {
   const area = document.getElementById('chat-messages-area');
   area.innerHTML = '';
 
+  // localStorage에서 캐시 복원 (없을 경우)
+  loadChatMsgCacheFromStorage(roomId);
+
   // 캐시된 메시지 즉시 표시
   const cache = chatMsgCache[roomId];
   if (cache && cache.msgs.length) {
@@ -3004,6 +3026,7 @@ async function loadChatMessages(initial = false) {
     // 캐시 최대 100개 유지
     if (chatMsgCache[chatRoomId].msgs.length > 100) chatMsgCache[chatRoomId].msgs.shift();
   });
+  saveChatMsgCache(chatRoomId);
   if (initial || atBottom) area.scrollTop = area.scrollHeight;
 }
 async function chatSend() {
