@@ -2073,10 +2073,19 @@ function openOrderForm(barcode, name, order=null) {
   selectToggle('ord', order && order.ordered==='완료' ? 1 : 0, order ? order.ordered : '미완료');
   selectDelivery(order && order.delivery==='발송' ? 1 : 0);
   document.getElementById('order-form-overlay').classList.add('open');
+  // 버튼 상태 초기화
+  const submitBtn = document.querySelector('#order-form-overlay .order-submit-btn');
+  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '등록'; }
+  _orderSubmitting = false;
 }
 function closeOrderForm() { document.getElementById('order-form-overlay').classList.remove('open'); }
 
+let _orderSubmitting = false;
 async function submitOrder() {
+  if (_orderSubmitting) return;
+  _orderSubmitting = true;
+  const btn = document.querySelector('#order-form-overlay .order-submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
   const qty = parseInt(document.getElementById('of-qty').value) || 1;
   const order_date = document.getElementById('of-order-date').dataset.isoVal || '';
   const pickup_date = document.getElementById('of-pickup').dataset.isoVal || '';
@@ -2095,6 +2104,7 @@ async function submitOrder() {
     await fetch('/api/orders', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ barcode, name, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, customer, phone, delivery:orderDeliveryVal, address, staff, note, created_at }) });
   }
+  _orderSubmitting = false;
   closeOrderForm();
   await openOrderList();
 }
