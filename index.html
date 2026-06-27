@@ -247,6 +247,20 @@
     .guide-step-desc b { color: #1a1a18; }
     .guide-step-sub { font-size: 13px; color: #888780; margin-top: 6px; line-height: 1.6; }
     .guide-divider { border: none; border-top: 1px solid #f0f0ec; margin: 0 0 24px; }
+  /* 채팅 플로팅 팝업 (데스크탑) */
+  @media (min-width: 768px) {
+    #chat-overlay.chat-popup {
+      inset: auto !important;
+      top: auto !important;
+      bottom: 20px !important;
+      right: 24px !important;
+      width: 380px !important;
+      height: 580px !important;
+      border-radius: 16px !important;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.18) !important;
+      overflow: hidden !important;
+    }
+  }
   </style>
 </head>
 <body>
@@ -2764,22 +2778,48 @@ function loadChatMsgCacheFromStorage(roomId) {
 let chatRoomsCache = null; // 마지막으로 받은 방 목록
 let chatRoomsBgTimer = null; // 백그라운드 목록 갱신 타이머
 
+let _chatExpanded = false;
+function isDesktop() { return window.innerWidth >= 768; }
+
 function openChat() {
-  lockScroll();
   const el = document.getElementById('chat-overlay');
+  if (isDesktop()) {
+    // 데스크탑: 플로팅 팝업
+    el.classList.add('chat-popup');
+    document.getElementById('chat-expand-btn').style.display = 'inline-block';
+    _chatExpanded = false;
+  } else {
+    // 모바일: 전체화면
+    el.classList.remove('chat-popup');
+    document.getElementById('chat-expand-btn').style.display = 'none';
+    lockScroll();
+  }
   el.style.display = 'flex';
   showChatList();
-  // 캐시 있으면 즉시 표시, 없으면 로딩
-  if (chatRoomsCache) {
-    renderChatRooms(chatRoomsCache);
-  }
+  if (chatRoomsCache) renderChatRooms(chatRoomsCache);
   loadChatRooms();
 }
 function closeChat() {
   stopChatPoll();
   resetChatOverlaySize();
   document.getElementById('chat-overlay').style.display = 'none';
-  unlockScroll();
+  if (!isDesktop()) unlockScroll();
+}
+function toggleChatExpand() {
+  const el = document.getElementById('chat-overlay');
+  const btn = document.getElementById('chat-expand-btn');
+  _chatExpanded = !_chatExpanded;
+  if (_chatExpanded) {
+    el.classList.remove('chat-popup');
+    btn.textContent = '⤡';
+    btn.title = '작게 보기';
+    lockScroll();
+  } else {
+    el.classList.add('chat-popup');
+    btn.textContent = '⤢';
+    btn.title = '크게 보기';
+    unlockScroll();
+  }
 }
 function showChatList() {
   document.getElementById('chat-list-view').style.display = 'flex';
@@ -3159,7 +3199,14 @@ function stopChatPoll() {
 }
 
 // 키보드 올라올 때 채팅 오버레이 높이를 visual viewport에 맞춤
-function resetChatOverlaySize() {}
+function resetChatOverlaySize() {
+  _chatExpanded = false;
+  const el = document.getElementById('chat-overlay');
+  if (isDesktop()) el.classList.add('chat-popup');
+  else el.classList.remove('chat-popup');
+  const btn = document.getElementById('chat-expand-btn');
+  if (btn) { btn.textContent = '⤢'; btn.title = '크게 보기'; }
+}
 
 async function linkPushToUser() {
   const token = localStorage.getItem('authToken');
@@ -3311,8 +3358,9 @@ window.addEventListener('load', () => {
   <div id="chat-list-view" style="display:flex;flex-direction:column;height:100%;">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:#fff;border-bottom:1px solid #ebebeb;">
       <div style="font-size:17px;font-weight:700;color:#222;">채팅</div>
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;align-items:center;">
         <button onclick="openNewChat()" style="background:#185fa5;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;">+ 새 채팅</button>
+        <button id="chat-expand-btn" onclick="toggleChatExpand()" title="크게 보기" style="background:none;border:none;font-size:17px;color:#aaa;cursor:pointer;padding:0 2px;display:none;">⤢</button>
         <button onclick="closeChat()" style="background:none;border:none;font-size:22px;color:#aaa;cursor:pointer;padding:0 4px;">✕</button>
       </div>
     </div>
