@@ -1853,14 +1853,40 @@ function showToast(msg, ok) {
   if (!t) {
     t = document.createElement('div');
     t.id = 'toast';
-    t.style.cssText = 'position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;z-index:9999;max-width:80vw;text-align:center;transition:opacity 0.3s;';
+    t.style.cssText = [
+      'position:fixed',
+      'bottom:32px',
+      'left:50%',
+      'transform:translateX(-50%) translateY(12px)',
+      'display:flex',
+      'align-items:center',
+      'gap:10px',
+      'padding:13px 20px',
+      'border-radius:14px',
+      'font-size:14px',
+      'font-weight:500',
+      'z-index:9999',
+      'max-width:85vw',
+      'min-width:180px',
+      'box-shadow:0 4px 20px rgba(0,0,0,0.18)',
+      'opacity:0',
+      'transition:opacity 0.25s, transform 0.25s',
+      'pointer-events:none',
+    ].join(';');
     document.body.appendChild(t);
   }
-  t.style.background = ok ? '#2d7a1f' : '#c0392b';
-  t.textContent = msg;
+  const icon = ok ? '✓' : '✕';
+  const iconBg = ok ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.22)';
+  t.style.background = ok ? '#1e7a3a' : '#c0392b';
+  t.style.color = '#fff';
+  t.innerHTML = `<span style="width:24px;height:24px;border-radius:50%;background:${iconBg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${icon}</span><span style="line-height:1.4;">${msg.replace(/^[✅❌🔔🔕👋⚠️]\s*/u,'')}</span>`;
   t.style.opacity = '1';
+  t.style.transform = 'translateX(-50%) translateY(0)';
   clearTimeout(t._timer);
-  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+  t._timer = setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transform = 'translateX(-50%) translateY(8px)';
+  }, 3000);
 }
 
 async function requestPush(autoMode = false) {
