@@ -2216,8 +2216,12 @@ async function editOrder(id) {
 }
 
 async function toggleComplete(id) {
-  await fetch('/api/orders/complete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id}) });
-  loadOrderList();
+  if (window._orders) {
+    const o = window._orders.find(x => x.id === id);
+    if (o) { o.completed = !o.completed; filterOrders(); }
+  }
+  fetch('/api/orders/complete', { method:'POST', headers:{'Content-Type':'application/json','X-Token':localStorage.getItem('authToken')||''}, body: JSON.stringify({id}) })
+    .then(() => loadOrderList());
 }
 
 async function deleteOrder(id) {
@@ -2336,8 +2340,12 @@ async function loadAsList() {
 }
 
 async function setAsStatus(id, status) {
-  await fetch('/api/as/status', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, status})});
-  loadAsList();
+  if (window._asRequests) {
+    const a = window._asRequests.find(x => x.id === id);
+    if (a) { a.status = status; loadAsList_render(window._asRequests); }
+  }
+  fetch('/api/as/status', {method:'POST', headers:{'Content-Type':'application/json','X-Token':localStorage.getItem('authToken')||''}, body: JSON.stringify({id, status})})
+    .then(() => loadAsList());
 }
 async function deleteAs(id) {
   if (!confirm('삭제할까요?')) return;
@@ -2420,8 +2428,8 @@ async function submitSuggestion() {
   await loadSuggestionList();
 }
 
-async function loadSuggestionList() {
-  const list = await fetch('/api/suggestions').then(r => r.json());
+function renderSuggestionList(list) {
+  window._suggestions = list;
   const container = document.getElementById('suggestion-list-container');
   if (!list.length) { container.innerHTML = '<div class="order-empty">건의사항이 없습니다</div>'; return; }
   const sorted = [...list].sort((a, b) => (a.status==='처리완료') - (b.status==='처리완료'));
@@ -2452,6 +2460,11 @@ async function loadSuggestionList() {
       </div>
     </div>`;
   }).join('');
+}
+
+async function loadSuggestionList() {
+  const list = await fetch('/api/suggestions').then(r => r.json());
+  renderSuggestionList(list);
 }
 
 async function toggleSuggestionComments(id) {
@@ -2497,8 +2510,12 @@ async function deleteSuggestionComment(cid, sid) {
 }
 
 async function setSuggestionStatus(id, status) {
-  await fetch('/api/suggestions/status', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, status})});
-  loadSuggestionList();
+  if (window._suggestions) {
+    const s = window._suggestions.find(x => x.id === id);
+    if (s) { s.status = status; renderSuggestionList(window._suggestions); }
+  }
+  fetch('/api/suggestions/status', {method:'POST', headers:{'Content-Type':'application/json','X-Token':localStorage.getItem('authToken')||''}, body: JSON.stringify({id, status})})
+    .then(() => loadSuggestionList());
 }
 async function deleteSuggestion(id) {
   if (!confirm('삭제할까요?')) return;
