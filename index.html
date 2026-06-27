@@ -1788,9 +1788,17 @@ function urlBase64ToUint8Array(base64String) {
   const THRESHOLD = 80;
 
   function isOverlayOpen() {
-    const chat = document.getElementById('chat-overlay');
-    if (chat && chat.style.display !== 'none') return true;
-    return false;
+    const ids = ['chat-overlay', 'schedule-overlay', 'order-list-overlay',
+                 'issue-list-overlay', 'as-list-overlay', 'suggestion-overlay',
+                 'order-form-overlay', 'issue-form-overlay', 'as-form-overlay',
+                 'guide-overlay', 'scanner-overlay', 'datepicker-overlay'];
+    return ids.some(id => {
+      const el = document.getElementById(id);
+      if (!el) return false;
+      const s = el.style.display;
+      const cls = el.classList;
+      return s === 'flex' || s === 'block' || cls.contains('open');
+    });
   }
 
   document.addEventListener('touchstart', e => {
