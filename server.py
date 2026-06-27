@@ -755,6 +755,20 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({'ok': True, 'data': fetch_schedule(year_short, month)})
             except Exception as e:
                 self.send_json({'ok': False, 'error': str(e)})
+        elif parsed.path == '/api/schedule/raw':
+            try:
+                import urllib.request as ur, csv as csv_mod, io as io_mod
+                now = time.localtime()
+                year_short = params.get('year', [str(now.tm_year % 100)])[0]
+                month = params.get('month', [str(now.tm_mon)])[0]
+                sheet_name = f'{year_short}년 {month}월'
+                url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(sheet_name)}'
+                with ur.urlopen(url, timeout=10) as resp:
+                    csv_text = resp.read().decode('utf-8')
+                rows = list(csv_mod.reader(io_mod.StringIO(csv_text)))
+                self.send_json({'ok': True, 'rows': [r for r in rows[:40]]})
+            except Exception as e:
+                self.send_json({'ok': False, 'error': str(e)})
         elif parsed.path == '/api/orders':
             user = verify_session(self.headers.get('X-Token',''))
             self.send_json(get_orders(user['store'] if user else '', params.get('barcode',[''])[0]))
