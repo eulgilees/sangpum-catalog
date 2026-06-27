@@ -2823,10 +2823,15 @@ function appendChatBubble(m) {
 }
 function startChatPoll() {
   stopChatPoll();
-  chatPollTimer = setInterval(loadChatMessages, 2000);
+  async function poll() {
+    if (!chatPollTimer) return;
+    await loadChatMessages();
+    if (chatPollTimer) chatPollTimer = setTimeout(poll, 2000);
+  }
+  chatPollTimer = setTimeout(poll, 2000);
 }
 function stopChatPoll() {
-  if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; }
+  if (chatPollTimer) { clearTimeout(chatPollTimer); chatPollTimer = null; }
 }
 
 // 키보드 올라올 때 채팅 오버레이 높이를 visual viewport에 맞춤
