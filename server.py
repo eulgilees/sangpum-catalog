@@ -650,8 +650,9 @@ def fetch_schedule(year_short, month):
                 if am: schedule[date]['오전'] = am
                 if pm: schedule[date]['오후'] = pm
             for off_row in off_rows:
-                person = off_row[col].strip() if col < len(off_row) else ''
-                if person: schedule[date]['휴무'].append(person)
+                for c2 in (col, col+1):
+                    person = off_row[c2].strip() if c2 < len(off_row) else ''
+                    if person: schedule[date]['휴무'].append(person)
         i += 1
     # 날짜 정렬
     def date_key(d):
