@@ -1306,9 +1306,16 @@ async function loadSchedule(silent = false) {
 
 function renderMyScheduleBanner() {
   const banner = document.getElementById('schedule-my-banner');
-  if (!banner || !currentUser) { if (banner) banner.style.display = 'none'; return; }
+  if (!banner) return;
+
+  // currentUser가 아직 없으면 잠시 후 재시도
+  if (!currentUser) {
+    setTimeout(renderMyScheduleBanner, 500);
+    return;
+  }
+
   const name = currentUser.display_name || '';
-  if (!name || !scheduleData.length) { banner.style.display = 'none'; return; }
+  if (!name) { banner.style.display = 'none'; return; }
 
   const now = new Date();
   function toKoreanDate(d) {
@@ -1319,6 +1326,7 @@ function renderMyScheduleBanner() {
   const tomorrowStr = toKoreanDate(tomorrow);
 
   function getShift(dateStr) {
+    if (!scheduleData.length) return null;
     const entry = scheduleData.find(d => d.date.replace(/\s/g,'') === dateStr.replace(/\s/g,''));
     if (!entry) return null;
     const isOff = entry['휴무'] && entry['휴무'].some(n => n.includes(name));
@@ -1326,27 +1334,31 @@ function renderMyScheduleBanner() {
     const shifts = [];
     if (entry['오전'] && entry['오전'].includes(name)) shifts.push('오전');
     if (entry['오후'] && entry['오후'].includes(name)) shifts.push('오후');
-    return shifts.length ? shifts.join(' · ') + ' 근무' : null;
+    return shifts.length ? shifts.join(' · ') + ' 근무' : '미등록';
   }
 
   const todayShift = getShift(todayStr);
   const tomorrowShift = getShift(tomorrowStr);
-  if (!todayShift && !tomorrowShift) { banner.style.display = 'none'; return; }
 
-  function shiftColor(s) { return s === '휴무' ? '#e03131' : '#185fa5'; }
-  function row(label, shift) {
-    if (!shift) return '';
+  function shiftColor(s) {
+    if (s === '휴무') return '#e03131';
+    if (s === '미등록') return '#bbb';
+    return '#185fa5';
+  }
+  function row(label, dateLabel, shift) {
+    const color = shiftColor(shift || '미등록');
+    const text = shift || '일정 없음';
     return `<div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:12px;color:#888;min-width:24px;">${label}</span>
-      <span style="font-size:14px;font-weight:700;color:${shiftColor(shift)};">${shift}</span>
+      <span style="font-size:12px;color:#888;min-width:52px;">${label} <span style="color:#bbb;">${dateLabel}</span></span>
+      <span style="font-size:14px;font-weight:700;color:${color};">${text}</span>
     </div>`;
   }
 
   banner.style.display = 'block';
   banner.innerHTML = `
-    <div style="font-size:12px;color:#185fa5;font-weight:600;margin-bottom:6px;">👤 ${name} 님의 근무</div>
-    ${row('오늘', todayShift)}
-    ${row('내일', tomorrowShift)}
+    <div style="font-size:12px;color:#185fa5;font-weight:600;margin-bottom:8px;">👤 ${esc(name)} 님의 근무</div>
+    ${row('오늘', todayStr, todayShift)}
+    ${row('내일', tomorrowStr, tomorrowShift)}
   `;
 }
 
