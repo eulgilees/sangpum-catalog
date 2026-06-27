@@ -1316,6 +1316,8 @@ function renderMyScheduleBanner() {
 
   const name = currentUser.display_name || '';
   if (!name) { banner.style.display = 'none'; return; }
+  // 일정표에는 이름 뒤 두 글자로 표시되는 경우가 있어 매칭 시 뒤 2글자 사용
+  const matchName = name.length >= 2 ? name.slice(-2) : name;
 
   const now = new Date();
   function toKoreanDate(d) {
@@ -1329,11 +1331,11 @@ function renderMyScheduleBanner() {
     if (!scheduleData.length) return null;
     const entry = scheduleData.find(d => d.date.replace(/\s/g,'') === dateStr.replace(/\s/g,''));
     if (!entry) return null;
-    const isOff = entry['휴무'] && entry['휴무'].some(n => n.includes(name));
+    const isOff = entry['휴무'] && entry['휴무'].some(n => n.includes(matchName));
     if (isOff) return '휴무';
     const shifts = [];
-    if (entry['오전'] && entry['오전'].includes(name)) shifts.push('오전');
-    if (entry['오후'] && entry['오후'].includes(name)) shifts.push('오후');
+    if (entry['오전'] && entry['오전'].includes(matchName)) shifts.push('오전');
+    if (entry['오후'] && entry['오후'].includes(matchName)) shifts.push('오후');
     return shifts.length ? shifts.join(' · ') + ' 근무' : '미등록';
   }
 
