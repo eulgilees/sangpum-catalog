@@ -2261,7 +2261,8 @@ async function submitAs() {
 function loadAsList_render(list) {
   const container = document.getElementById('as-list-container');
   if (!list.length) { container.innerHTML = '<div class="order-empty">AS 접수 내역이 없습니다</div>'; return; }
-  container.innerHTML = list.map(a => `
+  const sorted = [...list].sort((a, b) => (a.status==='완료') - (b.status==='완료'));
+  container.innerHTML = sorted.map(a => `
     <div class="order-list-item${a.status==='완료' ? ' completed' : ''}">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
         <span class="order-badge ${a.status==='완료' ? 'badge-done' : 'badge-pending'}">${esc(a.status)}</span>
