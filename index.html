@@ -3172,9 +3172,11 @@ let chatLoadingMore = false;
 
 async function loadChatMessages(initial = false) {
   const token = localStorage.getItem('authToken');
+  const roomId = chatRoomId; // fetch 시작 시점의 방 ID 고정
   const after = initial ? 0 : chatLastMsgId;
-  const res = await fetch(`/api/chat/messages?room_id=${chatRoomId}&after=${after}`, { headers: { 'X-Token': token } });
+  const res = await fetch(`/api/chat/messages?room_id=${roomId}&after=${after}`, { headers: { 'X-Token': token } });
   const data = await res.json();
+  if (chatRoomId !== roomId) return; // 응답 오는 사이 방이 바뀌었으면 무시
   const area = document.getElementById('chat-messages-area');
   const atBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 60;
   if (!data.ok) return;
@@ -3182,21 +3184,20 @@ async function loadChatMessages(initial = false) {
     area.innerHTML = '';
     chatLastMsgId = 0;
     chatOldestMsgId = 0;
-    chatMsgCache[chatRoomId] = { msgs: [], lastId: 0 };
+    chatMsgCache[roomId] = { msgs: [], lastId: 0 };
   }
   if (!data.messages.length) return;
   data.messages.forEach(m => {
     chatLastMsgId = Math.max(chatLastMsgId, m.id);
     if (!chatOldestMsgId || m.id < chatOldestMsgId) chatOldestMsgId = m.id;
     appendChatBubble(m);
-    if (!chatMsgCache[chatRoomId]) chatMsgCache[chatRoomId] = { msgs: [], lastId: 0 };
-    chatMsgCache[chatRoomId].msgs.push(m);
-    chatMsgCache[chatRoomId].lastId = chatLastMsgId;
-    if (chatMsgCache[chatRoomId].msgs.length > 100) chatMsgCache[chatRoomId].msgs.shift();
+    if (!chatMsgCache[roomId]) chatMsgCache[roomId] = { msgs: [], lastId: 0 };
+    chatMsgCache[roomId].msgs.push(m);
+    chatMsgCache[roomId].lastId = chatLastMsgId;
+    if (chatMsgCache[roomId].msgs.length > 100) chatMsgCache[roomId].msgs.shift();
   });
-  saveChatMsgCache(chatRoomId);
+  saveChatMsgCache(roomId);
   if (initial || atBottom) area.scrollTop = area.scrollHeight;
-  // 이전 메시지 버튼
   if (initial) {
     chatHasMore = !!data.has_more;
     renderChatLoadMoreBtn();
