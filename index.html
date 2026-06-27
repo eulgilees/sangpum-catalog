@@ -642,6 +642,20 @@
       <div class="order-label">내용</div>
       <textarea class="order-input" id="if-content" rows="5" placeholder="이슈 내용을 입력하세요..." style="resize:none;"></textarea>
     </div>
+    <div class="order-field">
+      <div class="order-label">달력 색상</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;padding:4px 0;" id="if-color-picker">
+        <button type="button" onclick="selectIssueColor('#e03131')" data-color="#e03131" style="width:32px;height:32px;border-radius:50%;background:#e03131;border:3px solid transparent;cursor:pointer;"></button>
+        <button type="button" onclick="selectIssueColor('#e67700')" data-color="#e67700" style="width:32px;height:32px;border-radius:50%;background:#e67700;border:3px solid transparent;cursor:pointer;"></button>
+        <button type="button" onclick="selectIssueColor('#2f9e44')" data-color="#2f9e44" style="width:32px;height:32px;border-radius:50%;background:#2f9e44;border:3px solid transparent;cursor:pointer;"></button>
+        <button type="button" onclick="selectIssueColor('#1971c2')" data-color="#1971c2" style="width:32px;height:32px;border-radius:50%;background:#1971c2;border:3px solid transparent;cursor:pointer;"></button>
+        <button type="button" onclick="selectIssueColor('#7048e8')" data-color="#7048e8" style="width:32px;height:32px;border-radius:50%;background:#7048e8;border:3px solid transparent;cursor:pointer;"></button>
+        <button type="button" onclick="selectIssueColor('#c2255c')" data-color="#c2255c" style="width:32px;height:32px;border-radius:50%;background:#c2255c;border:3px solid transparent;cursor:pointer;"></button>
+        <button type="button" onclick="selectIssueColor('#0c8599')" data-color="#0c8599" style="width:32px;height:32px;border-radius:50%;background:#0c8599;border:3px solid transparent;cursor:pointer;"></button>
+        <button type="button" onclick="selectIssueColor('#5c940d')" data-color="#5c940d" style="width:32px;height:32px;border-radius:50%;background:#5c940d;border:3px solid transparent;cursor:pointer;"></button>
+      </div>
+      <input type="hidden" id="if-color" value="#e03131">
+    </div>
     <button class="order-submit-btn" onclick="submitIssue()">등록</button>
   </div>
 </div>
@@ -2621,6 +2635,14 @@ function openIssueList() {
 }
 function closeIssueList() { unlockScroll(); document.getElementById('issue-list-overlay').classList.remove('open'); checkActiveIssues(); }
 
+function selectIssueColor(color) {
+  document.getElementById('if-color').value = color;
+  document.querySelectorAll('#if-color-picker button').forEach(btn => {
+    btn.style.border = btn.dataset.color === color ? '3px solid #333' : '3px solid transparent';
+    btn.style.transform = btn.dataset.color === color ? 'scale(1.2)' : 'scale(1)';
+  });
+}
+
 function openIssueForm(issue=null) {
   issueFormId = issue ? issue.id : null;
   document.getElementById('issue-form-title').textContent = issue ? '이슈 수정' : '이슈사항 등록';
@@ -2630,6 +2652,7 @@ function openIssueForm(issue=null) {
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   setDateValue('if-date', issue ? issue.occurred_at : todayStr, '발생일');
   setDateValue('if-end-date', issue ? (issue.ended_at || '') : '', '종료일');
+  selectIssueColor(issue ? (issue.color || '#e03131') : '#e03131');
   document.getElementById('issue-form-overlay').classList.add('open');
 }
 function closeIssueForm() { document.getElementById('issue-form-overlay').classList.remove('open'); }
@@ -2669,7 +2692,8 @@ async function submitIssue() {
     title,
     occurred_at: document.getElementById('if-date').dataset.isoVal || '',
     ended_at: document.getElementById('if-end-date').dataset.isoVal || '',
-    content: document.getElementById('if-content').value.trim()
+    content: document.getElementById('if-content').value.trim(),
+    color: document.getElementById('if-color').value || '#e03131'
   };
   if (issueFormId) body.id = issueFormId;
   // 로컬 캐시 즉시 업데이트
@@ -2785,7 +2809,10 @@ function renderIssueCalendar() {
       const start = is.occurred_at || ds;
       const end = is.ended_at || ds;
       return ds >= start && ds <= end;
-    }).map(is => `<div class="issue-cal-bar ${is.status==='종료' ? 'closed-bar' : 'active-bar'}" title="${esc(is.title)}"></div>`).join('');
+    }).map(is => {
+      const color = is.status==='종료' ? '#adb5bd' : (is.color || '#e03131');
+      return `<div class="issue-cal-bar" style="background:${color};" title="${esc(is.title)}"></div>`;
+    }).join('');
     html += `<div class="issue-cal-day${isToday ? ' today' : ''}"><div class="day-num">${d}</div>${bars}</div>`;
   }
   document.getElementById('issue-cal-days').innerHTML = html;

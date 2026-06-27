@@ -164,6 +164,7 @@ def init_tables():
         c2.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
         c2.execute("ALTER TABLE issues ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
         c2.execute("ALTER TABLE as_requests ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
+        c2.execute("ALTER TABLE issues ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#e03131'")
         c2.execute("UPDATE orders SET store='잠실점' WHERE store=''")
         c2.execute("UPDATE issues SET store='잠실점' WHERE store=''")
         c2.execute("UPDATE as_requests SET store='잠실점' WHERE store=''")
@@ -466,16 +467,17 @@ def get_issues(store=''):
 
 def add_issue(data):
     conn = data_db(); c = conn.cursor()
-    c.execute('INSERT INTO issues(title,occurred_at,ended_at,content,status,created_at,store) VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id',
+    c.execute('INSERT INTO issues(title,occurred_at,ended_at,content,status,created_at,store,color) VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id',
               (data.get('title',''), data.get('occurred_at',''), data.get('ended_at',''),
-               data.get('content',''), '진행중', data.get('created_at',''), data.get('store','')))
+               data.get('content',''), '진행중', data.get('created_at',''), data.get('store',''),
+               data.get('color','#e03131')))
     new_id = c.fetchone()[0]; conn.commit(); release_db(conn); return new_id
 
 def update_issue(data):
     conn = data_db(); c = conn.cursor()
-    c.execute('UPDATE issues SET title=%s,occurred_at=%s,ended_at=%s,content=%s WHERE id=%s',
+    c.execute('UPDATE issues SET title=%s,occurred_at=%s,ended_at=%s,content=%s,color=%s WHERE id=%s',
               (data.get('title',''), data.get('occurred_at',''), data.get('ended_at',''),
-               data.get('content',''), data['id']))
+               data.get('content',''), data.get('color','#e03131'), data['id']))
     conn.commit(); release_db(conn)
 
 def set_issue_status(issue_id, status):
