@@ -746,11 +746,15 @@
         <button class="order-close" onclick="closeOrderList()"><i class="ti ti-x"></i></button>
       </div>
     </div>
-    <div style="padding:0 0 12px; position:relative;">
-      <i class="ti ti-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#888;font-size:16px;"></i>
-      <input type="text" id="order-search-input" placeholder="상품명, 고객명, 연락처 검색..."
-        oninput="filterOrders()"
-        style="width:100%;padding:10px 12px 10px 36px;border:1px solid #d4d4ce;border-radius:10px;font-size:14px;outline:none;background:#f5f5f3;">
+    <div style="display:flex;gap:8px;align-items:center;padding:0 0 12px;">
+      <div style="position:relative;flex:1;">
+        <i class="ti ti-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#888;font-size:16px;"></i>
+        <input type="text" id="order-search-input" placeholder="상품명, 고객명, 연락처 검색..."
+          oninput="filterOrders()"
+          style="width:100%;padding:10px 12px 10px 36px;border:1px solid #d4d4ce;border-radius:10px;font-size:14px;outline:none;background:#f5f5f3;">
+      </div>
+      <button id="order-my-btn" onclick="toggleMyOrders()"
+        style="flex-shrink:0;padding:10px 14px;border:1px solid #d4d4ce;border-radius:10px;font-size:13px;background:#f5f5f3;color:#5f5e5a;cursor:pointer;white-space:nowrap;">내 담당</button>
     </div>
     <div id="order-list-container"><div class="order-empty">주문 내역이 없습니다</div></div>
   </div>
@@ -2069,14 +2073,29 @@ async function openOrderList() {
 }
 function closeOrderList() { unlockScroll(); document.getElementById('order-list-overlay').classList.remove('open'); }
 
+let _myOrdersActive = false;
+function toggleMyOrders() {
+  _myOrdersActive = !_myOrdersActive;
+  const btn = document.getElementById('order-my-btn');
+  btn.style.background = _myOrdersActive ? '#185fa5' : '#f5f5f3';
+  btn.style.color = _myOrdersActive ? '#fff' : '#5f5e5a';
+  btn.style.borderColor = _myOrdersActive ? '#185fa5' : '#d4d4ce';
+  document.getElementById('order-search-input').value = '';
+  filterOrders();
+}
+
 function filterOrders() {
   const q = document.getElementById('order-search-input').value.trim().toLowerCase().replace(/ /g,'');
-  if (!q) { renderOrderList(window._orders || []); return; }
-  const filtered = (window._orders || []).filter(o =>
+  let list = window._orders || [];
+  if (_myOrdersActive && currentUser) {
+    const myName = (currentUser.display_name || '').toLowerCase().replace(/ /g,'');
+    list = list.filter(o => o.staff && o.staff.toLowerCase().replace(/ /g,'').includes(myName));
+  }
+  if (!q) { renderOrderList(list); return; }
+  renderOrderList(list.filter(o =>
     [o.name, o.customer, o.phone, o.barcode, o.staff, o.note, o.address]
       .some(v => v && v.toLowerCase().replace(/ /g,'').includes(q))
-  );
-  renderOrderList(filtered);
+  ));
 }
 
 async function loadOrderList() {
