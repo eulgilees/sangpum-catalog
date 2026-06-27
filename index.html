@@ -2819,7 +2819,7 @@ function renderChatRooms(rooms) {
   }
   el.innerHTML = rooms.map(r => {
     const ts = r.last_ts ? formatChatTime(r.last_ts) : '';
-    const unread = r.unread > 0 ? `<span style="background:#e03131;color:#fff;font-size:11px;font-weight:700;border-radius:10px;padding:2px 7px;min-width:18px;text-align:center;">${r.unread}</span>` : '';
+    const unread = r.unread > 0 ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#e03131;flex-shrink:0;"></span>` : '';
     const isGroup = r.is_group;
     const roomName = isGroup ? (r.group_name||'그룹') : (r.other_name||'알 수 없음');
     const subText = isGroup
