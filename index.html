@@ -2715,7 +2715,67 @@ function showChatList() {
   stopChatPoll();
   loadChatRooms();
 }
+let _chatSearchMatches = [], _chatSearchIdx = 0;
+
+function toggleChatSearch() {
+  const bar = document.getElementById('chat-search-bar');
+  if (bar.style.display === 'none') {
+    bar.style.display = 'flex';
+    document.getElementById('chat-search-input').focus();
+  } else {
+    closeChatSearch();
+  }
+}
+function closeChatSearch() {
+  document.getElementById('chat-search-bar').style.display = 'none';
+  document.getElementById('chat-search-input').value = '';
+  chatSearchClear();
+}
+function chatSearchClear() {
+  _chatSearchMatches = []; _chatSearchIdx = 0;
+  document.getElementById('chat-search-count').textContent = '';
+  document.querySelectorAll('.chat-search-hl').forEach(el => {
+    el.outerHTML = el.textContent;
+  });
+}
+function chatSearch() {
+  chatSearchClear();
+  const q = document.getElementById('chat-search-input').value.trim();
+  if (!q) return;
+  const area = document.getElementById('chat-messages-area');
+  const bubbles = area.querySelectorAll('div[style*="max-width:70%"]');
+  bubbles.forEach(bubble => {
+    const text = bubble.textContent;
+    if (!text.toLowerCase().includes(q.toLowerCase())) return;
+    const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+    bubble.innerHTML = bubble.innerHTML.replace(regex, m =>
+      `<mark class="chat-search-hl" style="background:#ffe066;border-radius:3px;padding:0 2px;">${m}</mark>`
+    );
+    _chatSearchMatches.push(bubble);
+  });
+  if (_chatSearchMatches.length) {
+    _chatSearchIdx = 0;
+    chatSearchScrollTo(0);
+  } else {
+    document.getElementById('chat-search-count').textContent = '없음';
+  }
+}
+function chatSearchNav(dir) {
+  if (!_chatSearchMatches.length) return;
+  _chatSearchIdx = (_chatSearchIdx + dir + _chatSearchMatches.length) % _chatSearchMatches.length;
+  chatSearchScrollTo(_chatSearchIdx);
+}
+function chatSearchScrollTo(idx) {
+  _chatSearchMatches.forEach((el, i) => {
+    el.style.outline = i === idx ? '2px solid #185fa5' : 'none';
+    el.style.borderRadius = '8px';
+  });
+  _chatSearchMatches[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  document.getElementById('chat-search-count').textContent = `${idx+1}/${_chatSearchMatches.length}`;
+}
+
 function backToChatList() {
+  closeChatSearch();
   // 현재 방을 읽음으로 캐시 업데이트
   if (chatRoomId && chatRoomsCache) {
     const room = chatRoomsCache.find(r => r.id === chatRoomId);
@@ -3085,10 +3145,19 @@ window.addEventListener('load', () => {
   <div id="chat-room-view" style="display:none;flex-direction:column;height:100%;overflow:hidden;">
     <div style="flex-shrink:0;display:flex;align-items:center;gap:12px;padding:14px 16px;background:#fff;border-bottom:1px solid #ebebeb;">
       <button onclick="backToChatList()" style="background:none;border:none;font-size:20px;color:#555;cursor:pointer;padding:0;">←</button>
-      <div>
+      <div style="flex:1;min-width:0;">
         <div id="chat-room-title" style="font-size:16px;font-weight:700;color:#222;"></div>
         <div id="chat-room-subtitle" style="font-size:12px;color:#888;"></div>
       </div>
+      <button onclick="toggleChatSearch()" style="background:none;border:none;font-size:20px;color:#888;cursor:pointer;padding:4px;">🔍</button>
+    </div>
+    <div id="chat-search-bar" style="display:none;flex-shrink:0;padding:8px 12px;background:#f5f5f3;border-bottom:1px solid #e5e5e0;gap:8px;align-items:center;">
+      <input id="chat-search-input" type="text" placeholder="메시지 검색..." oninput="chatSearch()"
+        style="flex:1;padding:8px 12px;border:1px solid #d4d4ce;border-radius:20px;font-size:14px;outline:none;background:#fff;">
+      <button onclick="chatSearchNav(-1)" style="background:none;border:none;font-size:18px;color:#555;cursor:pointer;padding:4px;">↑</button>
+      <button onclick="chatSearchNav(1)" style="background:none;border:none;font-size:18px;color:#555;cursor:pointer;padding:4px;">↓</button>
+      <span id="chat-search-count" style="font-size:12px;color:#888;white-space:nowrap;min-width:40px;text-align:center;"></span>
+      <button onclick="closeChatSearch()" style="background:none;border:none;font-size:16px;color:#aaa;cursor:pointer;padding:4px;">✕</button>
     </div>
     <div id="chat-messages-area" style="flex:1;overflow-y:auto;min-height:0;padding:16px;display:flex;flex-direction:column;gap:10px;"></div>
     <div id="chat-input-bar" style="flex-shrink:0;padding:10px 12px 12px;background:#fff;border-top:1px solid #ebebeb;display:flex;gap:8px;">
