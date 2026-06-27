@@ -2398,7 +2398,8 @@ async function loadSuggestionList() {
   const list = await fetch('/api/suggestions').then(r => r.json());
   const container = document.getElementById('suggestion-list-container');
   if (!list.length) { container.innerHTML = '<div class="order-empty">건의사항이 없습니다</div>'; return; }
-  container.innerHTML = list.map(s => {
+  const sorted = [...list].sort((a, b) => (a.status==='처리완료') - (b.status==='처리완료'));
+  container.innerHTML = sorted.map(s => {
     const badgeStyle = s.status==='처리완료' ? 'issue-badge-closed' : s.status==='처리보류' ? 'issue-badge-hold' : 'issue-badge-active';
     const isClosed = s.status==='처리완료';
     return `
