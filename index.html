@@ -297,6 +297,7 @@
     }
   }
   </style>
+  <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 </head>
 <body>
 
@@ -575,7 +576,11 @@
     </div>
     <div class="order-field" id="of-address-wrap" style="display:none;">
       <div class="order-label">배송 주소</div>
-      <input class="order-input" id="of-address" placeholder="주소를 입력하세요">
+      <div style="display:flex;gap:8px;margin-bottom:6px;">
+        <input class="order-input" id="of-address" placeholder="주소 검색 버튼을 눌러주세요" readonly style="flex:1;background:#f8f8f6;cursor:pointer;" onclick="searchAddress()">
+        <button type="button" onclick="searchAddress()" style="flex-shrink:0;background:#185fa5;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;">🔍 검색</button>
+      </div>
+      <input class="order-input" id="of-address-detail" placeholder="상세주소 입력 (동/호수 등)">
     </div>
     <div class="order-field">
       <div class="order-label">담당자</div>
@@ -2094,6 +2099,18 @@ function onOrderNameInput() {
   }, 400);
 }
 
+function searchAddress() {
+  new daum.Postcode({
+    oncomplete(data) {
+      const addr = data.roadAddress || data.jibunAddress;
+      document.getElementById('of-address').value = addr;
+      document.getElementById('of-address-detail').focus();
+    },
+    width: '100%',
+    height: '100%',
+  }).open();
+}
+
 function selectDelivery(idx) {
   orderDeliveryVal = idx === 1 ? '발송' : '없음';
   document.getElementById('of-delivery-0').classList.toggle('active', idx===0);
@@ -2127,7 +2144,9 @@ function openOrderForm(barcode, name, order=null) {
   setDateValue('of-pickup', order ? (order.pickup_date||'') : '', '수령희망일');
   document.getElementById('of-customer').value = order ? (order.customer||'') : '';
   document.getElementById('of-phone').value = order ? (order.phone||'') : '';
-  document.getElementById('of-address').value = order ? (order.address||'') : '';
+  const addrParts = (order && order.address) ? order.address.split('||') : ['',''];
+  document.getElementById('of-address').value = addrParts[0] || '';
+  document.getElementById('of-address-detail').value = addrParts[1] || '';
   document.getElementById('of-staff').value = order ? order.staff : '';
   document.getElementById('of-note').value = order ? order.note : '';
   selectToggle('pay', order && order.payment==='완불' ? 1 : 0, order ? order.payment : '미불');
@@ -2152,7 +2171,9 @@ async function submitOrder() {
   const pickup_date = document.getElementById('of-pickup').dataset.isoVal || '';
   const customer = document.getElementById('of-customer').value.trim();
   const phone = document.getElementById('of-phone').value.trim();
-  const address = document.getElementById('of-address').value.trim();
+  const addrBase = document.getElementById('of-address').value.trim();
+  const addrDetail = document.getElementById('of-address-detail').value.trim();
+  const address = addrBase ? (addrDetail ? addrBase + '||' + addrDetail : addrBase) : '';
   const staff = document.getElementById('of-staff').value.trim();
   const note = document.getElementById('of-note').value.trim();
   const d = new Date(); const created_at = `${String(d.getFullYear()).slice(2)}.${d.getMonth()+1}.${d.getDate()}`;
@@ -2233,7 +2254,7 @@ function renderOrderList(orders) {
         <div class="uc-row"><span class="uc-lbl">담당</span><span class="uc-val">${esc(o.staff||'—')}</span></div>
       </div>
       <div class="uc-text" style="margin-bottom:${o.note?'4px':'0'};">👤 ${o.customer ? esc(o.customer)+(o.phone?' · '+esc(o.phone):'') : '<span style="color:#bbb">고객정보 미입력</span>'}</div>
-      ${o.delivery==='발송' ? `<div class="uc-text" style="margin-bottom:${o.note?'4px':'0'};">📦 택배 발송${o.address?' · '+esc(o.address):''}</div>` : ''}
+      ${o.delivery==='발송' ? `<div class="uc-text" style="margin-bottom:${o.note?'4px':'0'};">📦 택배 발송${o.address?' · '+esc(o.address.replace('||',' ')):''}</div>` : ''}
       ${o.note ? `<div class="uc-note">📝 ${esc(o.note)}</div>` : ''}
       <hr class="uc-divider">
       <div class="order-item-actions">
