@@ -2958,9 +2958,10 @@ async function openChatRoom(roomId, name, store, isGroup) {
   document.getElementById('chat-list-view').style.display = 'none';
   enterChatRoom(roomId, name, store, isGroup);
 }
-function enterChatRoom(roomId, name, store, isGroup) {
+async function enterChatRoom(roomId, name, store, isGroup) {
   chatRoomId = roomId;
   chatIsGroup = !!isGroup;
+  stopChatPoll();
   document.getElementById('chat-room-title').textContent = name;
   document.getElementById('chat-room-subtitle').textContent = store;
   document.getElementById('chat-room-view').style.display = 'flex';
@@ -2980,7 +2981,7 @@ function enterChatRoom(roomId, name, store, isGroup) {
     area.innerHTML = '<div style="text-align:center;color:#ccc;padding:32px;font-size:13px;">메시지를 불러오는 중...</div>';
   }
 
-  loadChatMessages(true);
+  await loadChatMessages(true);  // 완전히 로드된 후에 폴링 시작
   startChatPoll();
 }
 async function loadChatMessages(initial = false) {
