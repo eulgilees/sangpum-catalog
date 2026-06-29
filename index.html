@@ -2299,7 +2299,7 @@ function renderOrderList(orders) {
         <div class="uc-row"><span class="uc-lbl">주문일</span><span class="uc-val">${o.order_date||'—'}</span></div>
         <div class="uc-row"><span class="uc-lbl">수령희망일</span><span class="uc-val ${o.pickup_date?'hi':'muted'}">${o.pickup_date||'미정'}</span></div>
         <div class="uc-row"><span class="uc-lbl">수량</span><span class="uc-val">${esc(String(o.qty))}부</span></div>
-        <div class="uc-row"><span class="uc-lbl">접수</span><span class="uc-val">${esc(o.receptionist||'—')}</span></div>
+        <div class="uc-row" style="opacity:0.55;font-size:12px;"><span class="uc-lbl">접수</span><span class="uc-val">${esc(o.receptionist||'—')}</span></div>
         <div class="uc-row"><span class="uc-lbl">담당</span><span class="uc-val">${esc(o.staff||'—')}</span></div>
       </div>
       <div class="uc-text" style="margin-bottom:${o.note?'4px':'0'};">👤 ${o.customer ? esc(o.customer)+(o.phone?' · '+esc(o.phone):'') : '<span style="color:#bbb">고객정보 미입력</span>'}</div>
