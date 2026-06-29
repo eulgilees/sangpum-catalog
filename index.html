@@ -2290,9 +2290,14 @@ function filterOrders() {
 
 async function loadOrderList() {
   const token = localStorage.getItem('authToken') || '';
-  const orders = await fetch('/api/orders', {headers:{'X-Token':token}}).then(r=>r.json());
+  const [orders, logsRes] = await Promise.all([
+    fetch('/api/orders', {headers:{'X-Token':token}}).then(r=>r.json()),
+    fetch('/api/orders/logs/all').then(r=>r.json()).catch(()=>({ok:false,logs:{}}))
+  ]);
   window._orders = orders;
+  window._orderLogs = logsRes.ok ? logsRes.logs : {};
   renderOrderList(orders);
+  orders.forEach(o => renderOrderLogs(o.id, window._orderLogs[o.id] || []));
 }
 
 function getSmsBody(type) {
@@ -2338,6 +2343,15 @@ function renderOrderList(orders) {
       <div class="uc-text" style="margin-bottom:${o.note?'4px':'0'};${o.phone||o.customer?'cursor:pointer;':''}" ${o.phone||o.customer ? 'data-filter="'+esc(o.phone||o.customer)+'" onclick="filterByCustomer(this.dataset.filter)"' : ''}>👤 ${o.customer ? esc(o.customer)+(o.phone?' · '+esc(o.phone):'') : '<span style="color:#bbb">고객정보 미입력</span>'}</div>
       ${o.delivery==='발송' ? `<div class="uc-text" style="margin-bottom:${o.note?'4px':'0'};">📦 택배 발송${o.address?' · '+esc(o.address.replace('||',' ')):''}</div>` : ''}
       ${o.note ? `<div class="uc-note">📝 ${esc(o.note)}</div>` : ''}
+      <hr class="uc-divider">
+      <div style="font-size:13px;font-weight:600;color:#888;margin-bottom:8px;">진행 내용</div>
+      <div id="order-log-list-${o.id}" style="margin-bottom:8px;"></div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;">
+        <input type="text" id="order-log-input-${o.id}" placeholder="진행 내용 입력..." maxlength="200"
+          style="flex:1;padding:8px 10px;border:1px solid #d4d4ce;border-radius:8px;font-size:14px;outline:none;background:#f8f8f6;"
+          onkeydown="if(event.key==='Enter')addOrderLog(${o.id})">
+        <button onclick="addOrderLog(${o.id})" style="background:#185fa5;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">추가</button>
+      </div>
       <hr class="uc-divider">
       <div class="order-item-actions">
         ${!o.completed ? `<button class="order-edit-btn" onclick="editOrder(${o.id})">수정</button>` : ''}
@@ -2567,6 +2581,48 @@ async function deleteAsLog(logId, asId) {
     renderAsLogs(asId, window._asLogs[asId]);
   }
   fetch('/api/as/log/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: logId})});
+}
+
+function renderOrderLogs(orderId, logs) {
+  const el = document.getElementById(`order-log-list-${orderId}`);
+  if (!el) return;
+  if (!logs.length) { el.innerHTML = '<div style="font-size:14px;color:#ccc;padding:2px 0;">아직 진행 내용이 없습니다.</div>'; return; }
+  el.innerHTML = logs.map(l => `
+    <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid #f5f5f3;">
+      <span style="font-size:14px;color:#888;white-space:nowrap;flex-shrink:0;">${esc(l.log_date)}</span>
+      <span style="font-size:14px;color:#333;flex:1;line-height:1.5;">${esc(l.content)}</span>
+      <button onclick="deleteOrderLog(${l.id},${orderId})" style="background:none;border:none;color:#ccc;font-size:14px;cursor:pointer;padding:0;flex-shrink:0;line-height:1;">✕</button>
+    </div>`).join('');
+}
+async function addOrderLog(orderId) {
+  const input = document.getElementById(`order-log-input-${orderId}`);
+  const content = input.value.trim();
+  if (!content) return;
+  const today = new Date();
+  const log_date = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  input.value = '';
+  const tempLog = { id: Date.now(), order_id: orderId, log_date, content };
+  if (!window._orderLogs) window._orderLogs = {};
+  if (!window._orderLogs[orderId]) window._orderLogs[orderId] = [];
+  window._orderLogs[orderId].push(tempLog);
+  renderOrderLogs(orderId, window._orderLogs[orderId]);
+  const res = await fetch('/api/orders/log', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({order_id: orderId, log_date, content})
+  });
+  const data = await res.json();
+  if (data.ok) {
+    const idx = window._orderLogs[orderId].findIndex(l => l.id === tempLog.id);
+    if (idx !== -1) window._orderLogs[orderId][idx].id = data.id;
+    renderOrderLogs(orderId, window._orderLogs[orderId]);
+  }
+}
+async function deleteOrderLog(logId, orderId) {
+  if (window._orderLogs && window._orderLogs[orderId]) {
+    window._orderLogs[orderId] = window._orderLogs[orderId].filter(l => l.id !== logId);
+    renderOrderLogs(orderId, window._orderLogs[orderId]);
+  }
+  fetch('/api/orders/log/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: logId})});
 }
 
 /* ── 건의사항 ──────────────────────────────── */

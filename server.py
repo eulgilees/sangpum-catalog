@@ -123,6 +123,13 @@ def init_tables():
         content TEXT DEFAULT '',
         created_at TEXT DEFAULT ''
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS order_logs (
+        id SERIAL PRIMARY KEY,
+        order_id INTEGER NOT NULL,
+        log_date TEXT DEFAULT '',
+        content TEXT DEFAULT '',
+        created_at TEXT DEFAULT ''
+    )''')
     c.execute('''CREATE TABLE IF NOT EXISTS suggestions (
         id SERIAL PRIMARY KEY,
         content TEXT DEFAULT '', date TEXT DEFAULT '',
@@ -578,6 +585,23 @@ def delete_as_log(log_id):
     c.execute('DELETE FROM as_logs WHERE id=%s', (log_id,))
     conn.commit(); release_db(conn)
 
+def get_order_logs(order_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT * FROM order_logs WHERE order_id=%s ORDER BY log_date ASC, id ASC', (order_id,))
+    rows = rows_to_dicts(c); release_db(conn); return rows
+
+def add_order_log(order_id, log_date, content):
+    conn = data_db(); c = conn.cursor()
+    c.execute('INSERT INTO order_logs(order_id, log_date, content, created_at) VALUES(%s,%s,%s,%s) RETURNING id',
+              (order_id, log_date, content, datetime.now().isoformat()))
+    row = c.fetchone(); conn.commit(); release_db(conn)
+    return row[0]
+
+def delete_order_log(log_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('DELETE FROM order_logs WHERE id=%s', (log_id,))
+    conn.commit(); release_db(conn)
+
 def get_suggestions():
     conn = data_db(); c = conn.cursor()
     c.execute('SELECT * FROM suggestions ORDER BY id DESC')
@@ -809,6 +833,14 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/as/logs':
             as_id = int(params.get('as_id', ['0'])[0])
             self.send_json({'ok': True, 'logs': get_as_logs(as_id)})
+        elif parsed.path == '/api/orders/logs/all':
+            conn = data_db(); c = conn.cursor()
+            c.execute('SELECT * FROM order_logs ORDER BY log_date ASC, id ASC')
+            all_logs = rows_to_dicts(c); release_db(conn)
+            grouped = {}
+            for l in all_logs:
+                grouped.setdefault(l['order_id'], []).append(l)
+            self.send_json({'ok': True, 'logs': grouped})
         elif parsed.path == '/api/suggestions':
             self.send_json(get_suggestions())
         elif parsed.path == '/api/suggestions/comments':
@@ -1088,6 +1120,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'ok': True, 'id': log_id})
         elif self.path == '/api/as/log/delete':
             delete_as_log(body['id']); self.send_json({'ok': True})
+        elif self.path == '/api/orders/log':
+            log_id = add_order_log(body['order_id'], body['log_date'], body['content'])
+            self.send_json({'ok': True, 'id': log_id})
+        elif self.path == '/api/orders/log/delete':
+            delete_order_log(body['id']); self.send_json({'ok': True})
         elif self.path == '/api/suggestions':
             self.send_json({'ok': True, 'id': add_suggestion(body)})
         elif self.path == '/api/suggestions/status':
