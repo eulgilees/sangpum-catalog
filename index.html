@@ -3694,7 +3694,7 @@ async function openOrderById(id) {
   const el = document.getElementById(`order-item-${id}`);
   if (!el) { showToast('삭제된 주문입니다'); return; }
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  el.style.outline = '2px solid #185fa5';
+  el.style.outline = '4px solid #185fa5';
   setTimeout(() => { el.style.outline = ''; }, 2500);
 }
 
@@ -3706,7 +3706,7 @@ async function openAsById(id) {
   const el = document.getElementById(`as-item-${id}`);
   if (!el) { showToast('삭제된 AS 접수건입니다'); return; }
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  el.style.outline = '2px solid #185fa5';
+  el.style.outline = '4px solid #185fa5';
   setTimeout(() => { el.style.outline = ''; }, 2500);
 }
 
