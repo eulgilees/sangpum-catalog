@@ -2295,8 +2295,9 @@ async function loadOrderList() {
   renderOrderList(orders);
 }
 
-const _SMS_BODY = '안녕하세요. 교보문고 잠실점입니다. 주문하신 상품 도착하였습니다. 감사합니다.';
-function smsHref(phone) { return 'sms:' + phone + '?body=' + encodeURIComponent(_SMS_BODY); }
+const _SMS_BODY_ORDER = '안녕하세요. 교보문고 잠실점입니다. 주문하신 상품 도착하였습니다. 감사합니다.';
+const _SMS_BODY_AS    = '안녕하세요. 교보문고 잠실점입니다. as 완료되었습니다. 감사합니다.';
+function smsHref(phone, body) { return 'sms:' + phone + '?body=' + encodeURIComponent(body || _SMS_BODY_ORDER); }
 
 function renderOrderList(orders) {
   const container = document.getElementById('order-list-container');
@@ -2483,6 +2484,7 @@ function loadAsList_render(list) {
         ${a.status==='완료'
           ? `<button class="order-undo-btn" onclick="setAsStatus(${a.id},'진행중')">진행중으로</button>`
           : `<button class="order-complete-btn" onclick="setAsStatus(${a.id},'완료')">완료</button>`}
+        ${a.phone ? '<a class="order-edit-btn" style="background:#f0fff4;color:#1a7a4a;border-color:#b2dfcb;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" href="' + smsHref(a.phone, _SMS_BODY_AS) + '">📨 문자</a>' : ''}
       </div>
     </div>
   `).join('');
