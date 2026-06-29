@@ -2283,6 +2283,9 @@ async function loadOrderList() {
   renderOrderList(orders);
 }
 
+const _SMS_BODY = '안녕하세요. 교보문고 잠실점입니다. 주문하신 상품 도착하였습니다. 감사합니다.';
+function smsHref(phone) { return 'sms:' + phone + '?body=' + encodeURIComponent(_SMS_BODY); }
+
 function renderOrderList(orders) {
   const container = document.getElementById('order-list-container');
   if (!orders.length) { container.innerHTML = '<div class="order-empty">주문 내역이 없습니다</div>'; return; }
@@ -2322,7 +2325,7 @@ function renderOrderList(orders) {
       <div class="order-item-actions">
         ${!o.completed ? `<button class="order-edit-btn" onclick="editOrder(${o.id})">수정</button>` : ''}
         <button class="order-edit-btn" style="background:#f0f5ff;color:#185fa5;border-color:#c8dcf5;" onclick="copyOrder(${o.id})">복사</button>
-        ${o.phone ? `<a class="order-edit-btn" style="background:#f0fff4;color:#1a7a4a;border-color:#b2dfcb;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" href="sms:${esc(o.phone)}?body=${encodeURIComponent('안녕하세요. 교보문고 잠실점입니다. 주문하신 상품 도착하였습니다. 감사합니다.')}">📨 문자</a>` : ''}
+        ${o.phone ? '<a class="order-edit-btn" style="background:#f0fff4;color:#1a7a4a;border-color:#b2dfcb;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" href="' + smsHref(o.phone) + '">📨 문자</a>' : ''}
         <button class="order-del-btn" onclick="deleteOrder(${o.id})">삭제</button>
         ${o.completed
           ? `<button class="order-undo-btn" onclick="toggleComplete(${o.id})">처리 취소</button>`
