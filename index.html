@@ -2324,7 +2324,7 @@ function renderOrderList(orders) {
     const ph = (o.phone||'').replace(/\D/g,'');
     const multiOrder = !o.completed && ph && phoneCount[ph] > 1;
     return `
-    <div class="order-list-item${o.completed ? ' completed' : ''}">
+    <div id="order-item-${o.id}" class="order-list-item${o.completed ? ' completed' : ''}"
       <div class="uc-head">
         <div class="order-item-name">${o.completed ? '✓ ' : ''}${esc(o.name)}</div>
         <div class="uc-badges">
@@ -2469,7 +2469,7 @@ function loadAsList_render(list) {
   if (!list.length) { container.innerHTML = '<div class="order-empty">AS 접수 내역이 없습니다</div>'; return; }
   const sorted = [...list].sort((a, b) => (a.status==='완료') - (b.status==='완료'));
   container.innerHTML = sorted.map(a => `
-    <div class="order-list-item${a.status==='완료' ? ' completed' : ''}">
+    <div id="as-item-${a.id}" class="order-list-item${a.status==='완료' ? ' completed' : ''}"
       <div class="uc-head">
         <div class="order-item-name">${esc(a.product_name)}</div>
         <div class="uc-badges">
@@ -3686,6 +3686,28 @@ async function chatSend() {
   startChatPoll();
 }
 
+async function openOrderById(id) {
+  await openOrderList();
+  await loadOrderList();
+  const el = document.getElementById(`order-item-${id}`);
+  if (!el) { showToast('삭제된 주문입니다'); return; }
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.style.outline = '2px solid #185fa5';
+  el.style.transition = 'outline 0.3s';
+  setTimeout(() => { el.style.outline = ''; }, 2500);
+}
+
+async function openAsById(id) {
+  await openAsList();
+  await loadAsList();
+  const el = document.getElementById(`as-item-${id}`);
+  if (!el) { showToast('삭제된 AS 접수건입니다'); return; }
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.style.outline = '2px solid #185fa5';
+  el.style.transition = 'outline 0.3s';
+  setTimeout(() => { el.style.outline = ''; }, 2500);
+}
+
 function parseChatCard(content) {
   const orderMatch = content.match(/^\[ORDER_CARD:(\d+)\](.*)/s);
   if (orderMatch) return { type: 'order', id: orderMatch[1], text: orderMatch[2].trim() };
@@ -3704,7 +3726,7 @@ function createChatBubbleEl(m) {
   if (card) {
     const icon = card.type === 'order' ? '📦' : '🔧';
     const label = card.type === 'order' ? '주문 보기' : 'AS 보기';
-    const action = card.type === 'order' ? 'openOrderList()' : 'openAsList()';
+    const action = card.type === 'order' ? `openOrderById(${card.id})` : `openAsById(${card.id})`;
     bubble = `<div onclick="${action}" style="cursor:pointer;max-width:min(70%,calc(100% - 60px));background:#fff;border:2px solid #185fa5;border-radius:${mine?'16px 4px 16px 16px':'4px 16px 16px 16px'};padding:12px 14px;font-size:14px;line-height:1.5;word-break:break-word;overflow-wrap:anywhere;box-shadow:0 1px 4px rgba(0,0,0,0.10);">
       <div style="font-size:12px;color:#185fa5;font-weight:700;margin-bottom:4px;">${icon} ${label} →</div>
       <div style="color:#222;">${escHtml(card.text)}</div>
