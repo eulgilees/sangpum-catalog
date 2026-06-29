@@ -157,7 +157,7 @@ def init_tables():
         c2.execute("UPDATE orders SET store='잠실점' WHERE store=''")
         c2.execute("UPDATE issues SET store='잠실점' WHERE store=''")
         c2.execute("UPDATE as_requests SET store='잠실점' WHERE store=''")
-        c2.execute("CREATE INDEX IF NOT EXISTS idx_orders_store ON orders(store)")
+        c2.execute("CREATE INDEX IF NOT EXISTS idx_orders_store_completed ON orders(store, completed, id DESC)")
         c2.execute("CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)")
         conn2.commit(); conn2.close()
     except: pass
@@ -408,12 +408,22 @@ def chat_total_unread(user_id):
     row = c.fetchone(); release_db(conn)
     return int(row[0]) if row else 0
 
+_ORDERS_SQL = '''
+    (SELECT * FROM orders WHERE store=%s AND completed=0 ORDER BY id DESC)
+    UNION ALL
+    (SELECT * FROM orders WHERE store=%s AND completed=1 ORDER BY id DESC LIMIT 100)
+    ORDER BY completed, id DESC
+'''
+_ORDERS_BARCODE_SQL = '''
+    SELECT * FROM orders WHERE barcode=%s AND store=%s ORDER BY completed, id DESC
+'''
+
 def get_orders(store='', barcode=''):
     conn = data_db(); c = conn.cursor()
     if barcode:
-        c.execute('SELECT * FROM orders WHERE barcode=%s AND store=%s ORDER BY completed, id DESC', (barcode, store))
+        c.execute(_ORDERS_BARCODE_SQL, (barcode, store))
     else:
-        c.execute('SELECT * FROM orders WHERE store=%s ORDER BY completed, id DESC', (store,))
+        c.execute(_ORDERS_SQL, (store, store))
     rows = rows_to_dicts(c); release_db(conn); return rows
 
 def get_orders_authed(token, barcode=''):
@@ -432,9 +442,9 @@ def get_orders_authed(token, barcode=''):
             user = dict(zip(cols, rows[0]))
             store = user['store']
             if barcode:
-                c.execute('SELECT * FROM orders WHERE barcode=%s AND store=%s ORDER BY completed, id DESC', (barcode, store))
+                c.execute(_ORDERS_BARCODE_SQL, (barcode, store))
             else:
-                c.execute('SELECT * FROM orders WHERE store=%s ORDER BY completed, id DESC', (store,))
+                c.execute(_ORDERS_SQL, (store, store))
             orders = rows_to_dicts(c); release_db(conn)
             return user, orders
         except Exception:
