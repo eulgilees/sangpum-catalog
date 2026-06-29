@@ -2324,7 +2324,7 @@ function renderOrderList(orders) {
     const ph = (o.phone||'').replace(/\D/g,'');
     const multiOrder = !o.completed && ph && phoneCount[ph] > 1;
     return `
-    <div id="order-item-${o.id}" class="order-list-item${o.completed ? ' completed' : ''}"
+    <div id="order-item-${o.id}" class="order-list-item${o.completed ? ' completed' : ''}">`
       <div class="uc-head">
         <div class="order-item-name">${o.completed ? '✓ ' : ''}${esc(o.name)}</div>
         <div class="uc-badges">
@@ -2469,7 +2469,7 @@ function loadAsList_render(list) {
   if (!list.length) { container.innerHTML = '<div class="order-empty">AS 접수 내역이 없습니다</div>'; return; }
   const sorted = [...list].sort((a, b) => (a.status==='완료') - (b.status==='완료'));
   container.innerHTML = sorted.map(a => `
-    <div id="as-item-${a.id}" class="order-list-item${a.status==='완료' ? ' completed' : ''}"
+    <div id="as-item-${a.id}" class="order-list-item${a.status==='완료' ? ' completed' : ''}">`
       <div class="uc-head">
         <div class="order-item-name">${esc(a.product_name)}</div>
         <div class="uc-badges">
