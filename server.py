@@ -169,6 +169,8 @@ def init_tables():
         c2.execute("UPDATE orders SET store='잠실점' WHERE store=''")
         c2.execute("UPDATE issues SET store='잠실점' WHERE store=''")
         c2.execute("UPDATE as_requests SET store='잠실점' WHERE store=''")
+        c2.execute("CREATE INDEX IF NOT EXISTS idx_orders_store ON orders(store)")
+        c2.execute("CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)")
         conn2.commit(); conn2.close()
     except: pass
     c.execute('''CREATE TABLE IF NOT EXISTS sessions (
@@ -425,6 +427,25 @@ def get_orders(store='', barcode=''):
     else:
         c.execute('SELECT * FROM orders WHERE store=%s ORDER BY completed, id DESC', (store,))
     rows = rows_to_dicts(c); release_db(conn); return rows
+
+def get_orders_authed(token, barcode=''):
+    """세션 확인 + 주문 조회를 커넥션 1개로 처리"""
+    if not token: return None, []
+    conn = data_db(); c = conn.cursor()
+    c.execute('''SELECT u.id, u.username, u.display_name, u.phone, u.store FROM sessions s
+                 JOIN users u ON u.id = s.user_id
+                 WHERE s.token=%s AND s.expires_at > %s''', (token, int(time.time())))
+    rows = c.fetchall()
+    if not rows: release_db(conn); return None, []
+    cols = [d[0] for d in c.description]
+    user = dict(zip(cols, rows[0]))
+    store = user['store']
+    if barcode:
+        c.execute('SELECT * FROM orders WHERE barcode=%s AND store=%s ORDER BY completed, id DESC', (barcode, store))
+    else:
+        c.execute('SELECT * FROM orders WHERE store=%s ORDER BY completed, id DESC', (store,))
+    orders = rows_to_dicts(c); release_db(conn)
+    return user, orders
 
 def add_order(data):
     conn = data_db(); c = conn.cursor()
@@ -849,8 +870,8 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_json({'ok': False, 'error': str(e)})
         elif parsed.path == '/api/orders':
-            user = verify_session(self.headers.get('X-Token',''))
-            self.send_json(get_orders(user['store'] if user else '', params.get('barcode',[''])[0]))
+            user, orders = get_orders_authed(self.headers.get('X-Token',''), params.get('barcode',[''])[0])
+            self.send_json(orders)
         elif parsed.path == '/api/search':
             products, total = search_products(
                 params.get('q',[''])[0], params.get('barcode',[''])[0],
