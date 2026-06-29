@@ -2335,7 +2335,7 @@ function renderOrderList(orders) {
         <div class="uc-row" style="opacity:0.55;font-size:12px;"><span class="uc-lbl">접수</span><span class="uc-val">${esc(o.receptionist||'—')}</span></div>
         <div class="uc-row"><span class="uc-lbl">담당</span><span class="uc-val">${esc(o.staff||'—')}</span></div>
       </div>
-      <div class="uc-text" style="margin-bottom:${o.note?'4px':'0'};${o.phone||o.customer?'cursor:pointer;':''}" onclick="${o.phone||o.customer ? 'filterByCustomer('+JSON.stringify(o.phone||o.customer)+')' : ''}">👤 ${o.customer ? esc(o.customer)+(o.phone?' · '+esc(o.phone):'') : '<span style="color:#bbb">고객정보 미입력</span>'}</div>
+      <div class="uc-text" style="margin-bottom:${o.note?'4px':'0'};${o.phone||o.customer?'cursor:pointer;':''}" ${o.phone||o.customer ? 'data-filter="'+esc(o.phone||o.customer)+'" onclick="filterByCustomer(this.dataset.filter)"' : ''}>👤 ${o.customer ? esc(o.customer)+(o.phone?' · '+esc(o.phone):'') : '<span style="color:#bbb">고객정보 미입력</span>'}</div>
       ${o.delivery==='발송' ? `<div class="uc-text" style="margin-bottom:${o.note?'4px':'0'};">📦 택배 발송${o.address?' · '+esc(o.address.replace('||',' ')):''}</div>` : ''}
       ${o.note ? `<div class="uc-note">📝 ${esc(o.note)}</div>` : ''}
       <hr class="uc-divider">
