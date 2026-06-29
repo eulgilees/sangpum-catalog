@@ -202,6 +202,7 @@ def init_tables():
         conn3 = data_db(); c3 = conn3.cursor()
         c3.execute("ALTER TABLE chat_rooms ADD COLUMN IF NOT EXISTS is_group BOOLEAN DEFAULT FALSE")
         c3.execute("ALTER TABLE chat_rooms ADD COLUMN IF NOT EXISTS group_name TEXT DEFAULT ''")
+        c3.execute("ALTER TABLE chat_rooms ADD COLUMN IF NOT EXISTS store_tag TEXT DEFAULT ''")
         conn3.commit(); conn3.close()
     except: pass
     conn.commit(); release_db(conn)
@@ -346,6 +347,24 @@ def get_or_create_dm_room(user_id1, user_id2):
     c.execute('INSERT INTO chat_room_members (room_id, user_id, last_read) VALUES (%s,%s,0),(%s,%s,0)',
               (rid, user_id1, rid, user_id2))
     conn.commit(); release_db(conn); return rid
+
+def get_or_create_system_room(store, room_type):
+    """점포별 시스템 그룹 채팅방(주문처리방/AS처리방) 찾거나 생성, 전 직원 자동 추가"""
+    conn = data_db(); c = conn.cursor()
+    tag = f"{store}::{room_type}"
+    c.execute("SELECT id FROM chat_rooms WHERE store_tag=%s LIMIT 1", (tag,))
+    row = c.fetchone()
+    if row:
+        room_id = row[0]
+    else:
+        c.execute("INSERT INTO chat_rooms (created_at, is_group, group_name, store_tag) VALUES (%s, TRUE, %s, %s) RETURNING id",
+                  (int(time.time()), room_type, tag))
+        room_id = c.fetchone()[0]
+    c.execute("SELECT id FROM users WHERE store=%s", (store,))
+    for (uid,) in c.fetchall():
+        c.execute("INSERT INTO chat_room_members (room_id, user_id, last_read) VALUES (%s,%s,0) ON CONFLICT DO NOTHING", (room_id, uid))
+    conn.commit(); release_db(conn)
+    return room_id
 
 def get_my_rooms(user_id):
     conn = data_db(); c = conn.cursor()
@@ -964,6 +983,13 @@ class Handler(BaseHTTPRequestHandler):
             user = login_user(body.get('username',''), body.get('password',''))
             if not user: self.send_json({'ok': False, 'error': '사번 또는 비밀번호가 틀렸습니다'}); return
             token = create_session(user['id'])
+            # 점포 시스템 채팅방에 자동 참가
+            if user.get('store'):
+                try:
+                    get_or_create_system_room(user['store'], '주문처리방')
+                    get_or_create_system_room(user['store'], 'AS처리방')
+                except Exception as e:
+                    print(f'시스템 방 참가 오류: {e}')
             self.send_json({'ok': True, 'token': token, 'user': user})
         elif self.path == '/api/auth/find-password':
             username = body.get('username','').strip()
@@ -1074,14 +1100,14 @@ class Handler(BaseHTTPRequestHandler):
             push_body = f"{body.get('name','상품명 미입력')}" + (f" · {body.get('customer','')}" if body.get('customer') else '')
             if staff_uid:
                 send_push_notification(push_title, push_body, staff_uid, 'order', '/?view=orders')
-                # 접수자→담당자 DM에 주문 카드 자동 발송
-                if user and user['id'] != staff_uid:
-                    try:
-                        room_id = get_or_create_dm_room(user['id'], staff_uid)
-                        card = f"[ORDER_CARD:{new_id}]{body.get('customer','고객명없음')} · {body.get('name','상품명없음')} ({body.get('qty',1)}개)"
-                        chat_send_message(room_id, user['id'], user.get('display_name','시스템'), card)
-                    except Exception as e:
-                        print(f'주문 채팅 자동발송 오류: {e}')
+            # 주문처리방에 카드 자동 발송 (전 직원이 볼 수 있음)
+            if store and user:
+                try:
+                    room_id = get_or_create_system_room(store, '주문처리방')
+                    card = f"[ORDER_CARD:{new_id}]{body.get('customer','고객명없음')} · {body.get('name','상품명없음')} ({body.get('qty',1)}개) · 담당:{body.get('staff','미지정')}"
+                    chat_send_message(room_id, user['id'], user.get('display_name','시스템'), card)
+                except Exception as e:
+                    print(f'주문 채팅 자동발송 오류: {e}')
             self.send_json({'ok': True, 'id': new_id})
         elif self.path == '/api/orders/update':
             update_order(body); self.send_json({'ok': True})
@@ -1100,14 +1126,14 @@ class Handler(BaseHTTPRequestHandler):
             push_body = f"{body.get('product_name','상품명 미입력')}" + (f" · {body.get('customer','')}" if body.get('customer') else '')
             if staff_uid:
                 send_push_notification(push_title, push_body, staff_uid, 'as', '/?view=as')
-                # 접수자→담당자 DM에 AS 카드 자동 발송
-                if user and user['id'] != staff_uid:
-                    try:
-                        room_id = get_or_create_dm_room(user['id'], staff_uid)
-                        card = f"[AS_CARD:{new_as_id}]{body.get('customer','고객명없음')} · {body.get('product_name','상품명없음')} AS 접수"
-                        chat_send_message(room_id, user['id'], user.get('display_name','시스템'), card)
-                    except Exception as e:
-                        print(f'AS 채팅 자동발송 오류: {e}')
+            # AS처리방에 카드 자동 발송 (전 직원이 볼 수 있음)
+            if store and user:
+                try:
+                    room_id = get_or_create_system_room(store, 'AS처리방')
+                    card = f"[AS_CARD:{new_as_id}]{body.get('customer','고객명없음')} · {body.get('product_name','상품명없음')} AS 접수 · 담당:{body.get('staff','미지정')}"
+                    chat_send_message(room_id, user['id'], user.get('display_name','시스템'), card)
+                except Exception as e:
+                    print(f'AS 채팅 자동발송 오류: {e}')
             self.send_json({'ok': True, 'id': new_as_id})
         elif self.path == '/api/as/update':
             update_as_request(body); self.send_json({'ok': True})
