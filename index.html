@@ -2179,7 +2179,7 @@ function selectToggle(type, idx, val) {
 function openOrderForm(barcode, name, order=null) {
   orderFormBarcode = barcode;
   orderFormId = order ? order.id : null;
-  document.getElementById('order-form-title').textContent = order ? '주문 수정' : '주문 등록';
+  document.getElementById('order-form-title').textContent = (order && order.id) ? '주문 수정' : '주문 등록';
   document.getElementById('of-name').value = order ? order.name : name;
   const bc = barcode || (order ? order.barcode : '') || '';
   setOrderBarcode(bc, !!bc);
@@ -2287,17 +2287,17 @@ function renderOrderList(orders) {
   const container = document.getElementById('order-list-container');
   if (!orders.length) { container.innerHTML = '<div class="order-empty">주문 내역이 없습니다</div>'; return; }
 
-  // 동일 고객 여러 주문 카운트 (전체 목록 기준)
+  // 동일 고객 여러 주문 카운트 — 전화번호가 있는 경우에만 체크
   const allOrders = window._orders || orders;
-  const customerCount = {};
+  const phoneCount = {};
   allOrders.forEach(o => {
-    const key = (o.phone||'').replace(/\D/g,'') || (o.customer||'').trim();
-    if (key) customerCount[key] = (customerCount[key]||0) + 1;
+    const ph = (o.phone||'').replace(/\D/g,'');
+    if (ph) phoneCount[ph] = (phoneCount[ph]||0) + 1;
   });
 
   container.innerHTML = orders.map(o => {
-    const cKey = (o.phone||'').replace(/\D/g,'') || (o.customer||'').trim();
-    const multiOrder = cKey && customerCount[cKey] > 1;
+    const ph = (o.phone||'').replace(/\D/g,'');
+    const multiOrder = ph && phoneCount[ph] > 1;
     return `
     <div class="order-list-item${o.completed ? ' completed' : ''}">
       <div class="uc-head">
