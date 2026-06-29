@@ -408,23 +408,19 @@ def chat_total_unread(user_id):
     row = c.fetchone(); release_db(conn)
     return int(row[0]) if row else 0
 
-_ORDERS_SQL = '''
-    (SELECT * FROM orders WHERE store=%s AND completed=0 ORDER BY id DESC)
-    UNION ALL
-    (SELECT * FROM orders WHERE store=%s AND completed=1 ORDER BY id DESC LIMIT 100)
-    ORDER BY completed, id DESC
-'''
-_ORDERS_BARCODE_SQL = '''
-    SELECT * FROM orders WHERE barcode=%s AND store=%s ORDER BY completed, id DESC
-'''
-
 def get_orders(store='', barcode=''):
     conn = data_db(); c = conn.cursor()
     if barcode:
-        c.execute(_ORDERS_BARCODE_SQL, (barcode, store))
+        c.execute('SELECT * FROM orders WHERE barcode=%s AND store=%s ORDER BY completed, id DESC', (barcode, store))
+        rows = rows_to_dicts(c)
     else:
-        c.execute(_ORDERS_SQL, (store, store))
-    rows = rows_to_dicts(c); release_db(conn); return rows
+        # 미완료 전부 + 완료 최근 100건을 Python에서 합산
+        c.execute('SELECT * FROM orders WHERE store=%s AND completed=0 ORDER BY id DESC', (store,))
+        active = rows_to_dicts(c)
+        c.execute('SELECT * FROM orders WHERE store=%s AND completed=1 ORDER BY id DESC LIMIT 100', (store,))
+        done = rows_to_dicts(c)
+        rows = active + done
+    release_db(conn); return rows
 
 def get_orders_authed(token, barcode=''):
     """세션 확인 + 주문 조회를 커넥션 1개로 처리, 죽은 커넥션이면 재연결"""
@@ -442,10 +438,15 @@ def get_orders_authed(token, barcode=''):
             user = dict(zip(cols, rows[0]))
             store = user['store']
             if barcode:
-                c.execute(_ORDERS_BARCODE_SQL, (barcode, store))
+                c.execute('SELECT * FROM orders WHERE barcode=%s AND store=%s ORDER BY completed, id DESC', (barcode, store))
+                orders = rows_to_dicts(c)
             else:
-                c.execute(_ORDERS_SQL, (store, store))
-            orders = rows_to_dicts(c); release_db(conn)
+                c.execute('SELECT * FROM orders WHERE store=%s AND completed=0 ORDER BY id DESC', (store,))
+                active = rows_to_dicts(c)
+                c.execute('SELECT * FROM orders WHERE store=%s AND completed=1 ORDER BY id DESC LIMIT 100', (store,))
+                done = rows_to_dicts(c)
+                orders = active + done
+            release_db(conn)
             return user, orders
         except Exception:
             try: conn.close()
