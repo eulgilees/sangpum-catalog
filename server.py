@@ -349,16 +349,22 @@ def get_or_create_dm_room(user_id1, user_id2):
     conn.commit(); release_db(conn); return rid
 
 def get_or_create_personal_notify_room(target_uid, room_type):
-    """담당자 개인 알림 전용 방(주문처리방/AS처리방) — 담당자만 멤버"""
+    """담당자 개인 알림 전용 방(주문처리방/AS처리방) — 담당자만 멤버 (store_tag 미사용)"""
     conn = data_db(); c = conn.cursor()
-    tag = f"user:{target_uid}:{room_type}"
-    c.execute("SELECT id FROM chat_rooms WHERE store_tag=%s LIMIT 1", (tag,))
+    # 담당자가 유일한 멤버인 group_name 일치 방 검색
+    c.execute('''
+        SELECT r.id FROM chat_rooms r
+        JOIN chat_room_members m ON m.room_id=r.id AND m.user_id=%s
+        WHERE r.is_group=TRUE AND r.group_name=%s
+        AND (SELECT COUNT(*) FROM chat_room_members WHERE room_id=r.id)=1
+        LIMIT 1
+    ''', (target_uid, room_type))
     row = c.fetchone()
     if row:
         room_id = row[0]
     else:
-        c.execute("INSERT INTO chat_rooms (created_at, is_group, group_name, store_tag) VALUES (%s, TRUE, %s, %s) RETURNING id",
-                  (int(time.time()), room_type, tag))
+        c.execute("INSERT INTO chat_rooms (created_at, is_group, group_name) VALUES (%s, TRUE, %s) RETURNING id",
+                  (int(time.time()), room_type))
         room_id = c.fetchone()[0]
         c.execute("INSERT INTO chat_room_members (room_id, user_id, last_read) VALUES (%s,%s,0) ON CONFLICT DO NOTHING",
                   (room_id, target_uid))
@@ -1099,7 +1105,9 @@ class Handler(BaseHTTPRequestHandler):
                     sender_id = user['id'] if user else staff_uid
                     card = f"[ORDER_CARD:{new_id}]{body.get('customer','고객명없음')} · {body.get('name','상품명없음')} ({body.get('qty',1)}개)"
                     chat_send_message(room_id, sender_id, sender_name, card)
+                    print(f'[CHAT] 주문처리방 카드 발송 완료: room={room_id} order={new_id} to uid={staff_uid}')
                 except Exception as e:
+                    import traceback; traceback.print_exc()
                     print(f'주문 채팅 자동발송 오류: {e}')
             self.send_json({'ok': True, 'id': new_id})
         elif self.path == '/api/orders/update':
