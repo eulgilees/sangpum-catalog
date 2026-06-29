@@ -2936,7 +2936,7 @@ function renderIssueCalendar() {
       return ds >= start && ds <= end;
     }).map(is => {
       const color = is.status==='종료' ? '#adb5bd' : (is.color || '#e03131');
-      return `<div class="issue-cal-bar" style="background:${color};" data-title="${esc(is.title)}"></div>`;
+      return `<div class="issue-cal-bar" style="background:${color};" data-title="${esc(is.title)}" onclick="openIssueDetail(${is.id})"></div>`;
     }).join('');
     html += `<div class="issue-cal-day${isToday ? ' today' : ''}"><div class="day-num">${d}</div>${bars}</div>`;
   }
