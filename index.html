@@ -3687,24 +3687,26 @@ async function chatSend() {
 }
 
 async function openOrderById(id) {
+  closeChat();
   await openOrderList();
   await loadOrderList();
+  await new Promise(r => setTimeout(r, 100));
   const el = document.getElementById(`order-item-${id}`);
   if (!el) { showToast('삭제된 주문입니다'); return; }
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   el.style.outline = '2px solid #185fa5';
-  el.style.transition = 'outline 0.3s';
   setTimeout(() => { el.style.outline = ''; }, 2500);
 }
 
 async function openAsById(id) {
+  closeChat();
   await openAsList();
   await loadAsList();
+  await new Promise(r => setTimeout(r, 100));
   const el = document.getElementById(`as-item-${id}`);
   if (!el) { showToast('삭제된 AS 접수건입니다'); return; }
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   el.style.outline = '2px solid #185fa5';
-  el.style.transition = 'outline 0.3s';
   setTimeout(() => { el.style.outline = ''; }, 2500);
 }
 
