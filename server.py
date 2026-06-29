@@ -423,6 +423,17 @@ def chat_send_message(room_id, user_id, display_name, content):
     return {'id': msg_id, 'room_id': room_id, 'user_id': user_id,
             'display_name': display_name, 'content': content, 'created_at': ts}
 
+def chat_system_message(room_id, display_name, content):
+    """last_read를 건드리지 않는 시스템 자동 발송 — 수신자 unread 카운트 유지"""
+    conn = data_db(); c = conn.cursor()
+    ts = int(time.time())
+    c.execute('''INSERT INTO chat_messages (room_id, user_id, display_name, content, created_at)
+                 VALUES (%s, 0, %s, %s, %s) RETURNING id''',
+              (room_id, display_name, content, ts))
+    msg_id = c.fetchone()[0]
+    conn.commit(); release_db(conn)
+    return msg_id
+
 def chat_mark_read(room_id, user_id):
     conn = data_db(); c = conn.cursor()
     c.execute('UPDATE chat_room_members SET last_read=%s WHERE room_id=%s AND user_id=%s',
@@ -1102,9 +1113,8 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     room_id = get_or_create_personal_notify_room(staff_uid, '주문처리방')
                     sender_name = user.get('display_name', '시스템') if user else '시스템'
-                    sender_id = user['id'] if user else staff_uid
                     card = f"[ORDER_CARD:{new_id}]{body.get('customer','고객명없음')} · {body.get('name','상품명없음')} ({body.get('qty',1)}개)"
-                    chat_send_message(room_id, sender_id, sender_name, card)
+                    chat_system_message(room_id, sender_name, card)
                     print(f'[CHAT] 주문처리방 카드 발송 완료: room={room_id} order={new_id} to uid={staff_uid}')
                 except Exception as e:
                     import traceback; traceback.print_exc()
@@ -1125,9 +1135,8 @@ class Handler(BaseHTTPRequestHandler):
                         send_push_notification('📦 주문 담당자 변경', f"{order_name}" + (f" · {customer}" if customer else ''), new_uid, 'order', '/?view=orders')
                         room_id = get_or_create_personal_notify_room(new_uid, '주문처리방')
                         sender_name = user.get('display_name','시스템') if user else '시스템'
-                        sender_id = user['id'] if user else new_uid
                         card = f"[ORDER_CARD:{body['id']}]{customer or '고객명없음'} · {order_name} ({qty}개) [담당자 변경]"
-                        chat_send_message(room_id, sender_id, sender_name, card)
+                        chat_system_message(room_id, sender_name, card)
             except Exception as e:
                 print(f'담당자 변경 알림 오류: {e}')
             update_order(body); self.send_json({'ok': True})
@@ -1150,9 +1159,8 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     room_id = get_or_create_personal_notify_room(staff_uid, 'AS처리방')
                     sender_name = user.get('display_name', '시스템') if user else '시스템'
-                    sender_id = user['id'] if user else staff_uid
                     card = f"[AS_CARD:{new_as_id}]{body.get('customer','고객명없음')} · {body.get('product_name','상품명없음')} AS 접수"
-                    chat_send_message(room_id, sender_id, sender_name, card)
+                    chat_system_message(room_id, sender_name, card)
                 except Exception as e:
                     print(f'AS 채팅 자동발송 오류: {e}')
             self.send_json({'ok': True, 'id': new_as_id})
@@ -1170,9 +1178,8 @@ class Handler(BaseHTTPRequestHandler):
                         send_push_notification('🔧 AS 담당자 변경', f"{product_name}" + (f" · {customer}" if customer else ''), new_uid, 'as', '/?view=as')
                         room_id = get_or_create_personal_notify_room(new_uid, 'AS처리방')
                         sender_name = user.get('display_name','시스템') if user else '시스템'
-                        sender_id = user['id'] if user else new_uid
                         card = f"[AS_CARD:{body['id']}]{customer or '고객명없음'} · {product_name} AS 접수 [담당자 변경]"
-                        chat_send_message(room_id, sender_id, sender_name, card)
+                        chat_system_message(room_id, sender_name, card)
             except Exception as e:
                 print(f'AS 담당자 변경 알림 오류: {e}')
             update_as_request(body); self.send_json({'ok': True})
