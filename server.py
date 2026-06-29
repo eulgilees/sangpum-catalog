@@ -1050,8 +1050,6 @@ class Handler(BaseHTTPRequestHandler):
                         chat_send_message(room_id, user['id'], user.get('display_name','시스템'), card)
                     except Exception as e:
                         print(f'주문 채팅 자동발송 오류: {e}')
-            else:
-                send_push_notification(push_title, push_body, tag='order', url='/?view=orders')
             self.send_json({'ok': True, 'id': new_id})
         elif self.path == '/api/orders/update':
             update_order(body); self.send_json({'ok': True})
@@ -1078,8 +1076,6 @@ class Handler(BaseHTTPRequestHandler):
                         chat_send_message(room_id, user['id'], user.get('display_name','시스템'), card)
                     except Exception as e:
                         print(f'AS 채팅 자동발송 오류: {e}')
-            else:
-                send_push_notification(push_title, push_body, tag='as', url='/?view=as')
             self.send_json({'ok': True, 'id': new_as_id})
         elif self.path == '/api/as/update':
             update_as_request(body); self.send_json({'ok': True})
