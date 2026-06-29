@@ -46,23 +46,11 @@ def _new_conn():
     ctx.verify_mode = ssl.CERT_NONE
     return pg.connect(host=host, port=port, database=database, user=user, password=password, ssl_context=ctx)
 
-def _is_alive(conn):
-    try:
-        conn.run('SELECT 1')
-        return True
-    except Exception:
-        return False
-
 def data_db():
-    while True:
-        with _pool_lock:
-            if not _pool:
-                break
-            conn = _pool.pop()
-        if _is_alive(conn):
-            return conn
-        try: conn.close()
-        except Exception: pass
+    """풀에서 커넥션 꺼냄 — 헬스체크 없이 즉시 반환, 죽은 커넥션은 쿼리 실패 시 처리"""
+    with _pool_lock:
+        if _pool:
+            return _pool.pop()
     return _new_conn()
 
 def release_db(conn):
@@ -429,23 +417,31 @@ def get_orders(store='', barcode=''):
     rows = rows_to_dicts(c); release_db(conn); return rows
 
 def get_orders_authed(token, barcode=''):
-    """세션 확인 + 주문 조회를 커넥션 1개로 처리"""
+    """세션 확인 + 주문 조회를 커넥션 1개로 처리, 죽은 커넥션이면 재연결"""
     if not token: return None, []
-    conn = data_db(); c = conn.cursor()
-    c.execute('''SELECT u.id, u.username, u.display_name, u.phone, u.store FROM sessions s
-                 JOIN users u ON u.id = s.user_id
-                 WHERE s.token=%s AND s.expires_at > %s''', (token, int(time.time())))
-    rows = c.fetchall()
-    if not rows: release_db(conn); return None, []
-    cols = [d[0] for d in c.description]
-    user = dict(zip(cols, rows[0]))
-    store = user['store']
-    if barcode:
-        c.execute('SELECT * FROM orders WHERE barcode=%s AND store=%s ORDER BY completed, id DESC', (barcode, store))
-    else:
-        c.execute('SELECT * FROM orders WHERE store=%s ORDER BY completed, id DESC', (store,))
-    orders = rows_to_dicts(c); release_db(conn)
-    return user, orders
+    for attempt in range(2):
+        conn = data_db() if attempt == 0 else _new_conn()
+        try:
+            c = conn.cursor()
+            c.execute('''SELECT u.id, u.username, u.display_name, u.phone, u.store FROM sessions s
+                         JOIN users u ON u.id = s.user_id
+                         WHERE s.token=%s AND s.expires_at > %s''', (token, int(time.time())))
+            rows = c.fetchall()
+            if not rows: release_db(conn); return None, []
+            cols = [d[0] for d in c.description]
+            user = dict(zip(cols, rows[0]))
+            store = user['store']
+            if barcode:
+                c.execute('SELECT * FROM orders WHERE barcode=%s AND store=%s ORDER BY completed, id DESC', (barcode, store))
+            else:
+                c.execute('SELECT * FROM orders WHERE store=%s ORDER BY completed, id DESC', (store,))
+            orders = rows_to_dicts(c); release_db(conn)
+            return user, orders
+        except Exception:
+            try: conn.close()
+            except Exception: pass
+            if attempt == 1: return None, []
+    return None, []
 
 def add_order(data):
     conn = data_db(); c = conn.cursor()
@@ -661,12 +657,20 @@ def create_session(user_id):
 
 def verify_session(token):
     if not token: return None
-    conn = data_db(); c = conn.cursor()
-    c.execute('''SELECT u.id, u.username, u.display_name, u.phone, u.store FROM sessions s
-                 JOIN users u ON u.id = s.user_id
-                 WHERE s.token=%s AND s.expires_at > %s''', (token, int(time.time())))
-    rows = rows_to_dicts(c); release_db(conn)
-    return rows[0] if rows else None
+    for attempt in range(2):
+        conn = data_db() if attempt == 0 else _new_conn()
+        try:
+            c = conn.cursor()
+            c.execute('''SELECT u.id, u.username, u.display_name, u.phone, u.store FROM sessions s
+                         JOIN users u ON u.id = s.user_id
+                         WHERE s.token=%s AND s.expires_at > %s''', (token, int(time.time())))
+            rows = rows_to_dicts(c); release_db(conn)
+            return rows[0] if rows else None
+        except Exception:
+            try: conn.close()
+            except Exception: pass
+            if attempt == 1: return None
+    return None
 
 def update_profile(user_id, display_name, phone, store, new_password=None):
     conn = data_db(); c = conn.cursor()
