@@ -2949,6 +2949,14 @@ function isStandaloneMode() {
 }
 
 navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', e => {
+  if (e.data && e.data.type === 'OPEN_ORDERS') {
+    openOrderList();
+    return;
+  }
+  if (e.data && e.data.type === 'OPEN_AS') {
+    openAsList();
+    return;
+  }
   if (e.data && e.data.type === 'OPEN_CHAT_ROOM') {
     const roomId = e.data.roomId;
     const token = localStorage.getItem('authToken') || '';

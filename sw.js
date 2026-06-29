@@ -34,12 +34,16 @@ self.addEventListener('notificationclick', e => {
   const url = (e.notification.data && e.notification.data.url) || '/';
   const roomMatch = url.match(/[?&]room=(\d+)/);
   const roomId = roomMatch ? roomMatch[1] : null;
+  const viewMatch = url.match(/[?&]view=(\w+)/);
+  const view = viewMatch ? viewMatch[1] : null;
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       const existing = list.find(c => c.url.includes(self.location.origin));
       if (existing) {
         existing.focus();
         if (roomId) existing.postMessage({ type: 'OPEN_CHAT_ROOM', roomId });
+        else if (view === 'orders') existing.postMessage({ type: 'OPEN_ORDERS' });
+        else if (view === 'as') existing.postMessage({ type: 'OPEN_AS' });
         return;
       }
       return clients.openWindow(url);

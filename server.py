@@ -275,6 +275,13 @@ def get_subscriptions(user_id=None):
         c.execute('SELECT * FROM push_subscriptions WHERE user_id IS NOT NULL')
     rows = rows_to_dicts(c); release_db(conn); return rows
 
+def get_user_id_by_name(display_name, store):
+    if not display_name: return None
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT id FROM users WHERE display_name=%s AND store=%s LIMIT 1', (display_name, store))
+    row = c.fetchone(); release_db(conn)
+    return row[0] if row else None
+
 def send_push_notification(title, body, target_user_id=None, tag='sangpum', url='/'):
     if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
         print('VAPID 키 없음'); return
@@ -1026,11 +1033,17 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'ok': True})
         elif self.path == '/api/orders':
             user = verify_session(self.headers.get('X-Token',''))
-            body['store'] = user['store'] if user else ''
+            store = user['store'] if user else ''
+            body['store'] = store
             new_id = add_order(body)
-            send_push_notification('새 고객 주문',
-                f"{body.get('name','')}{' · '+body.get('customer','') if body.get('customer') else ''}",
-                tag='order')
+            staff_name = body.get('staff','')
+            staff_uid = get_user_id_by_name(staff_name, store) if staff_name and store else None
+            push_title = '📦 새 주문 접수'
+            push_body = f"{body.get('name','상품명 미입력')}" + (f" · {body.get('customer','')}" if body.get('customer') else '')
+            if staff_uid:
+                send_push_notification(push_title, push_body, staff_uid, 'order', '/?view=orders')
+            else:
+                send_push_notification(push_title, push_body, tag='order', url='/?view=orders')
             self.send_json({'ok': True, 'id': new_id})
         elif self.path == '/api/orders/update':
             update_order(body); self.send_json({'ok': True})
@@ -1040,8 +1053,18 @@ class Handler(BaseHTTPRequestHandler):
             toggle_complete(body['id']); self.send_json({'ok': True})
         elif self.path == '/api/as':
             user = verify_session(self.headers.get('X-Token',''))
-            body['store'] = user['store'] if user else ''
-            self.send_json({'ok': True, 'id': add_as_request(body)})
+            store = user['store'] if user else ''
+            body['store'] = store
+            new_as_id = add_as_request(body)
+            staff_name = body.get('staff','')
+            staff_uid = get_user_id_by_name(staff_name, store) if staff_name and store else None
+            push_title = '🔧 새 AS 접수'
+            push_body = f"{body.get('product_name','상품명 미입력')}" + (f" · {body.get('customer','')}" if body.get('customer') else '')
+            if staff_uid:
+                send_push_notification(push_title, push_body, staff_uid, 'as', '/?view=as')
+            else:
+                send_push_notification(push_title, push_body, tag='as', url='/?view=as')
+            self.send_json({'ok': True, 'id': new_as_id})
         elif self.path == '/api/as/update':
             update_as_request(body); self.send_json({'ok': True})
         elif self.path == '/api/as/status':
