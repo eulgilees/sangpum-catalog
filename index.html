@@ -2290,17 +2290,18 @@ function renderOrderList(orders) {
   const container = document.getElementById('order-list-container');
   if (!orders.length) { container.innerHTML = '<div class="order-empty">주문 내역이 없습니다</div>'; return; }
 
-  // 동일 고객 여러 주문 카운트 — 전화번호가 있는 경우에만 체크
+  // 미완료 주문만 기준으로 다중 주문 카운트 (완료된 건은 제외)
   const allOrders = window._orders || orders;
   const phoneCount = {};
   allOrders.forEach(o => {
+    if (o.completed) return;
     const ph = (o.phone||'').replace(/\D/g,'');
     if (ph) phoneCount[ph] = (phoneCount[ph]||0) + 1;
   });
 
   container.innerHTML = orders.map(o => {
     const ph = (o.phone||'').replace(/\D/g,'');
-    const multiOrder = ph && phoneCount[ph] > 1;
+    const multiOrder = !o.completed && ph && phoneCount[ph] > 1;
     return `
     <div class="order-list-item${o.completed ? ' completed' : ''}">
       <div class="uc-head">
@@ -2325,11 +2326,11 @@ function renderOrderList(orders) {
       <div class="order-item-actions">
         ${!o.completed ? `<button class="order-edit-btn" onclick="editOrder(${o.id})">수정</button>` : ''}
         <button class="order-edit-btn" style="background:#f0f5ff;color:#185fa5;border-color:#c8dcf5;" onclick="copyOrder(${o.id})">복사</button>
-        ${o.phone ? '<a class="order-edit-btn" style="background:#f0fff4;color:#1a7a4a;border-color:#b2dfcb;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" href="' + smsHref(o.phone) + '">📨 문자</a>' : ''}
         <button class="order-del-btn" onclick="deleteOrder(${o.id})">삭제</button>
         ${o.completed
           ? `<button class="order-undo-btn" onclick="toggleComplete(${o.id})">처리 취소</button>`
           : `<button class="order-complete-btn" onclick="toggleComplete(${o.id})">처리 완료</button>`}
+        ${o.phone ? '<a class="order-edit-btn" style="background:#f0fff4;color:#1a7a4a;border-color:#b2dfcb;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" href="' + smsHref(o.phone) + '">📨 문자</a>' : ''}
       </div>
     </div>
   `}).join('');
