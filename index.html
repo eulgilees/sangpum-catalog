@@ -3630,15 +3630,36 @@ async function chatSend() {
   startChatPoll();
 }
 
+function parseChatCard(content) {
+  const orderMatch = content.match(/^\[ORDER_CARD:(\d+)\](.*)/s);
+  if (orderMatch) return { type: 'order', id: orderMatch[1], text: orderMatch[2].trim() };
+  const asMatch = content.match(/^\[AS_CARD:(\d+)\](.*)/s);
+  if (asMatch) return { type: 'as', id: asMatch[1], text: asMatch[2].trim() };
+  return null;
+}
+
 function createChatBubbleEl(m) {
   const mine = m.user_id === currentUser?.id;
   const timeStr = formatChatTime(m.created_at);
+  const card = parseChatCard(m.content);
   const div = document.createElement('div');
   div.style.cssText = `display:flex;flex-direction:column;align-items:${mine?'flex-end':'flex-start'};gap:2px;width:100%;`;
+  let bubble;
+  if (card) {
+    const icon = card.type === 'order' ? '📦' : '🔧';
+    const label = card.type === 'order' ? '주문 보기' : 'AS 보기';
+    const action = card.type === 'order' ? 'openOrderList()' : 'openAsList()';
+    bubble = `<div onclick="${action}" style="cursor:pointer;max-width:min(70%,calc(100% - 60px));background:#fff;border:2px solid #185fa5;border-radius:${mine?'16px 4px 16px 16px':'4px 16px 16px 16px'};padding:12px 14px;font-size:14px;line-height:1.5;word-break:break-word;overflow-wrap:anywhere;box-shadow:0 1px 4px rgba(0,0,0,0.10);">
+      <div style="font-size:12px;color:#185fa5;font-weight:700;margin-bottom:4px;">${icon} ${label} →</div>
+      <div style="color:#222;">${escHtml(card.text)}</div>
+    </div>`;
+  } else {
+    bubble = `<div style="max-width:min(70%,calc(100% - 60px));background:${mine?'#185fa5':'#fff'};color:${mine?'#fff':'#222'};border-radius:${mine?'16px 4px 16px 16px':'4px 16px 16px 16px'};padding:10px 14px;font-size:14px;line-height:1.5;word-break:break-word;overflow-wrap:anywhere;white-space:pre-wrap;box-shadow:0 1px 4px rgba(0,0,0,0.08);">${escHtml(m.content)}</div>`;
+  }
   div.innerHTML = `
     ${(!mine && (chatIsGroup || m.display_name)) ? `<div style="font-size:14px;color:#aaa;padding:0 4px;">${m.display_name}</div>` : ''}
     <div style="display:flex;align-items:flex-end;gap:6px;flex-direction:${mine?'row-reverse':'row'};width:100%;min-width:0;">
-      <div style="max-width:min(70%,calc(100% - 60px));background:${mine?'#185fa5':'#fff'};color:${mine?'#fff':'#222'};border-radius:${mine?'16px 4px 16px 16px':'4px 16px 16px 16px'};padding:10px 14px;font-size:14px;line-height:1.5;word-break:break-word;overflow-wrap:anywhere;white-space:pre-wrap;box-shadow:0 1px 4px rgba(0,0,0,0.08);">${escHtml(m.content)}</div>
+      ${bubble}
       <div style="font-size:14px;color:#bbb;white-space:nowrap;flex-shrink:0;">${timeStr}</div>
     </div>`;
   return div;

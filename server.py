@@ -1042,6 +1042,14 @@ class Handler(BaseHTTPRequestHandler):
             push_body = f"{body.get('name','상품명 미입력')}" + (f" · {body.get('customer','')}" if body.get('customer') else '')
             if staff_uid:
                 send_push_notification(push_title, push_body, staff_uid, 'order', '/?view=orders')
+                # 접수자→담당자 DM에 주문 카드 자동 발송
+                if user and user['id'] != staff_uid:
+                    try:
+                        room_id = get_or_create_dm_room(user['id'], staff_uid)
+                        card = f"[ORDER_CARD:{new_id}]{body.get('customer','고객명없음')} · {body.get('name','상품명없음')} ({body.get('qty',1)}개)"
+                        chat_send_message(room_id, user['id'], user.get('display_name','시스템'), card)
+                    except Exception as e:
+                        print(f'주문 채팅 자동발송 오류: {e}')
             else:
                 send_push_notification(push_title, push_body, tag='order', url='/?view=orders')
             self.send_json({'ok': True, 'id': new_id})
@@ -1062,6 +1070,14 @@ class Handler(BaseHTTPRequestHandler):
             push_body = f"{body.get('product_name','상품명 미입력')}" + (f" · {body.get('customer','')}" if body.get('customer') else '')
             if staff_uid:
                 send_push_notification(push_title, push_body, staff_uid, 'as', '/?view=as')
+                # 접수자→담당자 DM에 AS 카드 자동 발송
+                if user and user['id'] != staff_uid:
+                    try:
+                        room_id = get_or_create_dm_room(user['id'], staff_uid)
+                        card = f"[AS_CARD:{new_as_id}]{body.get('customer','고객명없음')} · {body.get('product_name','상품명없음')} AS 접수"
+                        chat_send_message(room_id, user['id'], user.get('display_name','시스템'), card)
+                    except Exception as e:
+                        print(f'AS 채팅 자동발송 오류: {e}')
             else:
                 send_push_notification(push_title, push_body, tag='as', url='/?view=as')
             self.send_json({'ok': True, 'id': new_as_id})
