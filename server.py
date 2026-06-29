@@ -1103,6 +1103,25 @@ class Handler(BaseHTTPRequestHandler):
                     print(f'주문 채팅 자동발송 오류: {e}')
             self.send_json({'ok': True, 'id': new_id})
         elif self.path == '/api/orders/update':
+            user = verify_session(self.headers.get('X-Token',''))
+            # 담당자 변경 여부 확인 후 재발송
+            try:
+                conn = data_db(); c = conn.cursor()
+                c.execute('SELECT staff, store, name, customer, qty FROM orders WHERE id=%s', (body['id'],))
+                prev = c.fetchone(); release_db(conn)
+                new_staff = body.get('staff','')
+                if prev and prev[0] != new_staff and new_staff:
+                    store = prev[1]; order_name = prev[2]; customer = prev[3]; qty = prev[4]
+                    new_uid = get_user_id_by_name(new_staff, store)
+                    if new_uid:
+                        send_push_notification('📦 주문 담당자 변경', f"{order_name}" + (f" · {customer}" if customer else ''), new_uid, 'order', '/?view=orders')
+                        room_id = get_or_create_personal_notify_room(new_uid, '주문처리방')
+                        sender_name = user.get('display_name','시스템') if user else '시스템'
+                        sender_id = user['id'] if user else new_uid
+                        card = f"[ORDER_CARD:{body['id']}]{customer or '고객명없음'} · {order_name} ({qty}개) [담당자 변경]"
+                        chat_send_message(room_id, sender_id, sender_name, card)
+            except Exception as e:
+                print(f'담당자 변경 알림 오류: {e}')
             update_order(body); self.send_json({'ok': True})
         elif self.path == '/api/orders/delete':
             delete_order(body['id']); self.send_json({'ok': True})
@@ -1130,6 +1149,24 @@ class Handler(BaseHTTPRequestHandler):
                     print(f'AS 채팅 자동발송 오류: {e}')
             self.send_json({'ok': True, 'id': new_as_id})
         elif self.path == '/api/as/update':
+            user = verify_session(self.headers.get('X-Token',''))
+            try:
+                conn = data_db(); c = conn.cursor()
+                c.execute('SELECT staff, store, product_name, customer FROM as_requests WHERE id=%s', (body['id'],))
+                prev = c.fetchone(); release_db(conn)
+                new_staff = body.get('staff','')
+                if prev and prev[0] != new_staff and new_staff:
+                    store = prev[1]; product_name = prev[2]; customer = prev[3]
+                    new_uid = get_user_id_by_name(new_staff, store)
+                    if new_uid:
+                        send_push_notification('🔧 AS 담당자 변경', f"{product_name}" + (f" · {customer}" if customer else ''), new_uid, 'as', '/?view=as')
+                        room_id = get_or_create_personal_notify_room(new_uid, 'AS처리방')
+                        sender_name = user.get('display_name','시스템') if user else '시스템'
+                        sender_id = user['id'] if user else new_uid
+                        card = f"[AS_CARD:{body['id']}]{customer or '고객명없음'} · {product_name} AS 접수 [담당자 변경]"
+                        chat_send_message(room_id, sender_id, sender_name, card)
+            except Exception as e:
+                print(f'AS 담당자 변경 알림 오류: {e}')
             update_as_request(body); self.send_json({'ok': True})
         elif self.path == '/api/as/status':
             set_as_status(body['id'], body['status']); self.send_json({'ok': True})
