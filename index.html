@@ -1520,14 +1520,17 @@ function getScheduleDayName(dateStr) {
 function renderScheduleList() {
   const el = document.getElementById('schedule-list-view');
   if (!scheduleData.length) { el.innerHTML = '<div style="text-align:center;color:#aaa;padding:30px;">일정 없음</div>'; return; }
+  const now = new Date();
+  const todayStr = `${now.getMonth()+1}월 ${now.getDate()}일`;
   el.innerHTML = scheduleData.map(d => {
     const dayName = getScheduleDayName(d.date);
     const isSun = dayName === '일', isSat = dayName === '토';
     const dayColor = isSun ? '#e03131' : isSat ? '#185fa5' : '#888';
+    const isToday = d.date.replace(/\s/g,'').includes(todayStr.replace(/\s/g,''));
     return `
-    <div style="border:1px solid #e8e8e4;border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+    <div ${isToday ? 'id="schedule-today"' : ''} style="border:${isToday ? '4px solid #185fa5' : '1px solid #e8e8e4'};border-radius:10px;padding:12px 14px;margin-bottom:10px;">
       <div style="font-weight:700;font-size:14px;color:#222;margin-bottom:8px;">
-        ${d.date} <span style="font-size:14px;font-weight:600;color:${dayColor};">(${dayName})</span>
+        ${d.date} <span style="font-size:14px;font-weight:600;color:${dayColor};">(${dayName})</span>${isToday ? ' <span style="font-size:12px;background:#185fa5;color:#fff;border-radius:4px;padding:1px 6px;">오늘</span>' : ''}
       </div>
       <div style="display:flex;flex-direction:column;gap:5px;font-size:14px;">
         <div style="display:flex;gap:8px;align-items:baseline;">
@@ -1545,6 +1548,9 @@ function renderScheduleList() {
       </div>
     </div>`;
   }).join('');
+  // 오늘 날짜로 자동 스크롤
+  const todayEl = document.getElementById('schedule-today');
+  if (todayEl) setTimeout(() => todayEl.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
 }
 
 function renderScheduleCal() {
