@@ -585,6 +585,10 @@
       <input class="order-input" id="of-address-detail" placeholder="상세주소 입력 (동/호수 등)">
     </div>
     <div class="order-field">
+      <div class="order-label">접수자</div>
+      <input class="order-input" id="of-receptionist" placeholder="접수자 이름">
+    </div>
+    <div class="order-field">
       <div class="order-label">담당자</div>
       <input class="order-input" id="of-staff" placeholder="담당자 이름">
     </div>
@@ -1549,7 +1553,10 @@ function renderScheduleCal() {
   const filter = filterInput ? filterInput.value.trim() : '';
   const days = ['일','월','화','수','목','금','토'];
   const dayMap = {};
-  scheduleData.forEach(d => {
+  scheduleData.filter(d => {
+    const m = d.date.match(/(\d+)월/);
+    return m && parseInt(m[1]) === scheduleMonth;
+  }).forEach(d => {
     const m = d.date.match(/(\d+)월\s*(\d+)일/);
     if (m) dayMap[parseInt(m[2])] = d;
   });
@@ -1589,7 +1596,10 @@ function renderScheduleCal() {
 
 function showScheduleDay(day) {
   const dayMap = {};
-  scheduleData.forEach(d => {
+  scheduleData.filter(d => {
+    const m = d.date.match(/(\d+)월/);
+    return m && parseInt(m[1]) === scheduleMonth;
+  }).forEach(d => {
     const m = d.date.match(/(\d+)월\s*(\d+)일/);
     if (m) dayMap[parseInt(m[2])] = d;
   });
@@ -2183,6 +2193,7 @@ function openOrderForm(barcode, name, order=null) {
   const addrParts = (order && order.address) ? order.address.split('||') : ['',''];
   document.getElementById('of-address').value = addrParts[0] || '';
   document.getElementById('of-address-detail').value = addrParts[1] || '';
+  document.getElementById('of-receptionist').value = order ? (order.receptionist||'') : '';
   document.getElementById('of-staff').value = order ? order.staff : '';
   document.getElementById('of-note').value = order ? order.note : '';
   selectToggle('pay', order && order.payment==='완불' ? 1 : 0, order ? order.payment : '미불');
@@ -2210,17 +2221,18 @@ async function submitOrder() {
   const addrBase = document.getElementById('of-address').value.trim();
   const addrDetail = document.getElementById('of-address-detail').value.trim();
   const address = addrBase ? (addrDetail ? addrBase + '||' + addrDetail : addrBase) : '';
+  const receptionist = document.getElementById('of-receptionist').value.trim();
   const staff = document.getElementById('of-staff').value.trim();
   const note = document.getElementById('of-note').value.trim();
   const d = new Date(); const created_at = `${String(d.getFullYear()).slice(2)}.${d.getMonth()+1}.${d.getDate()}`;
   const barcode = document.getElementById('of-barcode').value.trim() || orderFormBarcode;
   if (orderFormId) {
     await fetch('/api/orders/update', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ id:orderFormId, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, customer, phone, delivery:orderDeliveryVal, address, staff, note }) });
+      body: JSON.stringify({ id:orderFormId, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, customer, phone, delivery:orderDeliveryVal, address, receptionist, staff, note }) });
   } else {
     const name = document.getElementById('of-name').value;
     await fetch('/api/orders', { method:'POST', headers:{'Content-Type':'application/json','X-Token':localStorage.getItem('authToken')||''},
-      body: JSON.stringify({ barcode, name, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, customer, phone, delivery:orderDeliveryVal, address, staff, note, created_at }) });
+      body: JSON.stringify({ barcode, name, qty, order_date, payment:orderPayVal, ordered:orderOrdVal, pickup_date, customer, phone, delivery:orderDeliveryVal, address, receptionist, staff, note, created_at }) });
   }
   _orderSubmitting = false;
   closeOrderForm();
@@ -2259,7 +2271,7 @@ function filterOrders() {
   }
   if (!q) { renderOrderList(list); return; }
   renderOrderList(list.filter(o =>
-    [o.name, o.customer, o.phone, o.barcode, o.staff, o.note, o.address]
+    [o.name, o.customer, o.phone, o.barcode, o.receptionist, o.staff, o.note, o.address]
       .some(v => v && v.toLowerCase().replace(/ /g,'').includes(q))
   ));
 }
@@ -2287,6 +2299,7 @@ function renderOrderList(orders) {
         <div class="uc-row"><span class="uc-lbl">주문일</span><span class="uc-val">${o.order_date||'—'}</span></div>
         <div class="uc-row"><span class="uc-lbl">수령희망일</span><span class="uc-val ${o.pickup_date?'hi':'muted'}">${o.pickup_date||'미정'}</span></div>
         <div class="uc-row"><span class="uc-lbl">수량</span><span class="uc-val">${esc(String(o.qty))}부</span></div>
+        <div class="uc-row"><span class="uc-lbl">접수</span><span class="uc-val">${esc(o.receptionist||'—')}</span></div>
         <div class="uc-row"><span class="uc-lbl">담당</span><span class="uc-val">${esc(o.staff||'—')}</span></div>
       </div>
       <div class="uc-text" style="margin-bottom:${o.note?'4px':'0'};">👤 ${o.customer ? esc(o.customer)+(o.phone?' · '+esc(o.phone):'') : '<span style="color:#bbb">고객정보 미입력</span>'}</div>
