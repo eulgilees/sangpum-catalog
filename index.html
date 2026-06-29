@@ -2306,7 +2306,7 @@ function renderOrderList(orders) {
       <div class="uc-head">
         <div class="order-item-name">${o.completed ? '✓ ' : ''}${esc(o.name)}</div>
         <div class="uc-badges">
-          ${multiOrder ? `<span class="order-badge" style="background:#fff3cd;color:#856404;border:1px solid #ffc107;">주문 ${customerCount[cKey]}건</span>` : ''}
+          ${multiOrder ? `<span class="order-badge" style="background:#fff3cd;color:#856404;border:1px solid #ffc107;">주문 ${phoneCount[ph]}건</span>` : ''}
           <span class="order-badge ${o.payment==='완불'?'badge-paid':'badge-unpaid'}">${esc(o.payment)}</span>
           <span class="order-badge ${o.ordered==='완료'?'badge-done':'badge-pending'}">발주 ${esc(o.ordered)}</span>
         </div>
