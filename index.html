@@ -3170,7 +3170,7 @@ function loadIssueList_render(issues) {
   if (!issues.length) { container.innerHTML = '<div class="order-empty">이슈사항이 없습니다</div>'; return; }
   const sorted = [...issues].sort((a, b) => (a.status==='종료') - (b.status==='종료'));
   container.innerHTML = sorted.map(is => `
-    <div class="order-list-item${is.status==='종료' ? ' completed' : ''}" onclick="openIssueDetail(${is.id})" style="cursor:pointer;">
+    <div id="issue-item-${is.id}" class="order-list-item${is.status==='종료' ? ' completed' : ''}" onclick="openIssueDetail(${is.id})" style="cursor:pointer;">
       <div class="uc-head">
         <div class="order-item-name">${esc(is.title)}</div>
         <span class="order-badge ${is.status==='종료'?'badge-done':'badge-pending'}">${esc(is.status)}</span>
@@ -3221,8 +3221,9 @@ async function setIssueStatus(id, status) {
 
 async function deleteIssue(id) {
   if (!confirm('이슈를 삭제할까요?')) return;
-  await fetch('/api/issues/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id})});
-  loadIssueList();
+  const el = document.getElementById('issue-item-' + id);
+  if (el) el.remove();
+  fetch('/api/issues/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id})});
 }
 
 let _issueCalYear, _issueCalMonth;
