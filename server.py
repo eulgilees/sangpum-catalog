@@ -33,6 +33,26 @@ _pool = []
 _pool_lock = threading.Lock()
 _pool_max = 5
 
+# ── 채팅 롱폴링 이벤트 ──
+_room_events = {}        # room_id -> [threading.Event, ...]
+_room_events_lock = threading.Lock()
+
+def _notify_room(room_id):
+    with _room_events_lock:
+        for ev in _room_events.get(room_id, []):
+            ev.set()
+
+def _wait_room(room_id, timeout=20):
+    ev = threading.Event()
+    with _room_events_lock:
+        _room_events.setdefault(room_id, []).append(ev)
+    try:
+        ev.wait(timeout=timeout)
+    finally:
+        with _room_events_lock:
+            lst = _room_events.get(room_id, [])
+            if ev in lst: lst.remove(ev)
+
 def _new_conn():
     import pg8000.dbapi as pg
     url = PG_URL if PG_URL.startswith('postgresql') else ''
@@ -430,6 +450,7 @@ def chat_send_message(room_id, user_id, display_name, content):
     c.execute('UPDATE chat_room_members SET last_read=%s WHERE room_id=%s AND user_id=%s',
               (ts, room_id, user_id))
     conn.commit(); release_db(conn)
+    _notify_room(room_id)
     return {'id': msg_id, 'room_id': room_id, 'user_id': user_id,
             'display_name': display_name, 'content': content, 'created_at': ts}
 
@@ -442,6 +463,7 @@ def chat_system_message(room_id, display_name, content):
               (room_id, display_name, content, ts))
     msg_id = c.fetchone()[0]
     conn.commit(); release_db(conn)
+    _notify_room(room_id)
     return msg_id
 
 def chat_mark_read(room_id, user_id):
@@ -956,12 +978,23 @@ class Handler(BaseHTTPRequestHandler):
                                  ORDER BY id DESC LIMIT %s''', (room_id, after, limit))
                     msgs = list(reversed(rows_to_dicts(c)))
                     has_more = after == 0 and len(msgs) == limit
-                c.execute('UPDATE chat_room_members SET last_read=%s WHERE room_id=%s AND user_id=%s',
-                          (int(time.time()), room_id, user['id']))
-                conn.commit()
+                    # 롱폴링: after>0이고 새 메시지 없으면 최대 20초 대기
+                    if after > 0 and not msgs:
+                        release_db(conn); conn = None
+                        _wait_room(room_id, timeout=20)
+                        conn = data_db(); c = conn.cursor()
+                        c.execute('''SELECT id, user_id, display_name, content, created_at
+                                     FROM chat_messages WHERE room_id=%s AND id>%s
+                                     ORDER BY id DESC LIMIT %s''', (room_id, after, limit))
+                        msgs = list(reversed(rows_to_dicts(c)))
+                        has_more = False
+                if conn:
+                    c.execute('UPDATE chat_room_members SET last_read=%s WHERE room_id=%s AND user_id=%s',
+                              (int(time.time()), room_id, user['id']))
+                    conn.commit()
                 self.send_json({'ok': True, 'messages': msgs, 'has_more': has_more})
             finally:
-                release_db(conn)
+                if conn: release_db(conn)
         elif parsed.path == '/api/schedule':
             try:
                 user = verify_session(self.headers.get('X-Token',''))

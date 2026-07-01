@@ -3689,7 +3689,12 @@ async function loadChatMessages(initial = false) {
   const token = localStorage.getItem('authToken');
   const roomId = chatRoomId; // fetch 시작 시점의 방 ID 고정
   const after = initial ? 0 : chatLastMsgId;
-  const res = await fetch(`/api/chat/messages?room_id=${roomId}&after=${after}`, { headers: { 'X-Token': token } });
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), 25000);
+  let res;
+  try {
+    res = await fetch(`/api/chat/messages?room_id=${roomId}&after=${after}`, { headers: { 'X-Token': token }, signal: controller.signal });
+  } catch(e) { return; } finally { clearTimeout(tid); }
   const data = await res.json();
   if (chatRoomId !== roomId) return; // 응답 오는 사이 방이 바뀌었으면 무시
   const area = document.getElementById('chat-messages-area');
@@ -3849,9 +3854,9 @@ function startChatPoll() {
   async function poll() {
     if (!chatPollTimer) return;
     await loadChatMessages();
-    if (chatPollTimer) chatPollTimer = setTimeout(poll, 2000);
+    if (chatPollTimer) chatPollTimer = setTimeout(poll, 0);
   }
-  chatPollTimer = setTimeout(poll, 2000);
+  chatPollTimer = setTimeout(poll, 300);
 }
 function stopChatPoll() {
   if (chatPollTimer) { clearTimeout(chatPollTimer); chatPollTimer = null; }
