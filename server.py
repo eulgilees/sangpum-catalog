@@ -171,6 +171,7 @@ def init_tables():
         c2.execute("ALTER TABLE as_requests ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
         c2.execute("ALTER TABLE issues ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#e03131'")
         c2.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS receptionist TEXT DEFAULT ''")
+        c2.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS receipt_no TEXT DEFAULT ''")
         c2.execute("UPDATE orders SET store='잠실점' WHERE store=''")
         c2.execute("UPDATE issues SET store='잠실점' WHERE store=''")
         c2.execute("UPDATE as_requests SET store='잠실점' WHERE store=''")
@@ -515,23 +516,24 @@ def get_orders_authed(token, barcode=''):
 def add_order(data):
     conn = data_db(); c = conn.cursor()
     c.execute('''INSERT INTO orders(barcode,name,qty,order_date,payment,ordered,pickup_date,
-                 customer,phone,delivery,address,receptionist,staff,note,created_at,store) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+                 customer,phone,delivery,address,receptionist,staff,note,created_at,store,receipt_no) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
               (data.get('barcode',''), data.get('name',''), data.get('qty',1),
                data.get('order_date',''), data.get('payment','미불'), data.get('ordered','미완료'),
                data.get('pickup_date',''), data.get('customer',''), data.get('phone',''),
                data.get('delivery','없음'), data.get('address',''),
                data.get('receptionist',''), data.get('staff',''), data.get('note',''), data.get('created_at',''),
-               data.get('store','')))
+               data.get('store',''), data.get('receipt_no','')))
     new_id = c.fetchone()[0]; conn.commit(); release_db(conn); return new_id
 
 def update_order(data):
     conn = data_db(); c = conn.cursor()
     c.execute('''UPDATE orders SET qty=%s,order_date=%s,payment=%s,ordered=%s,pickup_date=%s,
-                 customer=%s,phone=%s,delivery=%s,address=%s,receptionist=%s,staff=%s,note=%s WHERE id=%s''',
+                 customer=%s,phone=%s,delivery=%s,address=%s,receptionist=%s,staff=%s,note=%s,receipt_no=%s WHERE id=%s''',
               (data.get('qty',1), data.get('order_date',''), data.get('payment','미불'),
                data.get('ordered','미완료'), data.get('pickup_date',''), data.get('customer',''),
                data.get('phone',''), data.get('delivery','없음'), data.get('address',''),
-               data.get('receptionist',''), data.get('staff',''), data.get('note',''), data['id']))
+               data.get('receptionist',''), data.get('staff',''), data.get('note',''),
+               data.get('receipt_no',''), data['id']))
     conn.commit(); release_db(conn)
 
 def delete_order(order_id):
