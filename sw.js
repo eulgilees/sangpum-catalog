@@ -15,16 +15,21 @@ self.addEventListener('activate', e => {
 self.addEventListener('push', e => {
   const data = e.data ? e.data.json() : { title: '상품조회', body: '새 알림' };
   e.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      vibrate: [200, 100, 200, 100, 200],
-      tag: data.tag || 'sangpum',
-      renotify: true,
-      requireInteraction: false,
-      silent: false,
-      data: { url: data.url || '/' }
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      // 열린 앱 탭에 인앱 알림 메시지 전달
+      list.forEach(c => c.postMessage({ type: 'PUSH_NOTIFY', title: data.title, body: data.body, url: data.url || '/', tag: data.tag || '' }));
+      // OS 푸시 알림도 항상 표시
+      return self.registration.showNotification(data.title, {
+        body: data.body,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        vibrate: [200, 100, 200, 100, 200],
+        tag: data.tag || 'sangpum',
+        renotify: true,
+        requireInteraction: false,
+        silent: false,
+        data: { url: data.url || '/' }
+      });
     })
   );
 });
