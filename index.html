@@ -1434,6 +1434,13 @@ async function loadSchedule(silent = false) {
     renderScheduleCal();
     renderMyScheduleBanner();
     switchScheduleTab(scheduleTab);
+    // list 탭일 때 오늘 날짜로 스크롤 (switchScheduleTab 이후 실행해야 display:block 상태)
+    if (scheduleTab === 'list') {
+      setTimeout(() => {
+        const todayEl = document.getElementById('schedule-today');
+        if (todayEl) todayEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 150);
+    }
     if (silent) showToast('✅ 새로고침 완료', true);
   } catch(e) {
     if (silent) { showToast('❌ 새로고침 실패', false); return; }
@@ -1548,9 +1555,6 @@ function renderScheduleList() {
       </div>
     </div>`;
   }).join('');
-  // 오늘 날짜로 자동 스크롤
-  const todayEl = document.getElementById('schedule-today');
-  if (todayEl) setTimeout(() => todayEl.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
 }
 
 function renderScheduleCal() {
