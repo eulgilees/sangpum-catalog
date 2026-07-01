@@ -1076,6 +1076,7 @@
     </div>
     <div id="scanner-video-wrap">
       <video id="scanner-video" autoplay playsinline muted></video>
+      <canvas id="scanner-canvas" style="display:none;"></canvas>
       <div class="scan-frame"></div>
       <div class="scan-line"></div>
       <div id="scanner-loading">
@@ -1083,7 +1084,10 @@
         <div style="color:#fff; font-size:14px; margin-top:12px;">카메라 시작 중...</div>
       </div>
     </div>
-    <p class="scanner-status" id="scanner-status">인식 대기 중...</p>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
+      <p class="scanner-status" id="scanner-status" style="margin:0;flex:1;">인식 대기 중...</p>
+      <button id="torch-btn" onclick="toggleTorch()" style="display:none;background:rgba(255,255,255,0.15);border:none;border-radius:8px;padding:6px 12px;color:#fff;font-size:13px;cursor:pointer;white-space:nowrap;"><i class="ti ti-flashlight"></i> 손전등</button>
+    </div>
   </div>
 </div>
 
@@ -1767,21 +1771,42 @@ function openImg(url) {
 }
 
 /* 스캐너 */
+let _scanStream = null;
+let _scanRafId = null;
+let _torchOn = false;
+
 async function openScanner() {
   document.getElementById('scanner-overlay').classList.add('open');
   setStatus('카메라를 시작하는 중...', '');
+  _torchOn = false;
   try {
-    codeReader = new ZXing.BrowserMultiFormatReader();
+    const constraints = {
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1920 }, height: { ideal: 1080 },
+        frameRate: { ideal: 30, min: 15 },
+        focusMode: { ideal: 'continuous' },
+        exposureMode: { ideal: 'continuous' },
+        whiteBalanceMode: { ideal: 'continuous' }
+      }
+    };
+    _scanStream = await navigator.mediaDevices.getUserMedia(constraints);
     const video = document.getElementById('scanner-video');
-    video.addEventListener('playing', () => {
-      document.getElementById('scanner-loading').style.display = 'none';
-    }, { once: true });
-    await codeReader.decodeFromConstraints(
-      { video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } },
-      'scanner-video',
-      (result, err) => { if (result) onBarcodeScanned(result.getText()); }
-    );
+    video.srcObject = _scanStream;
+    await new Promise(res => { video.onloadedmetadata = res; });
+    await video.play();
+    document.getElementById('scanner-loading').style.display = 'none';
     setStatus('인식 대기 중...', '');
+    // 손전등 지원 여부 확인
+    const track = _scanStream.getVideoTracks()[0];
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    if (caps.torch) document.getElementById('torch-btn').style.display = 'block';
+    // 인식 방식 선택: 네이티브 BarcodeDetector 우선
+    if ('BarcodeDetector' in window) {
+      _startNativeDetector(video);
+    } else {
+      _startZxingDetector(video);
+    }
   } catch(e) {
     if (e.name === 'NotAllowedError') {
       setStatus('카메라 권한을 허용해주세요 (설치 후 가이드 참고)', 'notfound');
@@ -1789,6 +1814,54 @@ async function openScanner() {
       setStatus('카메라를 사용할 수 없습니다: ' + e.message, 'notfound');
     }
   }
+}
+
+function _startNativeDetector(video) {
+  const detector = new BarcodeDetector({
+    formats: ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','qr_code','data_matrix']
+  });
+  const canvas = document.getElementById('scanner-canvas');
+  const ctx = canvas.getContext('2d');
+  async function tick() {
+    if (!_scanStream) return;
+    if (video.readyState >= 2) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      try {
+        const results = await detector.detect(canvas);
+        if (results.length > 0) { onBarcodeScanned(results[0].rawValue); }
+      } catch(e) {}
+    }
+    _scanRafId = setTimeout(tick, 80); // ~12fps — CPU 절약하면서 충분히 빠름
+  }
+  tick();
+}
+
+function _startZxingDetector(video) {
+  const hints = new Map();
+  const formats = [
+    ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
+    ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
+    ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39,
+    ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.DATA_MATRIX
+  ];
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+  hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+  codeReader = new ZXing.BrowserMultiFormatReader(hints, 200);
+  codeReader.decodeFromVideoElement(video, (result) => {
+    if (result) onBarcodeScanned(result.getText());
+  });
+}
+
+async function toggleTorch() {
+  if (!_scanStream) return;
+  const track = _scanStream.getVideoTracks()[0];
+  _torchOn = !_torchOn;
+  try {
+    await track.applyConstraints({ advanced: [{ torch: _torchOn }] });
+    document.getElementById('torch-btn').style.background = _torchOn ? 'rgba(255,220,0,0.35)' : 'rgba(255,255,255,0.15)';
+  } catch(e) {}
 }
 
 async function onBarcodeScanned(code) {
@@ -1816,7 +1889,13 @@ async function onBarcodeScanned(code) {
 function closeScanner() {
   document.getElementById('scanner-overlay').classList.remove('open');
   document.getElementById('scanner-loading').style.display = 'flex';
+  document.getElementById('torch-btn').style.display = 'none';
+  if (_scanRafId) { clearTimeout(_scanRafId); _scanRafId = null; }
+  if (_scanStream) { _scanStream.getTracks().forEach(t => t.stop()); _scanStream = null; }
   if (codeReader) { codeReader.reset(); codeReader = null; }
+  const video = document.getElementById('scanner-video');
+  video.srcObject = null;
+  _torchOn = false;
 }
 
 function setStatus(msg, cls) {
