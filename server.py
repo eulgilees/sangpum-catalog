@@ -116,6 +116,12 @@ def init_tables():
         note TEXT DEFAULT '', status TEXT DEFAULT '진행중', created_at TEXT DEFAULT '',
         store TEXT DEFAULT ''
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS notify_rooms (
+        user_id INTEGER NOT NULL,
+        room_type TEXT NOT NULL,
+        room_id INTEGER NOT NULL,
+        PRIMARY KEY (user_id, room_type)
+    )''')
     c.execute('''CREATE TABLE IF NOT EXISTS as_logs (
         id SERIAL PRIMARY KEY,
         as_id INTEGER NOT NULL,
@@ -349,25 +355,24 @@ def get_or_create_dm_room(user_id1, user_id2):
     conn.commit(); release_db(conn); return rid
 
 def get_or_create_personal_notify_room(target_uid, room_type):
-    """담당자 개인 알림 전용 방(주문처리방/AS처리방) — 담당자만 멤버 (store_tag 미사용)"""
+    """담당자 개인 알림 전용 방 — notify_rooms 테이블로 단순 관리"""
     conn = data_db(); c = conn.cursor()
-    # 담당자가 유일한 멤버인 group_name 일치 방 검색
-    c.execute('''
-        SELECT r.id FROM chat_rooms r
-        JOIN chat_room_members m ON m.room_id=r.id AND m.user_id=%s
-        WHERE r.is_group=TRUE AND r.group_name=%s
-        AND (SELECT COUNT(*) FROM chat_room_members WHERE room_id=r.id)=1
-        LIMIT 1
-    ''', (target_uid, room_type))
+    c.execute('SELECT room_id FROM notify_rooms WHERE user_id=%s AND room_type=%s', (target_uid, room_type))
     row = c.fetchone()
     if row:
         room_id = row[0]
     else:
-        c.execute("INSERT INTO chat_rooms (created_at, is_group, group_name) VALUES (%s, TRUE, %s) RETURNING id",
-                  (int(time.time()), room_type))
+        c.execute("INSERT INTO chat_rooms (created_at) VALUES (%s) RETURNING id", (int(time.time()),))
         room_id = c.fetchone()[0]
+        # is_group, group_name 업데이트 (컬럼이 있을 경우)
+        try:
+            c.execute("UPDATE chat_rooms SET is_group=TRUE, group_name=%s WHERE id=%s", (room_type, room_id))
+        except Exception:
+            pass
         c.execute("INSERT INTO chat_room_members (room_id, user_id, last_read) VALUES (%s,%s,0) ON CONFLICT DO NOTHING",
                   (room_id, target_uid))
+        c.execute("INSERT INTO notify_rooms (user_id, room_type, room_id) VALUES (%s,%s,%s) ON CONFLICT DO NOTHING",
+                  (target_uid, room_type, room_id))
     conn.commit(); release_db(conn)
     return room_id
 
