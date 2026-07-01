@@ -498,6 +498,10 @@
       채팅
       <span id="chat-badge" style="display:none;background:#e03131;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 5px;min-width:16px;text-align:center;line-height:16px;"></span>
     </button>
+    <button class="header-nav-btn" onclick="openNewProducts()">
+      <i class="ti ti-sparkles"></i>
+      신제품 목록
+    </button>
     <button class="header-nav-btn" onclick="openGuide()">
       <i class="ti ti-help-circle"></i>
       설치 후 가이드
@@ -509,6 +513,64 @@
   </div>
 </header>
 
+
+<!-- 신제품 목록 오버레이 -->
+<div id="new-products-overlay" style="display:none;position:fixed;inset:0;top:50px;background:#f5f5f3;z-index:1100;flex-direction:column;">
+  <div style="display:flex;flex-direction:column;height:100%;max-width:640px;margin:0 auto;width:100%;">
+    <!-- 헤더 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid #f0f0ec;background:#fff;flex-shrink:0;">
+      <button onclick="closeNewProducts()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;padding:0;line-height:1;"><i class="ti ti-arrow-left"></i></button>
+      <div style="font-size:15px;font-weight:700;color:#222;">신제품 목록</div>
+      <div style="width:32px;"></div>
+    </div>
+    <!-- 안내 배너 -->
+    <div style="margin:16px 16px 0;background:#fff;border:1px solid #d8e6ff;border-radius:12px;padding:16px;display:flex;gap:12px;align-items:flex-start;flex-shrink:0;">
+      <i class="ti ti-info-circle" style="font-size:20px;color:#185fa5;flex-shrink:0;margin-top:1px;"></i>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#185fa5;margin-bottom:4px;">회사 코드 연동 준비 중</div>
+        <div style="font-size:13px;color:#555;line-height:1.5;">회사 승인 후 코드를 연동하면 신제품이 자동으로 이 목록에 업데이트됩니다.</div>
+      </div>
+    </div>
+    <!-- 필터/정렬 바 -->
+    <div style="display:flex;gap:8px;padding:12px 16px;flex-shrink:0;overflow-x:auto;">
+      <button id="np-filter-all" onclick="setNpFilter('all')" style="background:#185fa5;color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">전체</button>
+      <button id="np-filter-new" onclick="setNpFilter('new')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">신규</button>
+      <button id="np-filter-restock" onclick="setNpFilter('restock')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">재입고</button>
+      <button id="np-filter-limited" onclick="setNpFilter('limited')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">한정판</button>
+    </div>
+    <!-- 목록 -->
+    <div id="new-products-list" style="flex:1;overflow-y:auto;padding:0 16px 16px;">
+      <!-- 샘플 카드 (연동 전 예시) -->
+      <div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid #ebebeb;opacity:0.4;pointer-events:none;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:56px;height:56px;background:#e8e8e8;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><i class="ti ti-photo" style="font-size:22px;color:#bbb;"></i></div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
+              <span style="font-size:11px;background:#e03131;color:#fff;border-radius:4px;padding:1px 6px;font-weight:700;">NEW</span>
+              <span style="font-size:12px;color:#888;">2025.07.01</span>
+            </div>
+            <div style="font-size:14px;font-weight:700;color:#222;margin-bottom:2px;">상품명 예시</div>
+            <div style="font-size:13px;color:#888;">바코드: 1234567890</div>
+          </div>
+        </div>
+      </div>
+      <div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid #ebebeb;opacity:0.4;pointer-events:none;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:56px;height:56px;background:#e8e8e8;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><i class="ti ti-photo" style="font-size:22px;color:#bbb;"></i></div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
+              <span style="font-size:11px;background:#185fa5;color:#fff;border-radius:4px;padding:1px 6px;font-weight:700;">재입고</span>
+              <span style="font-size:12px;color:#888;">2025.07.01</span>
+            </div>
+            <div style="font-size:14px;font-weight:700;color:#222;margin-bottom:2px;">재입고 상품 예시</div>
+            <div style="font-size:13px;color:#888;">바코드: 9876543210</div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;padding:24px 0 8px;color:#bbb;font-size:13px;">연동 후 실제 데이터가 표시됩니다</div>
+    </div>
+  </div>
+</div>
 
 <!-- 주문 등록 모달 -->
 <div class="order-overlay" id="order-form-overlay">
@@ -1362,6 +1424,22 @@ let scheduleYear = 0;
 let scheduleMonth = 0;
 let scheduleTab = 'list';
 
+function openNewProducts() {
+  lockScroll();
+  document.getElementById('new-products-overlay').style.display = 'flex';
+}
+function closeNewProducts() {
+  unlockScroll();
+  document.getElementById('new-products-overlay').style.display = 'none';
+}
+function setNpFilter(f) {
+  ['all','new','restock','limited'].forEach(k => {
+    const btn = document.getElementById(`np-filter-${k}`);
+    const active = k === f;
+    btn.style.background = active ? '#185fa5' : '#f0f0ec';
+    btn.style.color = active ? '#fff' : '#555';
+  });
+}
 function openSchedule() {
   lockScroll();
   const now = new Date();
