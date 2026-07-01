@@ -267,6 +267,7 @@
     .order-complete-btn { font-size:13px; font-weight:600; color:#fff; background:#185fa5; border:none; border-radius:8px; padding:6px 13px; cursor:pointer; margin-left:auto; }
     .order-undo-btn { font-size:13px; font-weight:600; color:#666; background:#f0f0ec; border:none; border-radius:8px; padding:6px 13px; cursor:pointer; margin-left:auto; }
     .order-list-item.completed { background:#f8f8f6; border-color:#e4e4df; opacity:0.72; }
+    .order-list-item.overdue { background:#fff5f5; border-color:#ffbdbd; }
     .order-empty { text-align:center; padding:40px 0; color:#888780; font-size: 14px; }
     .list-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:48px 0; gap:12px; color:#aaa; font-size:14px; }
     .list-loading-spinner { width:28px; height:28px; border:3px solid #e8e8e8; border-top-color:#185fa5; border-radius:50%; animation:spin 0.7s linear infinite; }
@@ -2728,8 +2729,9 @@ function renderOrderList(orders) {
   container.innerHTML = orders.map(o => {
     const ph = (o.phone||'').replace(/\D/g,'');
     const multiOrder = !o.completed && ph && phoneCount[ph] > 1;
+    const isOverdue = !o.completed && o.pickup_date && (() => { const d = new Date(o.pickup_date); d.setHours(23,59,59,0); return d < new Date(); })();
     return `
-    <div id="order-item-${o.id}" class="order-list-item${o.completed ? ' completed' : ''}">
+    <div id="order-item-${o.id}" class="order-list-item${o.completed ? ' completed' : isOverdue ? ' overdue' : ''}">
       <div class="uc-head">
         <div class="order-item-name">${o.completed ? '✓ ' : ''}${esc(o.name)}</div>
         <div class="uc-badges">
