@@ -220,8 +220,14 @@ def init_tables():
         room_id INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
         last_read BIGINT DEFAULT 0,
+        muted BOOLEAN DEFAULT FALSE,
         PRIMARY KEY (room_id, user_id)
     )''')
+    # muted 컬럼 마이그레이션
+    try:
+        c.execute("ALTER TABLE chat_room_members ADD COLUMN IF NOT EXISTS muted BOOLEAN DEFAULT FALSE")
+    except Exception:
+        pass
     c.execute('''CREATE TABLE IF NOT EXISTS chat_messages (
         id SERIAL PRIMARY KEY,
         room_id INTEGER NOT NULL,
@@ -444,7 +450,8 @@ def get_my_rooms(user_id):
                (SELECT COUNT(*) FROM chat_messages
                 WHERE room_id=r.id AND created_at >
                     (SELECT last_read FROM chat_room_members WHERE room_id=r.id AND user_id=%s)) as unread,
-               (SELECT COUNT(*) FROM chat_room_members WHERE room_id=r.id) as member_count
+               (SELECT COUNT(*) FROM chat_room_members WHERE room_id=r.id) as member_count,
+               COALESCE(m.muted, FALSE) as muted
         FROM chat_rooms r
         JOIN chat_room_members m ON m.room_id=r.id AND m.user_id=%s
         ORDER BY last_ts DESC NULLS LAST
@@ -1194,10 +1201,15 @@ class Handler(BaseHTTPRequestHandler):
             other_uids = chat_get_other_member_ids(int(room_id), user['id'])
             if other_uids:
                 import threading
-                def push_all(uids):
+                def push_all(uids, rid):
+                    conn2 = data_db(); c2 = conn2.cursor()
+                    c2.execute('SELECT user_id FROM chat_room_members WHERE room_id=%s AND muted=TRUE', (rid,))
+                    muted_set = {r[0] for r in c2.fetchall()}
+                    release_db(conn2)
                     for uid in uids:
-                        send_push_notification(f'{user["display_name"]}에게 메시지가 도착했습니다', content, uid, f'chat-{room_id}', f'/?room={room_id}')
-                threading.Thread(target=push_all, args=(other_uids,), daemon=True).start()
+                        if uid not in muted_set:
+                            send_push_notification(f'{user["display_name"]}에게 메시지가 도착했습니다', content, uid, f'chat-{rid}', f'/?room={rid}')
+                threading.Thread(target=push_all, args=(other_uids, int(room_id)), daemon=True).start()
             self.send_json({'ok': True, 'message': msg})
         elif self.path == '/api/chat/read':
             token = self.headers.get('X-Token','')
@@ -1205,6 +1217,18 @@ class Handler(BaseHTTPRequestHandler):
             if not user: self.send_json({'ok': False}); return
             chat_mark_read(body.get('room_id'), user['id'])
             self.send_json({'ok': True})
+        elif self.path == '/api/chat/mute':
+            token = self.headers.get('X-Token','')
+            user = verify_session(token)
+            if not user: self.send_json({'ok': False}); return
+            room_id = body.get('room_id')
+            mute = body.get('mute', True)
+            if not room_id: self.send_json({'ok': False}); return
+            conn = data_db(); c = conn.cursor()
+            c.execute('UPDATE chat_room_members SET muted=%s WHERE room_id=%s AND user_id=%s',
+                      (bool(mute), int(room_id), user['id']))
+            conn.commit(); release_db(conn)
+            self.send_json({'ok': True, 'muted': bool(mute)})
         elif self.path == '/api/chat/leave':
             token = self.headers.get('X-Token','')
             user = verify_session(token)

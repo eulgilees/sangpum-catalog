@@ -3317,7 +3317,7 @@ async function initAuth() {
         if (room) {
           const rName = room.is_group ? (room.group_name||'그룹') : (room.other_name||'');
           const rSub = room.is_group ? (room.member_names||[]).join(', ') : (room.other_store||'');
-          openChatRoom(room.id, rName, rSub, room.is_group);
+          openChatRoom(room.id, rName, rSub, room.is_group, room.muted);
         }
       }).catch(()=>{});
     }
@@ -3358,7 +3358,7 @@ navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', e
       if (room) {
         const rName = room.is_group ? (room.group_name||'그룹') : (room.other_name||'');
         const rSub = room.is_group ? (room.member_names||[]).join(', ') : (room.other_store||'');
-        openChatRoom(room.id, rName, rSub, room.is_group);
+        openChatRoom(room.id, rName, rSub, room.is_group, room.muted);
       }
     }).catch(()=>{});
   }
@@ -3734,6 +3734,27 @@ function chatSearchScrollTo(idx) {
   document.getElementById('chat-search-count').textContent = `${idx+1}/${_chatSearchMatches.length}`;
 }
 
+function _updateMuteBtn() {
+  const btn = document.getElementById('chat-mute-btn');
+  if (!btn) return;
+  btn.textContent = _chatRoomMuted ? '🔕' : '🔔';
+  btn.title = _chatRoomMuted ? '알림 꺼짐 (탭하면 켜기)' : '알림 켜짐 (탭하면 끄기)';
+  btn.style.opacity = _chatRoomMuted ? '0.5' : '1';
+}
+async function toggleChatMute() {
+  const token = localStorage.getItem('authToken') || '';
+  const newMuted = !_chatRoomMuted;
+  const res = await fetch('/api/chat/mute', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-Token':token},
+    body: JSON.stringify({room_id: chatRoomId, mute: newMuted})
+  }).then(r=>r.json()).catch(()=>({ok:false}));
+  if (res.ok) {
+    _chatRoomMuted = newMuted;
+    _updateMuteBtn();
+    showToast(newMuted ? '🔕 이 방의 알림을 껐습니다' : '🔔 이 방의 알림을 켰습니다', true, 2000);
+  }
+}
 function toggleChatMenu() {
   const menu = document.getElementById('chat-room-menu');
   menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
@@ -3812,7 +3833,7 @@ function renderChatRooms(rooms) {
     const memberCount = isGroup && r.member_count ? `<span style="font-size:14px;color:#888;margin-left:4px;">${r.member_count}</span>` : '';
     const nameEsc = roomName.replace(/'/g,"\\'");
     const subEsc = subText.replace(/'/g,"\\'");
-    return `<div onclick="openChatRoom(${r.id},'${nameEsc}','${subEsc}',${isGroup?'true':'false'})"
+    return `<div onclick="openChatRoom(${r.id},'${nameEsc}','${subEsc}',${isGroup?'true':'false'},${r.muted?'true':'false'})"
       style="display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;border-bottom:1px solid #f0f0ec;">
       <div style="width:44px;height:44px;border-radius:50%;background:${iconBg};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">${icon}</div>
       <div style="flex:1;min-width:0;">
@@ -3954,11 +3975,14 @@ async function startChat(otherUserId) {
   enterChatRoom(data.room_id, user.display_name || '', user.store || '');
 }
 let chatIsGroup = false;
-async function openChatRoom(roomId, name, store, isGroup) {
+async function openChatRoom(roomId, name, store, isGroup, muted=false) {
   document.getElementById('chat-list-view').style.display = 'none';
-  enterChatRoom(roomId, name, store, isGroup);
+  enterChatRoom(roomId, name, store, isGroup, muted);
 }
-async function enterChatRoom(roomId, name, store, isGroup) {
+let _chatRoomMuted = false;
+async function enterChatRoom(roomId, name, store, isGroup, muted=false) {
+  _chatRoomMuted = !!muted;
+  _updateMuteBtn();
   chatRoomId = roomId;
   chatIsGroup = !!isGroup;
   stopChatPoll();
@@ -4385,6 +4409,7 @@ window.addEventListener('load', () => {
         <div id="chat-room-title" style="font-size:14px;font-weight:700;color:#222;"></div>
         <div id="chat-room-subtitle" style="font-size:14px;color:#888;"></div>
       </div>
+      <button id="chat-mute-btn" onclick="toggleChatMute()" style="background:none;border:none;font-size:20px;color:#888;cursor:pointer;padding:4px;" title="알림 설정">🔔</button>
       <button onclick="toggleChatSearch()" style="background:none;border:none;font-size:20px;color:#888;cursor:pointer;padding:4px;">🔍</button>
       <button onclick="toggleChatMenu()" style="background:none;border:none;font-size:22px;color:#888;cursor:pointer;padding:4px;line-height:1;">⋯</button>
       <button onclick="closeChat()" style="background:none;border:none;font-size:20px;color:#bbb;cursor:pointer;padding:4px;line-height:1;">✕</button>
