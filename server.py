@@ -146,6 +146,14 @@ def init_tables():
         store TEXT PRIMARY KEY,
         sheet_id TEXT DEFAULT ''
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS edit_locks (
+        resource_type TEXT NOT NULL,
+        resource_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        user_name TEXT NOT NULL,
+        locked_at BIGINT NOT NULL,
+        PRIMARY KEY (resource_type, resource_id)
+    )''')
     c.execute('''CREATE TABLE IF NOT EXISTS as_logs (
         id SERIAL PRIMARY KEY,
         as_id INTEGER NOT NULL,
@@ -817,6 +825,44 @@ def delete_session(token):
     c.execute('DELETE FROM sessions WHERE token=%s', (token,))
     conn.commit(); release_db(conn)
 
+LOCK_TTL = 30  # 초
+
+def acquire_lock(resource_type, resource_id, user_id, user_name):
+    conn = data_db(); c = conn.cursor()
+    now = int(time.time())
+    # 만료된 잠금 제거
+    c.execute('DELETE FROM edit_locks WHERE resource_type=%s AND resource_id=%s AND locked_at < %s',
+              (resource_type, resource_id, now - LOCK_TTL))
+    c.execute('SELECT user_id, user_name FROM edit_locks WHERE resource_type=%s AND resource_id=%s',
+              (resource_type, resource_id))
+    row = c.fetchone()
+    if row:
+        uid, uname = row
+        if uid != user_id:
+            conn.commit(); release_db(conn)
+            return {'ok': False, 'locked_by': uname}
+    # 본인 잠금 갱신 or 새 잠금
+    c.execute('''INSERT INTO edit_locks (resource_type, resource_id, user_id, user_name, locked_at)
+                 VALUES (%s,%s,%s,%s,%s) ON CONFLICT (resource_type, resource_id)
+                 DO UPDATE SET user_id=%s, user_name=%s, locked_at=%s''',
+              (resource_type, resource_id, user_id, user_name, now, user_id, user_name, now))
+    conn.commit(); release_db(conn)
+    return {'ok': True}
+
+def heartbeat_lock(resource_type, resource_id, user_id):
+    conn = data_db(); c = conn.cursor()
+    now = int(time.time())
+    c.execute('''UPDATE edit_locks SET locked_at=%s
+                 WHERE resource_type=%s AND resource_id=%s AND user_id=%s''',
+              (now, resource_type, resource_id, user_id))
+    conn.commit(); release_db(conn)
+
+def release_lock(resource_type, resource_id, user_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('DELETE FROM edit_locks WHERE resource_type=%s AND resource_id=%s AND user_id=%s',
+              (resource_type, resource_id, user_id))
+    conn.commit(); release_db(conn)
+
 def get_store_sheet_id(store):
     conn = data_db(); c = conn.cursor()
     c.execute('SELECT sheet_id FROM store_settings WHERE store=%s', (store,))
@@ -1317,6 +1363,21 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception as e:
                     print(f'이슈 푸시 오류: {e}')
             threading.Thread(target=push_issue_all, daemon=True).start()
+        elif self.path == '/api/lock':
+            user = verify_session(self.headers.get('X-Token',''))
+            if not user: self.send_json({'ok': False}); return
+            result = acquire_lock(body['type'], int(body['id']), user['id'], user['display_name'])
+            self.send_json(result)
+        elif self.path == '/api/lock/heartbeat':
+            user = verify_session(self.headers.get('X-Token',''))
+            if not user: self.send_json({'ok': False}); return
+            heartbeat_lock(body['type'], int(body['id']), user['id'])
+            self.send_json({'ok': True})
+        elif self.path == '/api/lock/release':
+            user = verify_session(self.headers.get('X-Token',''))
+            if not user: self.send_json({'ok': False}); return
+            release_lock(body['type'], int(body['id']), user['id'])
+            self.send_json({'ok': True})
         elif self.path == '/api/store-settings':
             user = verify_session(self.headers.get('X-Token',''))
             if not user: self.send_json({'ok': False}); return

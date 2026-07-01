@@ -142,9 +142,7 @@
     .scanner-close { background: none; border: none; cursor: pointer; color: #888780; font-size: 22px; display: flex; }
     #scanner-video-wrap { position: relative; width: 100%; border-radius: 10px; overflow: hidden; background: #111; aspect-ratio: 4/3; margin-bottom: 14px; }
     #scanner-video { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .scan-line { position: absolute; left: 8%; right: 8%; height: 2px; background: #185fa5; animation: scan 2s ease-in-out infinite; }
-    @keyframes scan { 0%,100% { top: 15%; } 50% { top: 85%; } }
-    .scan-frame { position: absolute; inset: 10px; border: 1.5px solid rgba(255,255,255,0.2); border-radius: 8px; }
+.scan-frame { position: absolute; inset: 10px; border: 1.5px solid rgba(255,255,255,0.2); border-radius: 8px; }
     .scan-frame::before, .scan-frame::after { content: ''; position: absolute; width: 20px; height: 20px; border-color: #185fa5; border-style: solid; }
     .scan-frame::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 3px 0 0 0; }
     .scan-frame::after { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 3px 0; }
@@ -152,6 +150,14 @@
     .scanner-status.found { color: #3b6d11; font-weight: 500; }
     .scanner-status.notfound { color: #a32d2d; }
     #scanner-loading { position: absolute; inset: 0; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 10px; }
+    /* SMS 템플릿 시트 */
+    #sms-sheet-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:2000; align-items:flex-end; justify-content:center; }
+    #sms-sheet-overlay.open { display:flex; }
+    #sms-sheet { background:#fff; border-radius:18px 18px 0 0; width:100%; max-width:480px; padding:20px 16px 32px; }
+    #sms-sheet h3 { font-size:14px; font-weight:600; color:#222; margin:0 0 14px; }
+    .sms-tpl-btn { display:block; width:100%; text-align:left; background:#f7f7f5; border:1px solid #e5e5e0; border-radius:10px; padding:13px 14px; font-size:14px; color:#333; cursor:pointer; margin-bottom:8px; line-height:1.5; }
+    .sms-tpl-btn:active { background:#eee; }
+    .sms-sheet-cancel { display:block; width:100%; background:none; border:none; color:#888; font-size:14px; padding:10px; cursor:pointer; margin-top:4px; }
     .scanner-spinner { width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -1068,6 +1074,14 @@
 </div>
 
 <!-- 스캐너 -->
+<div id="sms-sheet-overlay" onclick="if(event.target===this)closeSmsSheet()">
+  <div id="sms-sheet">
+    <h3>📨 문자 템플릿 선택</h3>
+    <div id="sms-tpl-list"></div>
+    <button class="sms-sheet-cancel" onclick="closeSmsSheet()">취소</button>
+  </div>
+</div>
+
 <div class="scanner-overlay" id="scanner-overlay">
   <div class="scanner-box">
     <div class="scanner-top">
@@ -1078,7 +1092,6 @@
       <video id="scanner-video" autoplay playsinline muted></video>
       <canvas id="scanner-canvas" style="display:none;"></canvas>
       <div class="scan-frame"></div>
-      <div class="scan-line"></div>
       <div id="scanner-loading">
         <div class="scanner-spinner"></div>
         <div style="color:#fff; font-size:14px; margin-top:12px;">카메라 시작 중...</div>
@@ -1783,11 +1796,8 @@ async function openScanner() {
     const constraints = {
       video: {
         facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 }, height: { ideal: 1080 },
-        frameRate: { ideal: 30, min: 15 },
-        focusMode: { ideal: 'continuous' },
-        exposureMode: { ideal: 'continuous' },
-        whiteBalanceMode: { ideal: 'continuous' }
+        width: { ideal: 1280 }, height: { ideal: 720 },
+        frameRate: { ideal: 30, min: 15 }
       }
     };
     _scanStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -2400,6 +2410,45 @@ function selectToggle(type, idx, val) {
   }
 }
 
+// ── 편집 잠금 ──
+let _lockHeartbeat = null;
+let _lockInfo = null; // {type, id}
+
+async function acquireEditLock(type, id) {
+  const token = localStorage.getItem('authToken') || '';
+  const res = await fetch('/api/lock', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-Token':token},
+    body: JSON.stringify({type, id})
+  }).then(r=>r.json()).catch(()=>({ok:false}));
+  if (!res.ok) {
+    showToast(`✋ ${res.locked_by}님이 수정 중입니다. 잠시 후 시도해주세요.`, false, 3500);
+    return false;
+  }
+  _lockInfo = {type, id};
+  if (_lockHeartbeat) clearInterval(_lockHeartbeat);
+  _lockHeartbeat = setInterval(() => {
+    fetch('/api/lock/heartbeat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-Token':localStorage.getItem('authToken')||''},
+      body: JSON.stringify({type, id})
+    }).catch(()=>{});
+  }, 15000);
+  return true;
+}
+
+function releaseEditLock() {
+  if (_lockHeartbeat) { clearInterval(_lockHeartbeat); _lockHeartbeat = null; }
+  if (!_lockInfo) return;
+  const token = localStorage.getItem('authToken') || '';
+  fetch('/api/lock/release', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-Token':token},
+    body: JSON.stringify(_lockInfo)
+  }).catch(()=>{});
+  _lockInfo = null;
+}
+
 function openOrderForm(barcode, name, order=null) {
   orderFormBarcode = barcode;
   orderFormId = order ? order.id : null;
@@ -2425,13 +2474,23 @@ function openOrderForm(barcode, name, order=null) {
   selectToggle('pay', order && order.payment==='완불' ? 1 : 0, order ? order.payment : '미불');
   selectToggle('ord', order && order.ordered==='완료' ? 1 : 0, order ? order.ordered : '미완료');
   selectDelivery(order && order.delivery==='발송' ? 1 : 0);
-  document.getElementById('order-form-overlay').classList.add('open');
-  // 버튼 상태 초기화
-  const submitBtn = document.querySelector('#order-form-overlay .order-submit-btn');
-  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '등록'; }
-  _orderSubmitting = false;
+  // 수정 시 잠금
+  if (order && order.id) {
+    acquireEditLock('order', order.id).then(ok => {
+      if (!ok) return;
+      document.getElementById('order-form-overlay').classList.add('open');
+      const submitBtn = document.querySelector('#order-form-overlay .order-submit-btn');
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '등록'; }
+      _orderSubmitting = false;
+    });
+  } else {
+    document.getElementById('order-form-overlay').classList.add('open');
+    const submitBtn = document.querySelector('#order-form-overlay .order-submit-btn');
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '등록'; }
+    _orderSubmitting = false;
+  }
 }
-function closeOrderForm() { document.getElementById('order-form-overlay').classList.remove('open'); }
+function closeOrderForm() { releaseEditLock(); document.getElementById('order-form-overlay').classList.remove('open'); }
 
 let _orderSubmitting = false;
 async function submitOrder() {
@@ -2527,9 +2586,40 @@ async function loadOrderList() {
   orders.forEach(o => renderOrderLogs(o.id, window._orderLogs[o.id] || []));
 }
 
+function getSmsTemplates(type) {
+  const store = (currentUser && currentUser.store) ? currentUser.store : '잠실점';
+  const prefix = '안녕하세요. 교보문고 ' + store + '입니다. ';
+  if (type === 'as') return [
+    prefix + 'AS 완료되었습니다. 감사합니다.',
+    prefix + 'AS 접수되었습니다. 처리 후 다시 안내드리겠습니다. 감사합니다.'
+  ];
+  return [
+    prefix + '주문하신 상품 도착하였습니다. 감사합니다.',
+    prefix + '주문하신 상품 발송되었습니다. 감사합니다.'
+  ];
+}
+
+function openSmsSheet(phone, type) {
+  const templates = getSmsTemplates(type);
+  const list = document.getElementById('sms-tpl-list');
+  list.innerHTML = templates.map(t =>
+    `<button class="sms-tpl-btn" onclick="sendSms('${encodeURIComponent(phone)}','${encodeURIComponent(t)}')">${t}</button>`
+  ).join('');
+  document.getElementById('sms-sheet-overlay').classList.add('open');
+}
+
+function closeSmsSheet() {
+  document.getElementById('sms-sheet-overlay').classList.remove('open');
+}
+
+function sendSms(phone, body) {
+  closeSmsSheet();
+  location.href = 'sms:' + decodeURIComponent(phone) + '?body=' + body;
+}
+
 function getSmsBody(type) {
   const store = (currentUser && currentUser.store) ? currentUser.store : '잠실점';
-  if (type === 'as') return '안녕하세요. 교보문고 ' + store + '입니다. as 완료되었습니다. 감사합니다.';
+  if (type === 'as') return '안녕하세요. 교보문고 ' + store + '입니다. AS 완료되었습니다. 감사합니다.';
   return '안녕하세요. 교보문고 ' + store + '입니다. 주문하신 상품 도착하였습니다. 감사합니다.';
 }
 function smsHref(phone, type) { return 'sms:' + phone + '?body=' + encodeURIComponent(getSmsBody(type)); }
@@ -2588,7 +2678,7 @@ function renderOrderList(orders) {
         ${o.completed
           ? `<button class="order-undo-btn" onclick="toggleComplete(${o.id})">처리 취소</button>`
           : `<button class="order-complete-btn" onclick="toggleComplete(${o.id})">처리 완료</button>`}
-        ${o.phone ? '<a class="order-edit-btn" style="background:#f0fff4;color:#1a7a4a;border-color:#b2dfcb;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" href="' + smsHref(o.phone) + '">📨 문자</a>' : ''}
+        ${o.phone ? '<button class="order-edit-btn" style="background:#f0fff4;color:#1a7a4a;border-color:#b2dfcb;display:inline-flex;align-items:center;gap:4px;" onclick="openSmsSheet(\'' + esc(o.phone) + '\',\'order\')">📨 문자</button>' : ''}
       </div>
     </div>
   `}).join('');
@@ -2665,9 +2755,15 @@ function openAsForm(as=null) {
   document.getElementById('as-staff').value = as ? as.staff : '';
   document.getElementById('as-note').value = as ? as.note : '';
   setAsDelivery(as ? as.delivery : '없음');
-  document.getElementById('as-form-overlay').classList.add('open');
+  if (as && as.id) {
+    acquireEditLock('as', as.id).then(ok => {
+      if (ok) document.getElementById('as-form-overlay').classList.add('open');
+    });
+  } else {
+    document.getElementById('as-form-overlay').classList.add('open');
+  }
 }
-function closeAsForm() { document.getElementById('as-form-overlay').classList.remove('open'); }
+function closeAsForm() { releaseEditLock(); document.getElementById('as-form-overlay').classList.remove('open'); }
 
 async function submitAs() {
   const product_name = document.getElementById('as-product').value.trim();
@@ -2729,7 +2825,7 @@ function loadAsList_render(list) {
         ${a.status==='완료'
           ? `<button class="order-undo-btn" onclick="setAsStatus(${a.id},'진행중')">진행중으로</button>`
           : `<button class="order-complete-btn" onclick="setAsStatus(${a.id},'완료')">완료</button>`}
-        ${a.phone ? '<a class="order-edit-btn" style="background:#f0fff4;color:#1a7a4a;border-color:#b2dfcb;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" href="' + smsHref(a.phone, 'as') + '">📨 문자</a>' : ''}
+        ${a.phone ? '<button class="order-edit-btn" style="background:#f0fff4;color:#1a7a4a;border-color:#b2dfcb;display:inline-flex;align-items:center;gap:4px;" onclick="openSmsSheet(\'' + esc(a.phone) + '\',\'as\')">📨 문자</button>' : ''}
       </div>
     </div>
   `).join('');
@@ -3006,9 +3102,15 @@ function openIssueForm(issue=null) {
   setDateValue('if-date', issue ? issue.occurred_at : todayStr, '발생일');
   setDateValue('if-end-date', issue ? (issue.ended_at || '') : '', '종료일');
   selectIssueColor(issue ? (issue.color || '#e03131') : '#e03131');
-  document.getElementById('issue-form-overlay').classList.add('open');
+  if (issue && issue.id) {
+    acquireEditLock('issue', issue.id).then(ok => {
+      if (ok) document.getElementById('issue-form-overlay').classList.add('open');
+    });
+  } else {
+    document.getElementById('issue-form-overlay').classList.add('open');
+  }
 }
-function closeIssueForm() { document.getElementById('issue-form-overlay').classList.remove('open'); }
+function closeIssueForm() { releaseEditLock(); document.getElementById('issue-form-overlay').classList.remove('open'); }
 
 function openIssueDetail(id) {
   const is = (window._issues||[]).find(x => x.id === id);
