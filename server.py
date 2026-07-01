@@ -234,8 +234,13 @@ def init_tables():
         user_id INTEGER NOT NULL,
         display_name TEXT DEFAULT '',
         content TEXT NOT NULL,
-        created_at BIGINT DEFAULT 0
+        created_at BIGINT DEFAULT 0,
+        deleted BOOLEAN DEFAULT FALSE
     )''')
+    try:
+        c.execute("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE")
+    except Exception:
+        pass
     # push_subscriptions에 user_id 컬럼 추가 (채팅 알림 대상 특정용)
     try:
         conn2 = data_db(); c2 = conn2.cursor()
@@ -471,7 +476,7 @@ def get_my_rooms(user_id):
 def get_messages(room_id, after=0, limit=100):
     conn = data_db(); c = conn.cursor()
     c.execute('''SELECT id, user_id, display_name, content, created_at
-                 FROM chat_messages WHERE room_id=%s AND id > %s
+                 FROM chat_messages WHERE room_id=%s AND id > %s AND (deleted IS NULL OR deleted=FALSE)
                  ORDER BY id DESC LIMIT %s''', (room_id, after, limit))
     rows = list(reversed(rows_to_dicts(c))); release_db(conn); return rows
 
@@ -1216,6 +1221,21 @@ class Handler(BaseHTTPRequestHandler):
             user = verify_session(token)
             if not user: self.send_json({'ok': False}); return
             chat_mark_read(body.get('room_id'), user['id'])
+            self.send_json({'ok': True})
+        elif self.path == '/api/chat/delete_message':
+            token = self.headers.get('X-Token','')
+            user = verify_session(token)
+            if not user: self.send_json({'ok': False}); return
+            msg_id = body.get('message_id')
+            if not msg_id: self.send_json({'ok': False}); return
+            conn = data_db(); c = conn.cursor()
+            c.execute('SELECT user_id, created_at FROM chat_messages WHERE id=%s', (int(msg_id),))
+            row = c.fetchone()
+            if not row: release_db(conn); self.send_json({'ok': False, 'error': '메시지 없음'}); return
+            if row[0] != user['id']: release_db(conn); self.send_json({'ok': False, 'error': '본인 메시지만 삭제 가능'}); return
+            if int(time.time()) - row[1] > 300: release_db(conn); self.send_json({'ok': False, 'error': '5분이 지나 삭제할 수 없습니다'}); return
+            c.execute('UPDATE chat_messages SET deleted=TRUE WHERE id=%s', (int(msg_id),))
+            conn.commit(); release_db(conn)
             self.send_json({'ok': True})
         elif self.path == '/api/chat/mute':
             token = self.headers.get('X-Token','')

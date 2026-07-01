@@ -4150,7 +4150,9 @@ function createChatBubbleEl(m) {
   const mine = m.user_id === currentUser?.id;
   const timeStr = formatChatTime(m.created_at);
   const card = parseChatCard(m.content);
+  const canDelete = mine && m.id && (Date.now()/1000 - m.created_at) < 300;
   const div = document.createElement('div');
+  div.dataset.msgId = m.id || '';
   div.style.cssText = `display:flex;flex-direction:column;align-items:${mine?'flex-end':'flex-start'};gap:2px;width:100%;`;
   let bubble;
   if (card) {
@@ -4162,7 +4164,8 @@ function createChatBubbleEl(m) {
       <div style="color:#222;">${escHtml(card.text)}</div>
     </div>`;
   } else {
-    bubble = `<div style="max-width:min(70%,calc(100% - 60px));background:${mine?'#185fa5':'#fff'};color:${mine?'#fff':'#222'};border-radius:${mine?'16px 4px 16px 16px':'4px 16px 16px 16px'};padding:10px 14px;font-size:14px;line-height:1.5;word-break:break-word;overflow-wrap:anywhere;white-space:pre-wrap;box-shadow:0 1px 4px rgba(0,0,0,0.08);">${escHtml(m.content)}</div>`;
+    const clickAttr = canDelete ? `onclick="showChatDeleteBtn(${m.id},this)"` : '';
+    bubble = `<div ${clickAttr} style="max-width:min(70%,calc(100% - 60px));background:${mine?'#185fa5':'#fff'};color:${mine?'#fff':'#222'};border-radius:${mine?'16px 4px 16px 16px':'4px 16px 16px 16px'};padding:10px 14px;font-size:14px;line-height:1.5;word-break:break-word;overflow-wrap:anywhere;white-space:pre-wrap;box-shadow:0 1px 4px rgba(0,0,0,0.08);${canDelete?'cursor:pointer;':''}">${escHtml(m.content)}</div>`;
   }
   div.innerHTML = `
     ${(!mine && (chatIsGroup || m.display_name)) ? `<div style="font-size:14px;color:#aaa;padding:0 4px;">${m.display_name}</div>` : ''}
@@ -4171,6 +4174,42 @@ function createChatBubbleEl(m) {
       <div style="font-size:14px;color:#bbb;white-space:nowrap;flex-shrink:0;">${timeStr}</div>
     </div>`;
   return div;
+}
+
+let _deleteBtnTimer = null;
+function showChatDeleteBtn(msgId, bubbleEl) {
+  // 기존 삭제 팝업 제거
+  document.querySelectorAll('.chat-delete-popup').forEach(e => e.remove());
+  if (_deleteBtnTimer) clearTimeout(_deleteBtnTimer);
+  const popup = document.createElement('div');
+  popup.className = 'chat-delete-popup';
+  popup.style.cssText = 'position:absolute;background:#1a1a18;color:#fff;border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;z-index:100;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.3);';
+  popup.textContent = '🗑 메시지 삭제';
+  popup.onclick = (e) => { e.stopPropagation(); deleteChatMessage(msgId); popup.remove(); };
+  // 버블 위에 표시
+  bubbleEl.style.position = 'relative';
+  bubbleEl.appendChild(popup);
+  popup.style.bottom = '100%';
+  popup.style.right = '0';
+  popup.style.marginBottom = '4px';
+  _deleteBtnTimer = setTimeout(() => popup.remove(), 3000);
+  document.addEventListener('click', () => popup.remove(), { once: true });
+}
+
+async function deleteChatMessage(msgId) {
+  const token = localStorage.getItem('authToken') || '';
+  const res = await fetch('/api/chat/delete_message', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-Token':token},
+    body: JSON.stringify({message_id: msgId})
+  }).then(r=>r.json()).catch(()=>({ok:false}));
+  if (res.ok) {
+    const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+    if (el) el.remove();
+    showToast('메시지가 삭제되었습니다', true, 1500);
+  } else {
+    showToast(res.error || '삭제할 수 없습니다', false, 2000);
+  }
 }
 function appendChatBubble(m) {
   const area = document.getElementById('chat-messages-area');
