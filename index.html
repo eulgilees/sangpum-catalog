@@ -1245,9 +1245,9 @@ function showSingleResult(p) {
           </div>
         </div>
         <div style="flex:1; min-width:0;">
-          <div style="font-size:14px; font-weight:600; color:#1a1a18; line-height:1.4; margin-bottom:6px;">${esc(p.name)}</div>
-          <div style="font-size:13px; color:#444; margin-bottom:4px;"><span style="font-size:11px;color:#bbb;margin-right:4px;">저자</span>${p.author ? `<span onclick="searchAuthor('${esc(p.author)}')" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px;">${esc(p.author)}</span>` : '—'}</div>
-          <div style="font-size:13px; color:#666; margin-bottom:8px;"><span style="font-size:11px;color:#bbb;margin-right:4px;">출판사</span>${p.publisher ? `<span onclick="searchPublisher('${esc(p.publisher)}')" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px;">${esc(p.publisher)}</span>` : '—'}</div>
+          <div style="font-size:14px; font-weight:600; color:#1a1a18; line-height:1.5; margin-bottom:10px;">${esc(p.name)}</div>
+          <div style="font-size:13px; color:#444; margin-bottom:7px;"><span style="font-size:11px;color:#bbb;margin-right:5px;">저자</span>${p.author ? `<span onclick="searchAuthor('${esc(p.author)}')" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px;">${esc(p.author)}</span>` : '—'}</div>
+          <div style="font-size:13px; color:#666; margin-bottom:12px;"><span style="font-size:11px;color:#bbb;margin-right:5px;">출판사</span>${p.publisher ? `<span onclick="searchPublisher('${esc(p.publisher)}')" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px;">${esc(p.publisher)}</span>` : '—'}</div>
           <div style="font-size:20px; font-weight:700; color:#185fa5;">${p.price > 0 ? '₩' + p.price.toLocaleString() : '—'}</div>
         </div>
       </div>
