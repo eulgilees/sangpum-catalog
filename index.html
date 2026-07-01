@@ -3031,6 +3031,10 @@ navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', e
     openAsList();
     return;
   }
+  if (e.data && e.data.type === 'OPEN_ISSUES') {
+    openIssueList();
+    return;
+  }
   if (e.data && e.data.type === 'OPEN_CHAT_ROOM') {
     const roomId = e.data.roomId;
     const token = localStorage.getItem('authToken') || '';
@@ -3830,6 +3834,8 @@ setInterval(async () => {
   const data = await res.json();
   if (data.ok) updateChatBadge(data.unread);
 }, 30000);
+
+setInterval(() => { if (currentUser) checkActiveIssues(); }, 30000);
 
 // ── 전화번호 자동 하이픈 ──
 function formatPhone(input) {

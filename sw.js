@@ -44,6 +44,7 @@ self.addEventListener('notificationclick', e => {
         if (roomId) existing.postMessage({ type: 'OPEN_CHAT_ROOM', roomId });
         else if (view === 'orders') existing.postMessage({ type: 'OPEN_ORDERS' });
         else if (view === 'as') existing.postMessage({ type: 'OPEN_AS' });
+        else if (view === 'issues') existing.postMessage({ type: 'OPEN_ISSUES' });
         return;
       }
       return clients.openWindow(url);

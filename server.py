@@ -1215,7 +1215,22 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == '/api/issues':
             user = verify_session(self.headers.get('X-Token',''))
             body['store'] = user['store'] if user else ''
-            self.send_json({'ok': True, 'id': add_issue(body)})
+            new_issue_id = add_issue(body)
+            self.send_json({'ok': True, 'id': new_issue_id})
+            # 같은 매장 전체 사용자에게 푸시
+            store = body['store']
+            title_text = body.get('title', '새 이슈')
+            def push_issue_all():
+                try:
+                    conn2 = data_db(); c2 = conn2.cursor()
+                    c2.execute('SELECT id FROM users WHERE store=%s', (store,))
+                    uids = [r[0] for r in c2.fetchall()]
+                    release_db(conn2)
+                    for uid in uids:
+                        send_push_notification(f'🚨 새 이슈 등록', title_text, uid, 'issue', '/?view=issues')
+                except Exception as e:
+                    print(f'이슈 푸시 오류: {e}')
+            threading.Thread(target=push_issue_all, daemon=True).start()
         elif self.path == '/api/issues/update':
             update_issue(body); self.send_json({'ok': True})
         elif self.path == '/api/issues/status':
