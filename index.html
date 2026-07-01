@@ -849,10 +849,21 @@
         <span id="schedule-month-label" style="font-weight:700;font-size:14px;color:#222;min-width:80px;text-align:center;"></span>
         <button onclick="scheduleMonthMove(1)" style="background:none;border:none;font-size:22px;cursor:pointer;color:#555;padding:0;line-height:1;">&#8250;</button>
       </div>
-      <div style="display:flex;gap:0;border:1px solid #d4d4ce;border-radius:8px;overflow:hidden;">
-        <button id="sch-tab-list" onclick="switchScheduleTab('list')" style="background:#185fa5;color:#fff;border:none;padding:6px 14px;font-size:14px;cursor:pointer;">목록</button>
-        <button id="sch-tab-cal" onclick="switchScheduleTab('cal')" style="background:none;color:#555;border:none;padding:6px 14px;font-size:14px;cursor:pointer;">달력</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;gap:0;border:1px solid #d4d4ce;border-radius:8px;overflow:hidden;">
+          <button id="sch-tab-list" onclick="switchScheduleTab('list')" style="background:#185fa5;color:#fff;border:none;padding:6px 14px;font-size:14px;cursor:pointer;">목록</button>
+          <button id="sch-tab-cal" onclick="switchScheduleTab('cal')" style="background:none;color:#555;border:none;padding:6px 14px;font-size:14px;cursor:pointer;">달력</button>
+        </div>
+        <button onclick="toggleSheetPanel()" title="시트 연동" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;padding:2px;line-height:1;"><i class="ti ti-link"></i></button>
       </div>
+    </div>
+    <div id="schedule-sheet-panel" style="display:none;padding:12px 16px;background:#f8f8f6;border-bottom:1px solid #e8e8e4;">
+      <div style="font-size:13px;font-weight:600;color:#444;margin-bottom:8px;">구글 시트 URL 연동</div>
+      <div style="display:flex;gap:8px;">
+        <input id="sch-sheet-url" type="url" placeholder="https://docs.google.com/spreadsheets/d/..." style="flex:1;border:1px solid #d4d4ce;border-radius:8px;padding:9px 12px;font-size:13px;outline:none;background:#fff;box-sizing:border-box;">
+        <button onclick="doSaveSheetUrl()" style="background:#185fa5;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">저장</button>
+      </div>
+      <div id="sch-sheet-msg" style="font-size:12px;margin-top:6px;display:none;"></div>
     </div>
     <div id="schedule-my-banner" style="display:none;padding:12px 16px;background:#f0f5ff;border-bottom:1px solid #d8e6ff;"></div>
     <div id="schedule-list-view" style="overflow-y:auto;flex:1;padding:14px 16px;overscroll-behavior:contain;"></div>
@@ -1354,7 +1365,39 @@ function openSchedule() {
   scheduleMonth = now.getMonth() + 1;
   const el = document.getElementById('schedule-overlay');
   el.style.display = 'flex';
+  // 저장된 시트 URL 불러오기
+  const token = localStorage.getItem('authToken') || '';
+  fetch('/api/store-settings', {headers:{'X-Token':token}}).then(r=>r.json()).then(d=>{
+    if (d.ok) document.getElementById('sch-sheet-url').value = d.sheet_id ? `https://docs.google.com/spreadsheets/d/${d.sheet_id}/` : '';
+  }).catch(()=>{});
   loadSchedule();
+}
+function toggleSheetPanel() {
+  const panel = document.getElementById('schedule-sheet-panel');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  document.getElementById('sch-sheet-msg').style.display = 'none';
+}
+async function doSaveSheetUrl() {
+  const sheet_url = document.getElementById('sch-sheet-url').value.trim();
+  const msg = document.getElementById('sch-sheet-msg');
+  const token = localStorage.getItem('authToken') || '';
+  msg.style.display = 'none';
+  const res = await fetch('/api/store-settings', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-Token':token},
+    body: JSON.stringify({sheet_url})
+  }).then(r=>r.json()).catch(()=>({ok:false}));
+  msg.style.display = 'block';
+  if (res.ok) {
+    msg.style.color = '#2d7a1f';
+    msg.textContent = '✅ 저장되었습니다. 휴무 일정을 새로고침합니다.';
+    document.getElementById('schedule-sheet-panel').style.display = 'none';
+    loadSchedule();
+  } else {
+    msg.style.color = '#e03131';
+    msg.textContent = '❌ 저장에 실패했습니다.';
+  }
 }
 function closeSchedule() { unlockScroll(); document.getElementById('schedule-overlay').style.display = 'none'; }
 
@@ -3099,11 +3142,6 @@ function openProfile() {
   document.getElementById('prof-pw').value = '';
   document.getElementById('prof-pw2').value = '';
   document.getElementById('prof-error').style.display = 'none';
-  // 점포 시트 URL 불러오기
-  const token = localStorage.getItem('authToken') || '';
-  fetch('/api/store-settings', {headers:{'X-Token':token}}).then(r=>r.json()).then(d=>{
-    if (d.ok) document.getElementById('prof-sheet-url').value = d.sheet_id ? `https://docs.google.com/spreadsheets/d/${d.sheet_id}/` : '';
-  }).catch(()=>{});
   document.getElementById('profile-modal').style.display = 'block';
 }
 function closeProfile() {
@@ -4092,14 +4130,6 @@ window.addEventListener('load', () => {
     </div>
     <div id="prof-error" style="color:#e03131;font-size:14px;margin-bottom:12px;display:none;"></div>
     <button onclick="doUpdateProfile()" style="width:100%;background:#185fa5;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:600;cursor:pointer;">저장</button>
-    <div style="border-top:1px solid #ebebeb;margin:20px 0 16px;"></div>
-    <div style="font-size:14px;font-weight:700;color:#222;margin-bottom:4px;">휴무 일정 시트 연동</div>
-    <div style="font-size:12px;color:#888;margin-bottom:12px;">점포 전용 구글 시트 URL을 입력하면 휴무 일정이 해당 시트에서 불러와집니다.</div>
-    <div style="margin-bottom:10px;">
-      <input id="prof-sheet-url" type="url" placeholder="https://docs.google.com/spreadsheets/d/..." style="width:100%;border:1px solid #d4d4ce;border-radius:10px;padding:12px 14px;font-size:13px;outline:none;background:#fff;box-sizing:border-box;">
-    </div>
-    <div id="prof-sheet-msg" style="font-size:13px;margin-bottom:10px;display:none;"></div>
-    <button onclick="doSaveSheetUrl()" style="width:100%;background:#2d7a1f;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;">시트 연동 저장</button>
   </div>
 </div>
 </body>
