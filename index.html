@@ -592,7 +592,7 @@
       <div class="order-label">담당자</div>
       <input class="order-input" id="of-staff" placeholder="담당자 이름">
     </div>
-    <div class="order-field">
+    <div class="order-field" id="of-receipt-wrap" style="display:none;">
       <div class="order-label">영수증 번호</div>
       <input class="order-input" id="of-receipt-no" placeholder="영수증 번호 입력 (선택)">
     </div>
@@ -2234,6 +2234,8 @@ function selectToggle(type, idx, val) {
     orderPayVal = val;
     document.getElementById('of-pay-0').classList.toggle('active', idx===0);
     document.getElementById('of-pay-1').classList.toggle('active', idx===1);
+    document.getElementById('of-receipt-wrap').style.display = val === '완불' ? 'block' : 'none';
+    if (val !== '완불') document.getElementById('of-receipt-no').value = '';
   } else {
     orderOrdVal = val;
     document.getElementById('of-ord-0').classList.toggle('active', idx===0);
@@ -2261,6 +2263,7 @@ function openOrderForm(barcode, name, order=null) {
   document.getElementById('of-receptionist').value = order ? (order.receptionist||'') : '';
   document.getElementById('of-staff').value = order ? order.staff : '';
   document.getElementById('of-receipt-no').value = order ? (order.receipt_no||'') : '';
+  document.getElementById('of-receipt-wrap').style.display = (order && order.payment==='완불') ? 'block' : 'none';
   document.getElementById('of-note').value = order ? order.note : '';
   selectToggle('pay', order && order.payment==='완불' ? 1 : 0, order ? order.payment : '미불');
   selectToggle('ord', order && order.ordered==='완료' ? 1 : 0, order ? order.ordered : '미완료');
