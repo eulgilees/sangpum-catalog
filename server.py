@@ -237,6 +237,26 @@ def init_tables():
         conn3.commit(); conn3.close()
     except: pass
     conn.commit(); release_db(conn)
+    # 중복 notify 방 정리 (notify_rooms에 없는 동명 방 삭제)
+    try:
+        conn4 = data_db(); c4 = conn4.cursor()
+        for room_type in ('주문처리방', 'AS처리방'):
+            # notify_rooms에 등록된 정식 방 목록
+            c4.execute('SELECT user_id, room_id FROM notify_rooms WHERE room_type=%s', (room_type,))
+            canonical = {row[0]: row[1] for row in c4.fetchall()}
+            for uid, canonical_rid in canonical.items():
+                # 같은 유저가 멤버인 동명 방 중 canonical이 아닌 것
+                c4.execute('''SELECT r.id FROM chat_rooms r
+                              JOIN chat_room_members m ON m.room_id=r.id
+                              WHERE m.user_id=%s AND r.group_name=%s AND r.id != %s''',
+                           (uid, room_type, canonical_rid))
+                for (dup_rid,) in c4.fetchall():
+                    c4.execute('DELETE FROM chat_messages WHERE room_id=%s', (dup_rid,))
+                    c4.execute('DELETE FROM chat_room_members WHERE room_id=%s', (dup_rid,))
+                    c4.execute('DELETE FROM chat_rooms WHERE id=%s', (dup_rid,))
+        conn4.commit(); conn4.close()
+    except Exception as e:
+        print(f'중복 방 정리 오류: {e}')
 
 def search_products(query='', barcode='', limit=50, offset=0):
     conn = sqlite3.connect(PRODUCTS_DB)
