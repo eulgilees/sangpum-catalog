@@ -4163,6 +4163,12 @@ function createChatBubbleEl(m) {
       <div style="font-size:12px;color:#185fa5;font-weight:700;margin-bottom:4px;">${icon} ${label} →</div>
       <div style="color:#222;">${escHtml(card.text)}</div>
     </div>`;
+  } else if (m.content && m.content.startsWith('[CHAT_IMAGE:')) {
+    const dataUrl = m.content.slice(12, -1);
+    const delAttr = canDelete ? `onclick="showChatDeleteBtn(${m.id},this)"` : '';
+    bubble = `<div ${delAttr} style="max-width:min(70%,calc(100% - 60px));border-radius:${mine?'16px 4px 16px 16px':'4px 16px 16px 16px'};overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.12);${canDelete?'cursor:pointer;':''}">
+      <img src="${dataUrl}" style="display:block;width:100%;max-width:280px;border-radius:inherit;" onclick="showChatImageFull('${dataUrl.replace(/'/g,"\\'")}')">
+    </div>`;
   } else {
     const clickAttr = canDelete ? `onclick="showChatDeleteBtn(${m.id},this)"` : '';
     bubble = `<div ${clickAttr} style="max-width:min(70%,calc(100% - 60px));background:${mine?'#185fa5':'#fff'};color:${mine?'#fff':'#222'};border-radius:${mine?'16px 4px 16px 16px':'4px 16px 16px 16px'};padding:10px 14px;font-size:14px;line-height:1.5;word-break:break-word;overflow-wrap:anywhere;white-space:pre-wrap;box-shadow:0 1px 4px rgba(0,0,0,0.08);${canDelete?'cursor:pointer;':''}">${escHtml(m.content)}</div>`;
@@ -4194,6 +4200,67 @@ function showChatDeleteBtn(msgId, bubbleEl) {
   popup.style.marginBottom = '4px';
   _deleteBtnTimer = setTimeout(() => popup.remove(), 3000);
   document.addEventListener('click', () => popup.remove(), { once: true });
+}
+
+async function chatSendImage(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+  showToast('이미지 압축 중...', true, 2000);
+  try {
+    const dataUrl = await compressChatImage(file, 1024, 0.75);
+    const token = localStorage.getItem('authToken') || '';
+    const content = '[CHAT_IMAGE:' + dataUrl + ']';
+    const res = await fetch('/api/chat/send', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-Token':token},
+      body: JSON.stringify({room_id: chatRoomId, content})
+    }).then(r=>r.json()).catch(()=>({ok:false}));
+    if (res.ok && res.message) appendChatBubble(res.message);
+  } catch(e) {
+    showToast('이미지 전송 실패', false, 2000);
+  }
+}
+
+function compressChatImage(file, maxPx, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxPx || h > maxPx) {
+          if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+          else { w = Math.round(w * maxPx / h); h = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function showChatImageFull(dataUrl) {
+  let lb = document.getElementById('chat-img-lightbox');
+  if (!lb) {
+    lb = document.createElement('div');
+    lb.id = 'chat-img-lightbox';
+    lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+    lb.onclick = () => lb.style.display = 'none';
+    const img = document.createElement('img');
+    img.id = 'chat-img-lightbox-img';
+    img.style.cssText = 'max-width:95vw;max-height:90vh;border-radius:8px;object-fit:contain;';
+    lb.appendChild(img);
+    document.body.appendChild(lb);
+  }
+  document.getElementById('chat-img-lightbox-img').src = dataUrl;
+  lb.style.display = 'flex';
 }
 
 async function deleteChatMessage(msgId) {
@@ -4466,7 +4533,9 @@ window.addEventListener('load', () => {
       <button onclick="closeChatSearch()" style="background:none;border:none;font-size:14px;color:#aaa;cursor:pointer;padding:4px;">✕</button>
     </div>
     <div id="chat-messages-area" style="flex:1;overflow-y:auto;min-height:0;padding:16px;display:flex;flex-direction:column;gap:10px;"></div>
-    <div id="chat-input-bar" style="flex-shrink:0;padding:10px 12px 12px;background:#fff;border-top:1px solid #ebebeb;display:flex;gap:8px;">
+    <div id="chat-input-bar" style="flex-shrink:0;padding:10px 12px 12px;background:#fff;border-top:1px solid #ebebeb;display:flex;gap:8px;align-items:center;">
+      <input type="file" id="chat-img-input" accept="image/*" style="display:none;" onchange="chatSendImage(this)">
+      <button onclick="document.getElementById('chat-img-input').click()" style="background:none;border:none;font-size:22px;color:#888;cursor:pointer;padding:2px 4px;flex-shrink:0;">🖼</button>
       <input id="chat-input" type="text" placeholder="메시지 입력..." maxlength="500"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSend();}"
         style="flex:1;padding:10px 14px;border:1px solid #d4d4ce;border-radius:20px;font-size:14px;outline:none;">
