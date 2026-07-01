@@ -3517,12 +3517,28 @@ function backToChatList() {
   showChatList();
 }
 
+let _chatFilter = 'all';
+function setChatFilter(f) {
+  _chatFilter = f;
+  ['all','dm','group'].forEach(k => {
+    const btn = document.getElementById(`chat-filter-${k}`);
+    const active = k === f;
+    btn.style.borderBottomColor = active ? '#185fa5' : 'transparent';
+    btn.style.color = active ? '#185fa5' : '#888';
+    btn.style.fontWeight = active ? '700' : '600';
+  });
+  if (chatRoomsCache) renderChatRooms(chatRoomsCache);
+}
 function renderChatRooms(rooms) {
   const el = document.getElementById('chat-rooms-list');
-  if (!rooms.length) {
-    el.innerHTML = '<div style="text-align:center;color:#aaa;padding:48px 16px;font-size:10px;">채팅방이 없습니다.<br>새 채팅을 시작해보세요.</div>';
+  const filtered = _chatFilter === 'dm' ? rooms.filter(r => !r.is_group)
+                 : _chatFilter === 'group' ? rooms.filter(r => r.is_group)
+                 : rooms;
+  if (!filtered.length) {
+    el.innerHTML = '<div style="text-align:center;color:#aaa;padding:48px 16px;font-size:14px;">채팅방이 없습니다.<br>새 채팅을 시작해보세요.</div>';
     return;
   }
+  rooms = filtered;
   el.innerHTML = rooms.map(r => {
     const ts = r.last_ts ? formatChatTime(r.last_ts) : '';
     const unread = r.unread > 0 ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#e03131;flex-shrink:0;"></span>` : '';
@@ -4058,6 +4074,11 @@ window.addEventListener('load', () => {
         <button id="chat-expand-btn" onclick="toggleChatExpand()" title="크게 보기" style="background:none;border:none;font-size:24px;color:#888;cursor:pointer;padding:0 4px;display:none;line-height:1;">⤢</button>
         <button onclick="closeChat()" style="background:none;border:none;font-size:22px;color:#aaa;cursor:pointer;padding:0 4px;">✕</button>
       </div>
+    </div>
+    <div style="display:flex;background:#fff;border-bottom:1px solid #ebebeb;flex-shrink:0;">
+      <button id="chat-filter-all" onclick="setChatFilter('all')" style="flex:1;padding:10px 0;font-size:13px;font-weight:700;border:none;border-bottom:2px solid #185fa5;color:#185fa5;background:#fff;cursor:pointer;">전체</button>
+      <button id="chat-filter-dm" onclick="setChatFilter('dm')" style="flex:1;padding:10px 0;font-size:13px;font-weight:600;border:none;border-bottom:2px solid transparent;color:#888;background:#fff;cursor:pointer;">개인</button>
+      <button id="chat-filter-group" onclick="setChatFilter('group')" style="flex:1;padding:10px 0;font-size:13px;font-weight:600;border:none;border-bottom:2px solid transparent;color:#888;background:#fff;cursor:pointer;">그룹</button>
     </div>
     <div id="chat-rooms-list" style="flex:1;overflow-y:auto;padding:8px 0;"></div>
   </div>
