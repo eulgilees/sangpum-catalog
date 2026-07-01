@@ -4251,15 +4251,23 @@ function showChatImageFull(dataUrl) {
   if (!lb) {
     lb = document.createElement('div');
     lb.id = 'chat-img-lightbox';
-    lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:pointer;';
-    lb.onclick = () => lb.style.display = 'none';
-    const img = document.createElement('img');
-    img.id = 'chat-img-lightbox-img';
-    img.style.cssText = 'max-width:95vw;max-height:90vh;border-radius:8px;object-fit:contain;';
-    lb.appendChild(img);
+    lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;';
+    lb.innerHTML = `
+      <div style="position:absolute;top:16px;right:16px;display:flex;gap:10px;">
+        <button id="chat-img-save-btn" style="background:rgba(255,255,255,0.15);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:600;padding:8px 16px;cursor:pointer;">⬇ 저장</button>
+        <button onclick="document.getElementById('chat-img-lightbox').style.display='none'" style="background:rgba(255,255,255,0.15);border:none;border-radius:10px;color:#fff;font-size:20px;padding:6px 12px;cursor:pointer;">✕</button>
+      </div>
+      <img id="chat-img-lightbox-img" style="max-width:95vw;max-height:80vh;border-radius:8px;object-fit:contain;">`;
     document.body.appendChild(lb);
   }
-  document.getElementById('chat-img-lightbox-img').src = dataUrl;
+  const img = document.getElementById('chat-img-lightbox-img');
+  img.src = dataUrl;
+  document.getElementById('chat-img-save-btn').onclick = () => {
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = 'chat_image_' + Date.now() + '.jpg';
+    a.click();
+  };
   lb.style.display = 'flex';
 }
 
