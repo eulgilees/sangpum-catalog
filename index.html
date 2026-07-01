@@ -3737,9 +3737,9 @@ function chatSearchScrollTo(idx) {
 function _updateMuteBtn() {
   const btn = document.getElementById('chat-mute-btn');
   if (!btn) return;
-  btn.textContent = _chatRoomMuted ? '🔕' : '🔔';
+  btn.innerHTML = `<i class="ti ${_chatRoomMuted ? 'ti-bell-off' : 'ti-bell'}" style="font-size:20px;"></i>`;
   btn.title = _chatRoomMuted ? '알림 꺼짐 (탭하면 켜기)' : '알림 켜짐 (탭하면 끄기)';
-  btn.style.opacity = _chatRoomMuted ? '0.5' : '1';
+  btn.style.color = _chatRoomMuted ? '#bbb' : '#888';
 }
 async function toggleChatMute() {
   const token = localStorage.getItem('authToken') || '';
@@ -4523,7 +4523,7 @@ window.addEventListener('load', () => {
         <div id="chat-room-title" style="font-size:14px;font-weight:700;color:#222;"></div>
         <div id="chat-room-subtitle" style="font-size:14px;color:#888;"></div>
       </div>
-      <button id="chat-mute-btn" onclick="toggleChatMute()" style="background:none;border:none;font-size:20px;color:#888;cursor:pointer;padding:4px;" title="알림 설정">🔔</button>
+      <button id="chat-mute-btn" onclick="toggleChatMute()" style="background:none;border:none;font-size:20px;color:#888;cursor:pointer;padding:4px;display:flex;align-items:center;" title="알림 설정"><i class="ti ti-bell" style="font-size:20px;"></i></button>
       <button onclick="toggleChatSearch()" style="background:none;border:none;font-size:20px;color:#888;cursor:pointer;padding:4px;">🔍</button>
       <button onclick="toggleChatMenu()" style="background:none;border:none;font-size:22px;color:#888;cursor:pointer;padding:4px;line-height:1;">⋯</button>
       <button onclick="closeChat()" style="background:none;border:none;font-size:20px;color:#bbb;cursor:pointer;padding:4px;line-height:1;">✕</button>
@@ -4543,7 +4543,7 @@ window.addEventListener('load', () => {
     <div id="chat-messages-area" style="flex:1;overflow-y:auto;min-height:0;padding:16px;display:flex;flex-direction:column;gap:10px;"></div>
     <div id="chat-input-bar" style="flex-shrink:0;padding:10px 12px 12px;background:#fff;border-top:1px solid #ebebeb;display:flex;gap:8px;align-items:center;">
       <input type="file" id="chat-img-input" accept="image/*" style="display:none;" onchange="chatSendImage(this)">
-      <button onclick="document.getElementById('chat-img-input').click()" style="background:none;border:none;font-size:22px;color:#888;cursor:pointer;padding:2px 4px;flex-shrink:0;">🖼</button>
+      <button onclick="document.getElementById('chat-img-input').click()" style="background:none;border:none;color:#888;cursor:pointer;padding:4px;flex-shrink:0;display:flex;align-items:center;"><i class="ti ti-photo" style="font-size:22px;"></i></button>
       <input id="chat-input" type="text" placeholder="메시지 입력..." maxlength="500"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSend();}"
         style="flex:1;padding:10px 14px;border:1px solid #d4d4ce;border-radius:20px;font-size:14px;outline:none;">
