@@ -1205,9 +1205,11 @@ function onSearch() {
 async function doSearch(append) {
   const q = currentQuery;
   if (!q) { document.getElementById('result-area').style.display = 'none'; return; }
+  _inDetailView = false;
   const fieldParam = currentSearchField ? `&field=${currentSearchField}` : '';
   const url = `/api/search?q=${encodeURIComponent(q)}&limit=20&offset=${currentOffset}${fieldParam}`;
   const res = await fetch(url);
+  if (_inDetailView) return;
   const data = await res.json();
   if (!currentSearchField && data.products.length === 1) {
     showSingleResult(data.products[0]);
@@ -1216,7 +1218,11 @@ async function doSearch(append) {
   }
 }
 
+let _inDetailView = false;
+
 function showSingleResult(p) {
+  clearTimeout(searchTimer);
+  _inDetailView = true;
   currentBarcode = p.barcode || '';
   const imgUrl = p.barcode ? `https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/${esc(p.barcode)}.jpg` : '';
   const area = document.getElementById('result-area');
