@@ -1437,9 +1437,13 @@ async function loadSchedule(silent = false) {
     // list 탭일 때 오늘 날짜로 스크롤 (switchScheduleTab 이후 실행해야 display:block 상태)
     if (scheduleTab === 'list') {
       setTimeout(() => {
+        const container = document.getElementById('schedule-list-view');
         const todayEl = document.getElementById('schedule-today');
-        if (todayEl) todayEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 150);
+        if (todayEl && container) {
+          const target = todayEl.offsetTop - container.offsetHeight / 2 + todayEl.offsetHeight / 2;
+          container.scrollTop = Math.max(0, target);
+        }
+      }, 200);
     }
     if (silent) showToast('✅ 새로고침 완료', true);
   } catch(e) {
