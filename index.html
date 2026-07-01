@@ -1219,10 +1219,12 @@ async function doSearch(append) {
 }
 
 let _inDetailView = false;
+let _lastShownProduct = null;
 
 function showSingleResult(p) {
   clearTimeout(searchTimer);
   _inDetailView = true;
+  _lastShownProduct = p;
   currentBarcode = p.barcode || '';
   const imgUrl = p.barcode ? `https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/${esc(p.barcode)}.jpg` : '';
   const area = document.getElementById('result-area');
@@ -1323,8 +1325,15 @@ function showListResult(products, total, append) {
 
 function clearFieldSearch() {
   currentSearchField = '';
-  document.getElementById('search-input').value = '';
-  document.getElementById('result-area').style.display = 'none';
+  if (_prevDetailProduct) {
+    const prev = _prevDetailProduct;
+    _prevDetailProduct = null;
+    showSingleResult(prev);
+    document.getElementById('search-input').value = prev.barcode || prev.name || '';
+  } else {
+    document.getElementById('search-input').value = '';
+    document.getElementById('result-area').style.display = 'none';
+  }
 }
 
 function loadMore() { doSearch(true); }
@@ -2041,7 +2050,10 @@ function row(label, val, clickable) {
   return `<div class="info-row"><span class="info-key">${esc(label)}</span>${valHtml}</div>`;
 }
 
+let _prevDetailProduct = null;
+
 function searchAuthor(author) {
+  _prevDetailProduct = _lastShownProduct;
   currentSearchField = 'author';
   currentQuery = author;
   currentOffset = 0;
@@ -2051,6 +2063,7 @@ function searchAuthor(author) {
 }
 
 function searchPublisher(publisher) {
+  _prevDetailProduct = _lastShownProduct;
   currentSearchField = 'publisher';
   currentQuery = publisher;
   currentOffset = 0;
