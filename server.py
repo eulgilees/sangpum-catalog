@@ -1136,23 +1136,25 @@ class Handler(BaseHTTPRequestHandler):
             store = user['store'] if user else ''
             body['store'] = store
             new_id = add_order(body)
+            self.send_json({'ok': True, 'id': new_id})
+            # 푸시 + 채팅 카드는 백그라운드에서 처리 (응답 지연 방지)
             staff_name = body.get('staff','')
-            staff_uid = get_user_id_by_name(staff_name, store) if staff_name and store else None
-            push_title = '📦 새 주문 접수'
-            push_body = f"{body.get('name','상품명 미입력')}" + (f" · {body.get('customer','')}" if body.get('customer') else '')
-            if staff_uid:
-                send_push_notification(push_title, push_body, staff_uid, 'order', '/?view=orders')
-                # 담당자 개인 주문처리방에 카드 발송
+            sender_name = user.get('display_name', '시스템') if user else '시스템'
+            def notify_order(oid, sname, store, body, sender):
                 try:
-                    room_id = get_or_create_personal_notify_room(staff_uid, '주문처리방')
-                    sender_name = user.get('display_name', '시스템') if user else '시스템'
-                    card = f"[ORDER_CARD:{new_id}]{body.get('customer','고객명없음')} · {body.get('name','상품명없음')} ({body.get('qty',1)}개)"
-                    chat_system_message(room_id, sender_name, card)
-                    print(f'[CHAT] 주문처리방 카드 발송 완료: room={room_id} order={new_id} to uid={staff_uid}')
+                    uid = get_user_id_by_name(sname, store) if sname and store else None
+                    if not uid: return
+                    push_title = '📦 새 주문 접수'
+                    push_body = f"{body.get('name','상품명 미입력')}" + (f" · {body.get('customer','')}" if body.get('customer') else '')
+                    send_push_notification(push_title, push_body, uid, 'order', '/?view=orders')
+                    room_id = get_or_create_personal_notify_room(uid, '주문처리방')
+                    card = f"[ORDER_CARD:{oid}]{body.get('customer','고객명없음')} · {body.get('name','상품명없음')} ({body.get('qty',1)}개)"
+                    chat_system_message(room_id, sender, card)
+                    print(f'[CHAT] 주문처리방 카드 발송 완료: room={room_id} order={oid} to uid={uid}')
                 except Exception as e:
                     import traceback; traceback.print_exc()
                     print(f'주문 채팅 자동발송 오류: {e}')
-            self.send_json({'ok': True, 'id': new_id})
+            threading.Thread(target=notify_order, args=(new_id, staff_name, store, body, sender_name), daemon=True).start()
         elif self.path == '/api/orders/update':
             user = verify_session(self.headers.get('X-Token',''))
             # 담당자 변경 여부 확인 후 재발송
@@ -1182,21 +1184,22 @@ class Handler(BaseHTTPRequestHandler):
             store = user['store'] if user else ''
             body['store'] = store
             new_as_id = add_as_request(body)
+            self.send_json({'ok': True, 'id': new_as_id})
             staff_name = body.get('staff','')
-            staff_uid = get_user_id_by_name(staff_name, store) if staff_name and store else None
-            push_title = '🔧 새 AS 접수'
-            push_body = f"{body.get('product_name','상품명 미입력')}" + (f" · {body.get('customer','')}" if body.get('customer') else '')
-            if staff_uid:
-                send_push_notification(push_title, push_body, staff_uid, 'as', '/?view=as')
-                # 담당자 개인 AS처리방에 카드 발송
+            sender_name = user.get('display_name', '시스템') if user else '시스템'
+            def notify_as(oid, sname, store, body, sender):
                 try:
-                    room_id = get_or_create_personal_notify_room(staff_uid, 'AS처리방')
-                    sender_name = user.get('display_name', '시스템') if user else '시스템'
-                    card = f"[AS_CARD:{new_as_id}]{body.get('customer','고객명없음')} · {body.get('product_name','상품명없음')} AS 접수"
-                    chat_system_message(room_id, sender_name, card)
+                    uid = get_user_id_by_name(sname, store) if sname and store else None
+                    if not uid: return
+                    push_title = '🔧 새 AS 접수'
+                    push_body = f"{body.get('product_name','상품명 미입력')}" + (f" · {body.get('customer','')}" if body.get('customer') else '')
+                    send_push_notification(push_title, push_body, uid, 'as', '/?view=as')
+                    room_id = get_or_create_personal_notify_room(uid, 'AS처리방')
+                    card = f"[AS_CARD:{oid}]{body.get('customer','고객명없음')} · {body.get('product_name','상품명없음')} AS 접수"
+                    chat_system_message(room_id, sender, card)
                 except Exception as e:
                     print(f'AS 채팅 자동발송 오류: {e}')
-            self.send_json({'ok': True, 'id': new_as_id})
+            threading.Thread(target=notify_as, args=(new_as_id, staff_name, store, body, sender_name), daemon=True).start()
         elif self.path == '/api/as/update':
             user = verify_session(self.headers.get('X-Token',''))
             try:
