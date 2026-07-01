@@ -512,10 +512,6 @@
       <i class="ti ti-chart-bar"></i>
       매출
     </button>
-    <button class="header-nav-btn" onclick="openGuide()">
-      <i class="ti ti-help-circle"></i>
-      설치 후 가이드
-    </button>
     <button class="header-nav-btn" onclick="window.open('https://sts.kyobobook.co.kr/po/home', '_blank')">
       <i class="ti ti-external-link"></i>
       웹사이트
@@ -1100,10 +1096,15 @@
 </div>
 
 <main>
-  <button class="scan-btn" onclick="openScanner()">
-    <i class="ti ti-camera"></i>
-    바코드 스캔
-  </button>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:0;">
+    <button class="scan-btn" onclick="openScanner()" style="margin-bottom:0;flex:1;">
+      <i class="ti ti-camera"></i>
+      바코드 스캔
+    </button>
+    <button onclick="openGuide()" title="설치 후 가이드" style="flex-shrink:0;background:#fff;border:1px solid #d4d4ce;border-radius:10px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#888;">
+      <i class="ti ti-help-circle" style="font-size:20px;"></i>
+    </button>
+  </div>
 
   <div class="search-wrap" style="margin-bottom:12px;">
     <i class="ti ti-search"></i>
