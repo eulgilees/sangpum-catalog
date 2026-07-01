@@ -277,13 +277,20 @@ def init_tables():
     except Exception as e:
         print(f'중복 방 정리 오류: {e}')
 
-def search_products(query='', barcode='', limit=50, offset=0):
+def search_products(query='', barcode='', limit=50, offset=0, field=''):
     conn = sqlite3.connect(PRODUCTS_DB)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     if barcode:
         c.execute('SELECT * FROM products WHERE barcode=? LIMIT 1', (barcode,))
         rows = c.fetchall(); total = len(rows)
+    elif query and field in ('author', 'publisher'):
+        like = f'%{query.lower().replace(" ","")}%'
+        w = f"replace(lower({field}), ' ', '') LIKE ?"
+        c.execute(f'SELECT COUNT(*) FROM products WHERE {w}', (like,))
+        total = c.fetchone()[0]
+        c.execute(f'SELECT * FROM products WHERE {w} LIMIT ? OFFSET ?', (like,limit,offset))
+        rows = c.fetchall()
     elif query:
         like = f'%{query.lower().replace(" ","")}%'
         w = "replace(lower({c}), ' ', '') LIKE ?"
@@ -1110,7 +1117,8 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/search':
             products, total = search_products(
                 params.get('q',[''])[0], params.get('barcode',[''])[0],
-                int(params.get('limit',['50'])[0]), int(params.get('offset',['0'])[0]))
+                int(params.get('limit',['50'])[0]), int(params.get('offset',['0'])[0]),
+                params.get('field',[''])[0])
             self.send_json({'products': products, 'total': total})
         else:
             self.send_file(parsed.path)

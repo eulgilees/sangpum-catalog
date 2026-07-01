@@ -1183,6 +1183,7 @@
 let searchTimer = null;
 let currentOffset = 0;
 let currentQuery = '';
+let currentSearchField = '';
 let currentBarcode = '';
 let codeReader = null;
 let lastScanned = '';
@@ -1195,6 +1196,7 @@ function onSearch() {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
     currentOffset = 0;
+    currentSearchField = '';
     currentQuery = document.getElementById('search-input').value.trim();
     doSearch(false);
   }, 300);
@@ -1203,10 +1205,11 @@ function onSearch() {
 async function doSearch(append) {
   const q = currentQuery;
   if (!q) { document.getElementById('result-area').style.display = 'none'; return; }
-  const url = `/api/search?q=${encodeURIComponent(q)}&limit=20&offset=${currentOffset}`;
+  const fieldParam = currentSearchField ? `&field=${currentSearchField}` : '';
+  const url = `/api/search?q=${encodeURIComponent(q)}&limit=20&offset=${currentOffset}${fieldParam}`;
   const res = await fetch(url);
   const data = await res.json();
-  if (data.products.length === 1) {
+  if (!currentSearchField && data.products.length === 1) {
     showSingleResult(data.products[0]);
   } else {
     showListResult(data.products, data.total, append);
@@ -1267,13 +1270,17 @@ function showSingleResult(p) {
 function showListResult(products, total, append) {
   const area = document.getElementById('result-area');
   area.style.display = 'block';
+  const isFieldSearch = !!currentSearchField;
   if (!append) {
     if (!products.length) {
       area.innerHTML = '<div class="empty-msg"><i class="ti ti-search-off"></i>검색 결과가 없습니다</div>';
       return;
     }
+    const headerLabel = isFieldSearch
+      ? `<span style="cursor:pointer;color:#185fa5;" onclick="clearFieldSearch()"><i class="ti ti-arrow-left"></i></span> <b>${esc(currentQuery)}</b> ${currentSearchField==='author'?'저자':'출판사'} 책 ${total.toLocaleString()}권`
+      : `검색 결과 ${total.toLocaleString()}개`;
     area.innerHTML = `
-      <div class="list-header">검색 결과 ${total.toLocaleString()}개</div>
+      <div class="list-header">${headerLabel}</div>
       <div class="product-list" id="product-list"></div>
       <button class="more-btn" id="more-btn" style="display:none" onclick="loadMore()">더 보기</button>
     `;
@@ -1282,19 +1289,36 @@ function showListResult(products, total, append) {
   products.forEach(p => {
     const el = document.createElement('div');
     el.className = 'product-row';
-    el.innerHTML = `
-      <div style="flex:1; min-width:0;">
-        <div class="row-name">${esc(p.name)}</div>
-        <div class="row-sub">${esc([p.author, p.publisher].filter(Boolean).join(' · '))}${p.category ? ' <span style="color:#b4b2a9">('+esc((p.category.match(/\[(.+)\]/)||[])[1]||p.category)+')</span>' : ''}</div>
-      </div>
-      <div class="row-price">${p.price > 0 ? '₩' + p.price.toLocaleString() : '—'}</div>
-    `;
+    if (isFieldSearch) {
+      el.innerHTML = `
+        <img src="/api/image?barcode=${esc(p.barcode)}" alt="" style="width:44px;height:60px;object-fit:cover;border-radius:4px;flex-shrink:0;background:#f0f0ec;" onerror="this.style.visibility='hidden'">
+        <div style="flex:1;min-width:0;">
+          <div class="row-name">${esc(p.name)}</div>
+          <div class="row-sub">${esc([p.author, p.publisher].filter(Boolean).join(' · '))}</div>
+        </div>
+        <div class="row-price">${p.price > 0 ? '₩' + p.price.toLocaleString() : '—'}</div>
+      `;
+    } else {
+      el.innerHTML = `
+        <div style="flex:1; min-width:0;">
+          <div class="row-name">${esc(p.name)}</div>
+          <div class="row-sub">${esc([p.author, p.publisher].filter(Boolean).join(' · '))}${p.category ? ' <span style="color:#b4b2a9">('+esc((p.category.match(/\[(.+)\]/)||[])[1]||p.category)+')</span>' : ''}</div>
+        </div>
+        <div class="row-price">${p.price > 0 ? '₩' + p.price.toLocaleString() : '—'}</div>
+      `;
+    }
     el.onclick = () => showSingleResult(p);
     list.appendChild(el);
   });
   currentOffset += products.length;
   const moreBtn = document.getElementById('more-btn');
   if (moreBtn) moreBtn.style.display = currentOffset < total ? 'block' : 'none';
+}
+
+function clearFieldSearch() {
+  currentSearchField = '';
+  document.getElementById('search-input').value = '';
+  document.getElementById('result-area').style.display = 'none';
 }
 
 function loadMore() { doSearch(true); }
@@ -2012,7 +2036,7 @@ function row(label, val, clickable) {
 }
 
 function searchAuthor(author) {
-  document.getElementById('search-input').value = author;
+  currentSearchField = 'author';
   currentQuery = author;
   currentOffset = 0;
   doSearch(false);
@@ -2020,7 +2044,7 @@ function searchAuthor(author) {
 }
 
 function searchPublisher(publisher) {
-  document.getElementById('search-input').value = publisher;
+  currentSearchField = 'publisher';
   currentQuery = publisher;
   currentOffset = 0;
   doSearch(false);
