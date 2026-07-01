@@ -2900,6 +2900,7 @@ async function submitIssue() {
   fetch(issueFormId ? '/api/issues/update' : '/api/issues', {
     method: 'POST', headers: {'Content-Type':'application/json', 'X-Token': token}, body: JSON.stringify(body)
   }).then(() => loadIssueList());
+  openIssueList();
 }
 
 function loadIssueList_render(issues) {
