@@ -1440,8 +1440,10 @@ async function loadSchedule(silent = false) {
         const container = document.getElementById('schedule-list-view');
         const todayEl = document.getElementById('schedule-today');
         if (todayEl && container) {
-          const target = todayEl.offsetTop - container.offsetHeight / 2 + todayEl.offsetHeight / 2;
-          container.scrollTop = Math.max(0, target);
+          const cRect = container.getBoundingClientRect();
+          const tRect = todayEl.getBoundingClientRect();
+          const offset = tRect.top - cRect.top;
+          container.scrollTop = container.scrollTop + offset - (container.clientHeight / 2) + (todayEl.offsetHeight / 2);
         }
       }, 200);
     }
