@@ -122,6 +122,10 @@ def init_tables():
         room_id INTEGER NOT NULL,
         PRIMARY KEY (user_id, room_type)
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS store_settings (
+        store TEXT PRIMARY KEY,
+        sheet_id TEXT DEFAULT ''
+    )''')
     c.execute('''CREATE TABLE IF NOT EXISTS as_logs (
         id SERIAL PRIMARY KEY,
         as_id INTEGER NOT NULL,
@@ -769,10 +773,25 @@ def delete_session(token):
     c.execute('DELETE FROM sessions WHERE token=%s', (token,))
     conn.commit(); release_db(conn)
 
-def fetch_schedule(year_short, month):
+def get_store_sheet_id(store):
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT sheet_id FROM store_settings WHERE store=%s', (store,))
+    row = c.fetchone(); release_db(conn)
+    if row and row[0]:
+        return row[0]
+    return SHEET_ID  # 미설정 시 기본값
+
+def set_store_sheet_id(store, sheet_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('INSERT INTO store_settings (store, sheet_id) VALUES (%s,%s) ON CONFLICT (store) DO UPDATE SET sheet_id=%s',
+              (store, sheet_id, sheet_id))
+    conn.commit(); release_db(conn)
+
+def fetch_schedule(year_short, month, sheet_id=None):
     import urllib.request, csv, io
+    sid = sheet_id or SHEET_ID
     sheet_name = f'{year_short}년 {month}월'
-    url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(sheet_name)}'
+    url = f'https://docs.google.com/spreadsheets/d/{sid}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(sheet_name)}'
     with urllib.request.urlopen(url, timeout=10) as resp:
         csv_text = resp.read().decode('utf-8')
     rows = list(csv.reader(io.StringIO(csv_text)))
@@ -943,12 +962,21 @@ class Handler(BaseHTTPRequestHandler):
                 release_db(conn)
         elif parsed.path == '/api/schedule':
             try:
+                user = verify_session(self.headers.get('X-Token',''))
+                store = user['store'] if user else ''
+                sid = get_store_sheet_id(store) if store else SHEET_ID
                 now = time.localtime()
                 year_short = params.get('year', [str(now.tm_year % 100)])[0]
                 month = params.get('month', [str(now.tm_mon)])[0]
-                self.send_json({'ok': True, 'data': fetch_schedule(year_short, month)})
+                self.send_json({'ok': True, 'data': fetch_schedule(year_short, month, sid)})
             except Exception as e:
                 self.send_json({'ok': False, 'error': str(e)})
+        elif parsed.path == '/api/store-settings':
+            user = verify_session(self.headers.get('X-Token',''))
+            if not user: self.send_json({'ok': False}); return
+            store = user['store']
+            sid = get_store_sheet_id(store)
+            self.send_json({'ok': True, 'sheet_id': sid if sid != SHEET_ID else ''})
         elif parsed.path == '/api/schedule/raw':
             try:
                 import urllib.request as ur, csv as csv_mod, io as io_mod
@@ -1231,6 +1259,16 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception as e:
                     print(f'이슈 푸시 오류: {e}')
             threading.Thread(target=push_issue_all, daemon=True).start()
+        elif self.path == '/api/store-settings':
+            user = verify_session(self.headers.get('X-Token',''))
+            if not user: self.send_json({'ok': False}); return
+            raw = body.get('sheet_url', '').strip()
+            # URL에서 sheet ID 추출 (https://docs.google.com/spreadsheets/d/SHEET_ID/...)
+            import re as _re
+            m = _re.search(r'/spreadsheets/d/([a-zA-Z0-9_-]+)', raw)
+            sid = m.group(1) if m else raw  # URL이 아니면 그대로 ID로 취급
+            set_store_sheet_id(user['store'], sid)
+            self.send_json({'ok': True})
         elif self.path == '/api/issues/update':
             update_issue(body); self.send_json({'ok': True})
         elif self.path == '/api/issues/status':
