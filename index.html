@@ -3513,6 +3513,7 @@ async function initAuth() {
     localStorage.setItem('cachedUser', JSON.stringify(data.user));
     hideAuthScreen(); // 항상 호출 — 버튼 표시 + 최신 이름/점포 반영
     autoRequestPushIfStandalone();
+    prefetchAllLists();
     // 알림 클릭으로 진입 시 해당 채팅방 자동 열기
     const roomParam = new URLSearchParams(location.search).get('room');
     if (roomParam) {
@@ -3536,6 +3537,23 @@ async function initAuth() {
     currentUser = null;
     showAuthScreen();
   }
+}
+
+async function prefetchAllLists() {
+  const token = localStorage.getItem('authToken') || '';
+  try {
+    const [orders, logsRes, asRes, issueRes, suggRes] = await Promise.all([
+      fetch('/api/orders', {headers:{'X-Token':token}}).then(r=>r.json()).catch(()=>null),
+      fetch('/api/orders/logs/all').then(r=>r.json()).catch(()=>({ok:false,logs:{}})),
+      fetch('/api/as', {headers:{'X-Token':token}}).then(r=>r.json()).catch(()=>null),
+      fetch('/api/issues', {headers:{'X-Token':token}}).then(r=>r.json()).catch(()=>null),
+      fetch('/api/suggestions', {headers:{'X-Token':token}}).then(r=>r.json()).catch(()=>null),
+    ]);
+    if (orders) { window._orders = orders; window._orderLogs = logsRes.ok ? logsRes.logs : {}; }
+    if (asRes) window._asRequests = asRes;
+    if (issueRes) window._issues = issueRes;
+    if (suggRes) window._suggestions = suggRes;
+  } catch(e) {}
 }
 
 function isStandaloneMode() {
