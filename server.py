@@ -1218,7 +1218,6 @@ class Handler(BaseHTTPRequestHandler):
             msg = chat_send_message(int(room_id), user['id'], user['display_name'], content)
             other_uids = chat_get_other_member_ids(int(room_id), user['id'])
             if other_uids:
-                import threading
                 def push_all(uids, rid):
                     conn2 = data_db(); c2 = conn2.cursor()
                     c2.execute('SELECT user_id FROM chat_room_members WHERE room_id=%s AND muted=TRUE', (rid,))
