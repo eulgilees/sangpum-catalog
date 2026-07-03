@@ -852,6 +852,10 @@
       <input type="text" id="as-product" class="order-input" placeholder="상품명 입력">
     </div>
     <div class="order-field">
+      <div class="order-label">바코드 번호</div>
+      <input type="text" id="as-barcode" class="order-input" placeholder="바코드 번호 입력" inputmode="numeric">
+    </div>
+    <div class="order-field">
       <div class="order-label">접수내용</div>
       <textarea id="as-content" class="order-input" rows="3" placeholder="내용 입력" style="resize:none;"></textarea>
     </div>
@@ -2913,6 +2917,7 @@ function openAsForm(as=null) {
   const today = new Date().toISOString().slice(0,10);
   setDateValue('as-date', as ? as.received_date : today, '접수일');
   document.getElementById('as-product').value = as ? as.product_name : '';
+  document.getElementById('as-barcode').value = as ? (as.barcode || '') : '';
   document.getElementById('as-content').value = as ? as.content : '';
   document.getElementById('as-customer').value = as ? as.customer : '';
   document.getElementById('as-phone').value = as ? as.phone : '';
@@ -2936,6 +2941,7 @@ async function submitAs() {
   const body = {
     received_date: document.getElementById('as-date').value,
     product_name,
+    barcode: document.getElementById('as-barcode').value.trim(),
     content: document.getElementById('as-content').value.trim(),
     customer: document.getElementById('as-customer').value.trim(),
     phone: document.getElementById('as-phone').value.trim(),
@@ -2970,6 +2976,7 @@ function loadAsList_render(list) {
       </div>
       <div class="uc-grid">
         <div class="uc-row"><span class="uc-lbl">접수일</span><span class="uc-val">${esc(a.received_date||'—')}</span></div>
+        ${a.barcode ? `<div class="uc-row"><span class="uc-lbl">바코드</span><span class="uc-val">${esc(a.barcode)}</span></div>` : ''}
         <div class="uc-row"><span class="uc-lbl">접수자</span><span class="uc-val">${esc(a.staff||'—')}</span></div>
         <div class="uc-row"><span class="uc-lbl">고객</span><span class="uc-val">${esc(a.customer||'—')}</span></div>
         <div class="uc-row"><span class="uc-lbl">연락처</span><span class="uc-val">${esc(a.phone||'—')}</span></div>
