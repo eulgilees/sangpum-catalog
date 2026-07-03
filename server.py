@@ -1301,6 +1301,7 @@ class Handler(BaseHTTPRequestHandler):
             def notify_order(oid, sname, store, body, sender):
                 try:
                     uid = get_user_id_by_name(sname, store) if sname and store else None
+                    print(f'[CHAT] 담당자 조회: name={sname!r} store={store!r} -> uid={uid}')
                     if not uid: return
                     push_title = '📦 새 주문 접수'
                     push_body = f"{body.get('name','상품명 미입력')}" + (f" · {body.get('customer','')}" if body.get('customer') else '')
