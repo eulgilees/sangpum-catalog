@@ -197,6 +197,7 @@ def init_tables():
         c2.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
         c2.execute("ALTER TABLE issues ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
         c2.execute("ALTER TABLE as_requests ADD COLUMN IF NOT EXISTS store TEXT DEFAULT ''")
+        c2.execute("ALTER TABLE as_requests ADD COLUMN IF NOT EXISTS request_type TEXT DEFAULT 'AS'")
         c2.execute("ALTER TABLE issues ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#e03131'")
         c2.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS receptionist TEXT DEFAULT ''")
         c2.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS receipt_no TEXT DEFAULT ''")
@@ -655,21 +656,21 @@ def get_as_requests(store=''):
 
 def add_as_request(data):
     conn = data_db(); c = conn.cursor()
-    c.execute('''INSERT INTO as_requests(received_date,product_name,content,customer,phone,delivery,staff,note,status,created_at,store)
-                 VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+    c.execute('''INSERT INTO as_requests(received_date,product_name,content,customer,phone,delivery,staff,note,status,created_at,store,request_type)
+                 VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
               (data.get('received_date',''), data.get('product_name',''), data.get('content',''),
                data.get('customer',''), data.get('phone',''), data.get('delivery','없음'),
                data.get('staff',''), data.get('note',''), '진행중', data.get('created_at',''),
-               data.get('store','')))
+               data.get('store',''), data.get('request_type','AS')))
     new_id = c.fetchone()[0]; conn.commit(); release_db(conn); return new_id
 
 def update_as_request(data):
     conn = data_db(); c = conn.cursor()
     c.execute('''UPDATE as_requests SET received_date=%s,product_name=%s,content=%s,customer=%s,
-                 phone=%s,delivery=%s,staff=%s,note=%s WHERE id=%s''',
+                 phone=%s,delivery=%s,staff=%s,note=%s,request_type=%s WHERE id=%s''',
               (data.get('received_date',''), data.get('product_name',''), data.get('content',''),
                data.get('customer',''), data.get('phone',''), data.get('delivery','없음'),
-               data.get('staff',''), data.get('note',''), data['id']))
+               data.get('staff',''), data.get('note',''), data.get('request_type','AS'), data['id']))
     conn.commit(); release_db(conn)
 
 def set_as_status(as_id, status):

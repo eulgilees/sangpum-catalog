@@ -835,6 +835,14 @@
       <button class="order-close" onclick="closeAsForm()"><i class="ti ti-x"></i></button>
     </div>
     <div class="order-field">
+      <div class="order-label">접수 유형</div>
+      <div class="toggle-group">
+        <button class="toggle-btn" id="as-type-as" onclick="setAsType('AS')">AS</button>
+        <button class="toggle-btn" id="as-type-exchange" onclick="setAsType('교환')">교환</button>
+        <button class="toggle-btn" id="as-type-refund" onclick="setAsType('환불')">환불</button>
+      </div>
+    </div>
+    <div class="order-field">
       <div class="order-label">접수일</div>
       <input type="hidden" id="as-date">
       <button type="button" id="as-date-btn" onclick="showDatePicker('as-date','접수일')" class="order-input" style="text-align:left;cursor:pointer;color:#aaa;">접수일 선택</button>
@@ -844,8 +852,8 @@
       <input type="text" id="as-product" class="order-input" placeholder="상품명 입력">
     </div>
     <div class="order-field">
-      <div class="order-label">AS 접수내용</div>
-      <textarea id="as-content" class="order-input" rows="3" placeholder="AS 내용 입력" style="resize:none;"></textarea>
+      <div class="order-label">접수내용</div>
+      <textarea id="as-content" class="order-input" rows="3" placeholder="내용 입력" style="resize:none;"></textarea>
     </div>
     <div style="display:flex;gap:12px;">
       <div class="order-field" style="flex:1;">
@@ -2870,11 +2878,24 @@ async function deleteOrder(id) {
 /* ── 고객AS ──────────────────────────────── */
 let asFormId = null;
 let asDelivery = '없음';
+let asType = 'AS';
 
 function setAsDelivery(val) {
   asDelivery = val;
   document.getElementById('as-del-no').classList.toggle('active', val==='없음');
   document.getElementById('as-del-yes').classList.toggle('active', val==='택배');
+}
+
+function setAsType(val) {
+  asType = val;
+  ['AS','교환','환불'].forEach(t => {
+    const id = 'as-type-' + (t==='AS'?'as':t==='교환'?'exchange':'refund');
+    document.getElementById(id).classList.toggle('active', val===t);
+  });
+  const titleMap = {AS:'AS 접수 등록', 교환:'교환 접수 등록', 환불:'환불 접수 등록'};
+  const editTitleMap = {AS:'AS 수정', 교환:'교환 수정', 환불:'환불 수정'};
+  const title = document.getElementById('as-form-title');
+  if (title) title.textContent = asFormId ? (editTitleMap[val]||'수정') : (titleMap[val]||'접수 등록');
 }
 
 async function openAsList() {
@@ -2898,6 +2919,7 @@ function openAsForm(as=null) {
   document.getElementById('as-staff').value = as ? as.staff : '';
   document.getElementById('as-note').value = as ? as.note : '';
   setAsDelivery(as ? as.delivery : '없음');
+  setAsType(as ? (as.request_type || 'AS') : 'AS');
   if (as && as.id) {
     acquireEditLock('as', as.id).then(ok => {
       if (ok) document.getElementById('as-form-overlay').classList.add('open');
@@ -2918,6 +2940,7 @@ async function submitAs() {
     customer: document.getElementById('as-customer').value.trim(),
     phone: document.getElementById('as-phone').value.trim(),
     delivery: asDelivery,
+    request_type: asType,
     staff: document.getElementById('as-staff').value.trim(),
     note: document.getElementById('as-note').value.trim(),
     created_at: new Date().toISOString()
@@ -2940,6 +2963,7 @@ function loadAsList_render(list) {
       <div class="uc-head">
         <div class="order-item-name">${esc(a.product_name)}</div>
         <div class="uc-badges">
+          ${a.request_type && a.request_type!=='AS' ? `<span class="order-badge" style="background:${a.request_type==='교환'?'#e8f4fd':'#fff0f6'};color:${a.request_type==='교환'?'#1971c2':'#c2255c'};border:1px solid ${a.request_type==='교환'?'#a5d0f5':'#f5a5c8'};">${esc(a.request_type)}</span>` : ''}
           <span class="order-badge ${a.status==='완료'?'badge-done':'badge-pending'}">${esc(a.status)}</span>
           ${a.delivery==='택배' ? '<span class="order-badge badge-unpaid">택배</span>' : ''}
         </div>
