@@ -1343,36 +1343,37 @@ class Handler(BaseHTTPRequestHandler):
             body['store'] = store
             new_as_id = add_as_request(body)
             self.send_json({'ok': True, 'id': new_as_id})
-            staff_name = body.get('staff','')
+            manager_name = body.get('manager','')
             sender_name = user.get('display_name', '시스템') if user else '시스템'
-            def notify_as(oid, sname, store, body, sender):
+            def notify_as(oid, mname, store, body, sender):
                 try:
-                    uid = get_user_id_by_name(sname, store) if sname and store else None
+                    uid = get_user_id_by_name(mname, store) if mname and store else None
                     if not uid: return
-                    push_title = '🔧 새 AS 접수'
+                    rtype = body.get('request_type','AS')
+                    push_title = f'🔧 새 {rtype} 접수'
                     push_body = f"{body.get('product_name','상품명 미입력')}" + (f" · {body.get('customer','')}" if body.get('customer') else '')
                     send_push_notification(push_title, push_body, uid, 'as', '/?view=as')
                     room_id = get_or_create_personal_notify_room(uid, 'AS처리방')
-                    card = f"[AS_CARD:{oid}]{body.get('customer','고객명없음')} · {body.get('product_name','상품명없음')} AS 접수"
+                    card = f"[AS_CARD:{oid}]{body.get('customer','고객명없음')} · {body.get('product_name','상품명없음')} {rtype} 접수"
                     chat_system_message(room_id, sender, card)
                 except Exception as e:
                     print(f'AS 채팅 자동발송 오류: {e}')
-            threading.Thread(target=notify_as, args=(new_as_id, staff_name, store, body, sender_name), daemon=True).start()
+            threading.Thread(target=notify_as, args=(new_as_id, manager_name, store, body, sender_name), daemon=True).start()
         elif self.path == '/api/as/update':
             user = verify_session(self.headers.get('X-Token',''))
             try:
                 conn = data_db(); c = conn.cursor()
-                c.execute('SELECT staff, store, product_name, customer FROM as_requests WHERE id=%s', (body['id'],))
+                c.execute('SELECT manager, store, product_name, customer, request_type FROM as_requests WHERE id=%s', (body['id'],))
                 prev = c.fetchone(); release_db(conn)
-                new_staff = body.get('staff','')
-                if prev and prev[0] != new_staff and new_staff:
-                    store = prev[1]; product_name = prev[2]; customer = prev[3]
-                    new_uid = get_user_id_by_name(new_staff, store)
+                new_manager = body.get('manager','')
+                if prev and prev[0] != new_manager and new_manager:
+                    store = prev[1]; product_name = prev[2]; customer = prev[3]; rtype = prev[4] or 'AS'
+                    new_uid = get_user_id_by_name(new_manager, store)
                     if new_uid:
-                        send_push_notification('🔧 AS 담당자 변경', f"{product_name}" + (f" · {customer}" if customer else ''), new_uid, 'as', '/?view=as')
+                        send_push_notification(f'🔧 {rtype} 담당자 변경', f"{product_name}" + (f" · {customer}" if customer else ''), new_uid, 'as', '/?view=as')
                         room_id = get_or_create_personal_notify_room(new_uid, 'AS처리방')
                         sender_name = user.get('display_name','시스템') if user else '시스템'
-                        card = f"[AS_CARD:{body['id']}]{customer or '고객명없음'} · {product_name} AS 접수 [담당자 변경]"
+                        card = f"[AS_CARD:{body['id']}]{customer or '고객명없음'} · {product_name} {rtype} 접수 [담당자 변경]"
                         chat_system_message(room_id, sender_name, card)
             except Exception as e:
                 print(f'AS 담당자 변경 알림 오류: {e}')
