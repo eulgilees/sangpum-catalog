@@ -1500,6 +1500,15 @@ if __name__ == '__main__':
         urllib.request.urlretrieve(
             'https://github.com/eulgilees/sangpum-catalog/releases/download/v1.0/products.db', PRODUCTS_DB)
         print('다운로드 완료!')
+    # 검색 속도용 인덱스 (없으면 생성)
+    try:
+        _pc = sqlite3.connect(PRODUCTS_DB); _cc = _pc.cursor()
+        _cc.execute('CREATE INDEX IF NOT EXISTS idx_name_lower ON products(lower(name))')
+        _cc.execute('CREATE INDEX IF NOT EXISTS idx_barcode_lower ON products(lower(barcode))')
+        _pc.commit(); _pc.close()
+        print('상품 DB 인덱스 준비 완료')
+    except Exception as e:
+        print(f'인덱스 생성 실패: {e}')
     pg_url_val = os.environ.get('PG_URL', 'NOT_SET')
     print(f'=== PG_URL 값 === [{pg_url_val[:30] if pg_url_val != "NOT_SET" else "NOT_SET"}]')
     print('PostgreSQL 테이블 초기화...')
