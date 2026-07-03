@@ -2523,7 +2523,7 @@ function onOrderNameInput() {
   setOrderBarcode('', false);
   if (!name) { dropdown.style.display = 'none'; return; }
   orderNameTimer = setTimeout(async () => {
-    const res = await fetch(`/api/search?q=${encodeURIComponent(name)}&limit=8`);
+    const res = await fetch(`/api/search/quick?q=${encodeURIComponent(name)}&limit=8`);
     const data = await res.json();
     if (!data.products || !data.products.length) { dropdown.style.display = 'none'; return; }
     dropdown.innerHTML = data.products.map(p => `
@@ -2534,7 +2534,7 @@ function onOrderNameInput() {
         <div style="font-size:14px;color:#888780;">${esc(p.author||'')} · ${esc(p.barcode)}</div>
       </div>`).join('');
     dropdown.style.display = 'block';
-  }, 400);
+  }, 150);
 }
 
 function searchAddress() {

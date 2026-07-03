@@ -1125,6 +1125,18 @@ class Handler(BaseHTTPRequestHandler):
                 int(params.get('limit',['50'])[0]), int(params.get('offset',['0'])[0]),
                 params.get('field',[''])[0])
             self.send_json({'products': products, 'total': total})
+        elif parsed.path == '/api/search/quick':
+            q = params.get('q',[''])[0].strip().lower().replace(' ','')
+            limit = int(params.get('limit',['8'])[0])
+            if not q:
+                self.send_json({'products': []})
+            else:
+                conn = sqlite3.connect(PRODUCTS_DB); conn.row_factory = sqlite3.Row; c = conn.cursor()
+                like = q + '%'
+                c.execute('SELECT barcode,name,author,publisher,price FROM products WHERE lower(name) LIKE ? OR lower(barcode) LIKE ? LIMIT ?', (like, like, limit))
+                rows = [dict(r) for r in c.fetchall()]
+                release_db(conn)
+                self.send_json({'products': rows})
         else:
             self.send_file(parsed.path)
 
