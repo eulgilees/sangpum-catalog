@@ -1312,15 +1312,14 @@ class Handler(BaseHTTPRequestHandler):
             def notify_order(oid, sname, store, body, sender):
                 try:
                     uid = get_user_id_by_name(sname, store) if sname and store else None
-                    print(f'[CHAT] 담당자 조회: name={sname!r} store={store!r} -> uid={uid}')
                     if not uid: return
                     push_title = '📦 새 주문 접수'
                     push_body = f"{body.get('name','상품명 미입력')}" + (f" · {body.get('customer','')}" if body.get('customer') else '')
-                    send_push_notification(push_title, push_body, uid, 'order', '/?view=orders')
+                    # 채팅 먼저 (빠름), 푸시는 나중에 (외부 HTTP라 느림)
                     room_id = get_or_create_personal_notify_room(uid, '주문처리방')
                     card = f"[ORDER_CARD:{oid}]{body.get('customer','고객명없음')} · {body.get('name','상품명없음')} ({body.get('qty',1)}개)"
                     chat_system_message(room_id, sender, card)
-                    print(f'[CHAT] 주문처리방 카드 발송 완료: room={room_id} order={oid} to uid={uid}')
+                    send_push_notification(push_title, push_body, uid, 'order', f'/?view=orders&id={oid}')
                 except Exception as e:
                     import traceback; traceback.print_exc()
                     print(f'주문 채팅 자동발송 오류: {e}')
@@ -1337,11 +1336,12 @@ class Handler(BaseHTTPRequestHandler):
                     store = prev[1]; order_name = prev[2]; customer = prev[3]; qty = prev[4]
                     new_uid = get_user_id_by_name(new_staff, store)
                     if new_uid:
-                        send_push_notification('📦 주문 담당자 변경', f"{order_name}" + (f" · {customer}" if customer else ''), new_uid, 'order', '/?view=orders')
+                        oid = body['id']
                         room_id = get_or_create_personal_notify_room(new_uid, '주문처리방')
                         sender_name = user.get('display_name','시스템') if user else '시스템'
-                        card = f"[ORDER_CARD:{body['id']}]{customer or '고객명없음'} · {order_name} ({qty}개) [담당자 변경]"
+                        card = f"[ORDER_CARD:{oid}]{customer or '고객명없음'} · {order_name} ({qty}개) [담당자 변경]"
                         chat_system_message(room_id, sender_name, card)
+                        send_push_notification('📦 주문 담당자 변경', f"{order_name}" + (f" · {customer}" if customer else ''), new_uid, 'order', f'/?view=orders&id={oid}')
             except Exception as e:
                 print(f'담당자 변경 알림 오류: {e}')
             update_order(body); self.send_json({'ok': True})
@@ -1364,10 +1364,11 @@ class Handler(BaseHTTPRequestHandler):
                     rtype = body.get('request_type','AS')
                     push_title = f'🔧 새 {rtype} 접수'
                     push_body = f"{body.get('product_name','상품명 미입력')}" + (f" · {body.get('customer','')}" if body.get('customer') else '')
-                    send_push_notification(push_title, push_body, uid, 'as', '/?view=as')
+                    # 채팅 먼저 (빠름), 푸시는 나중에 (외부 HTTP라 느림)
                     room_id = get_or_create_personal_notify_room(uid, 'AS처리방')
                     card = f"[AS_CARD:{oid}]{body.get('customer','고객명없음')} · {body.get('product_name','상품명없음')} {rtype} 접수"
                     chat_system_message(room_id, sender, card)
+                    send_push_notification(push_title, push_body, uid, 'as', f'/?view=as&id={oid}')
                 except Exception as e:
                     print(f'AS 채팅 자동발송 오류: {e}')
             threading.Thread(target=notify_as, args=(new_as_id, manager_name, store, body, sender_name), daemon=True).start()
@@ -1382,11 +1383,12 @@ class Handler(BaseHTTPRequestHandler):
                     store = prev[1]; product_name = prev[2]; customer = prev[3]; rtype = prev[4] or 'AS'
                     new_uid = get_user_id_by_name(new_manager, store)
                     if new_uid:
-                        send_push_notification(f'🔧 {rtype} 담당자 변경', f"{product_name}" + (f" · {customer}" if customer else ''), new_uid, 'as', '/?view=as')
+                        aid = body['id']
                         room_id = get_or_create_personal_notify_room(new_uid, 'AS처리방')
                         sender_name = user.get('display_name','시스템') if user else '시스템'
-                        card = f"[AS_CARD:{body['id']}]{customer or '고객명없음'} · {product_name} {rtype} 접수 [담당자 변경]"
+                        card = f"[AS_CARD:{aid}]{customer or '고객명없음'} · {product_name} {rtype} 접수 [담당자 변경]"
                         chat_system_message(room_id, sender_name, card)
+                        send_push_notification(f'🔧 {rtype} 담당자 변경', f"{product_name}" + (f" · {customer}" if customer else ''), new_uid, 'as', f'/?view=as&id={aid}')
             except Exception as e:
                 print(f'AS 담당자 변경 알림 오류: {e}')
             update_as_request(body); self.send_json({'ok': True})

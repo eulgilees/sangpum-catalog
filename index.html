@@ -2693,7 +2693,7 @@ async function openOrderList() {
   document.getElementById('order-search-input').value = '';
   if (window._orders) renderOrderList(window._orders);
   else document.getElementById('order-list-container').innerHTML = LOADING_HTML;
-  loadOrderList();
+  await loadOrderList();
 }
 function closeOrderList() { unlockScroll(); document.getElementById('order-list-overlay').classList.remove('open'); }
 
@@ -2913,7 +2913,7 @@ async function openAsList() {
   document.getElementById('as-list-overlay').classList.add('open');
   if (window._asRequests) loadAsList_render(window._asRequests);
   else document.getElementById('as-list-container').innerHTML = LOADING_HTML;
-  loadAsList();
+  await loadAsList();
 }
 function closeAsList() { unlockScroll(); document.getElementById('as-list-overlay').classList.remove('open'); }
 
@@ -3522,11 +3522,11 @@ function isStandaloneMode() {
 
 navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', e => {
   if (e.data && e.data.type === 'OPEN_ORDERS') {
-    openOrderList();
+    openOrderList().then(() => { if (e.data.id) highlightListItem('order-item-' + e.data.id); });
     return;
   }
   if (e.data && e.data.type === 'OPEN_AS') {
-    openAsList();
+    openAsList().then(() => { if (e.data.id) highlightListItem('as-item-' + e.data.id); });
     return;
   }
   if (e.data && e.data.type === 'OPEN_ISSUES') {
@@ -3553,6 +3553,15 @@ navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', e
 });
 
 let _pushBannerTimer = null;
+function highlightListItem(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.style.transition = 'box-shadow 0.3s';
+  el.style.boxShadow = '0 0 0 3px #185fa5';
+  setTimeout(() => { el.style.boxShadow = ''; }, 2000);
+}
+
 function showPushBanner(title, body, url, tag) {
   let banner = document.getElementById('push-banner');
   if (!banner) {
@@ -3566,12 +3575,14 @@ function showPushBanner(title, body, url, tag) {
   banner.onclick = (ev) => {
     if (ev.target.tagName === 'BUTTON') return;
     banner.style.opacity = '0';
-    if (tag === 'order') openOrderList();
-    else if (tag === 'as') openAsList();
+    const idM = url && url.match(/[?&]id=(\d+)/);
+    const itemId = idM ? idM[1] : null;
+    if (tag === 'order') openOrderList().then(() => { if (itemId) highlightListItem('order-item-' + itemId); });
+    else if (tag === 'as') openAsList().then(() => { if (itemId) highlightListItem('as-item-' + itemId); });
     else if (tag === 'issue') openIssueList();
     else if (url && url.includes('room=')) {
       const m = url.match(/room=(\d+)/);
-      if (m) { openChat(); /* room open handled by OPEN_CHAT_ROOM */ }
+      if (m) { openChat(); }
     }
   };
   if (_pushBannerTimer) clearTimeout(_pushBannerTimer);

@@ -46,9 +46,11 @@ self.addEventListener('notificationclick', e => {
       const existing = list.find(c => c.url.includes(self.location.origin));
       if (existing) {
         existing.focus();
+        const idMatch = url.match(/[?&]id=(\d+)/);
+        const itemId = idMatch ? idMatch[1] : null;
         if (roomId) existing.postMessage({ type: 'OPEN_CHAT_ROOM', roomId });
-        else if (view === 'orders') existing.postMessage({ type: 'OPEN_ORDERS' });
-        else if (view === 'as') existing.postMessage({ type: 'OPEN_AS' });
+        else if (view === 'orders') existing.postMessage({ type: 'OPEN_ORDERS', id: itemId });
+        else if (view === 'as') existing.postMessage({ type: 'OPEN_AS', id: itemId });
         else if (view === 'issues') existing.postMessage({ type: 'OPEN_ISSUES' });
         return;
       }
