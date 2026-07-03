@@ -876,9 +876,15 @@
         <button class="toggle-btn" id="as-del-yes" onclick="setAsDelivery('택배')">택배</button>
       </div>
     </div>
-    <div class="order-field">
-      <div class="order-label">접수자</div>
-      <input type="text" id="as-staff" class="order-input" placeholder="접수자 이름">
+    <div style="display:flex;gap:12px;">
+      <div class="order-field" style="flex:1;">
+        <div class="order-label">접수자</div>
+        <input type="text" id="as-staff" class="order-input" placeholder="접수자 이름">
+      </div>
+      <div class="order-field" style="flex:1;">
+        <div class="order-label">담당자</div>
+        <input type="text" id="as-manager" class="order-input" placeholder="담당자 이름">
+      </div>
     </div>
     <div class="order-field">
       <div class="order-label">특이사항</div>
@@ -2922,6 +2928,7 @@ function openAsForm(as=null) {
   document.getElementById('as-customer').value = as ? as.customer : '';
   document.getElementById('as-phone').value = as ? as.phone : '';
   document.getElementById('as-staff').value = as ? as.staff : '';
+  document.getElementById('as-manager').value = as ? (as.manager || '') : '';
   document.getElementById('as-note').value = as ? as.note : '';
   setAsDelivery(as ? as.delivery : '없음');
   setAsType(as ? (as.request_type || 'AS') : 'AS');
@@ -2948,6 +2955,7 @@ async function submitAs() {
     delivery: asDelivery,
     request_type: asType,
     staff: document.getElementById('as-staff').value.trim(),
+    manager: document.getElementById('as-manager').value.trim(),
     note: document.getElementById('as-note').value.trim(),
     created_at: new Date().toISOString()
   };
@@ -2980,6 +2988,8 @@ function loadAsList_render(list) {
         <div class="uc-row"><span class="uc-lbl">접수자</span><span class="uc-val">${esc(a.staff||'—')}</span></div>
         <div class="uc-row"><span class="uc-lbl">고객</span><span class="uc-val">${esc(a.customer||'—')}</span></div>
         <div class="uc-row"><span class="uc-lbl">연락처</span><span class="uc-val">${esc(a.phone||'—')}</span></div>
+        <div class="uc-row"><span class="uc-lbl">접수자</span><span class="uc-val">${esc(a.staff||'—')}</span></div>
+        <div class="uc-row"><span class="uc-lbl">담당자</span><span class="uc-val">${esc(a.manager||'—')}</span></div>
       </div>
       ${a.content ? `<div class="uc-text">📋 ${esc(a.content)}</div>` : ''}
       ${a.note ? `<div class="uc-note">📝 ${esc(a.note)}</div>` : ''}
