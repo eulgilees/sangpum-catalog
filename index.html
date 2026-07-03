@@ -272,6 +272,9 @@
     .list-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:48px 0; gap:12px; color:#aaa; font-size:14px; }
     .list-loading-spinner { width:28px; height:28px; border:3px solid #e8e8e8; border-top-color:#185fa5; border-radius:50%; animation:spin 0.7s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
+    #global-loading-bar { position:fixed; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,#185fa5,#4da3ff); z-index:999999; transform:scaleX(0); transform-origin:left; transition:transform 0.3s ease, opacity 0.3s; opacity:0; pointer-events:none; }
+    #global-loading-bar.active { opacity:1; animation:loading-bar 1.2s ease-in-out infinite; }
+    @keyframes loading-bar { 0%{transform:scaleX(0) translateX(0)} 50%{transform:scaleX(0.7) translateX(30%)} 100%{transform:scaleX(0) translateX(100%)} }
 
     /* 시작 가이드 */
     .guide-btn { background: none; border: none; cursor: pointer; color: #888780; font-size: 20px; display: flex; align-items: center; padding: 4px; }
@@ -309,6 +312,7 @@
   <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 </head>
 <body>
+<div id="global-loading-bar"></div>
 
 <!-- 로그인 / 가입 화면 -->
 <div id="auth-screen" style="display:flex;position:fixed;inset:0;background:#f5f5f3;z-index:9999;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;"><script>if(localStorage.getItem('authToken')&&localStorage.getItem('cachedUser'))document.currentScript.parentElement.style.display='none';</script>
@@ -2635,10 +2639,10 @@ function openOrderForm(barcode, name, order=null) {
   selectToggle('ord', order && order.ordered==='완료' ? 1 : 0, order ? order.ordered : '미완료');
   selectDelivery(order && order.delivery==='발송' ? 1 : 0);
   // 수정 시 잠금
+  document.getElementById('order-form-overlay').classList.add('open');
   if (order && order.id) {
     acquireEditLock('order', order.id).then(ok => {
-      if (!ok) return;
-      document.getElementById('order-form-overlay').classList.add('open');
+      if (!ok) { document.getElementById('order-form-overlay').classList.remove('open'); return; }
       const submitBtn = document.querySelector('#order-form-overlay .order-submit-btn');
       if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '등록'; }
       _orderSubmitting = false;
@@ -2686,6 +2690,16 @@ async function submitOrder() {
 }
 
 const LOADING_HTML = '<div class="list-loading"><div class="list-loading-spinner"></div><span>불러오는 중...</span></div>';
+
+let _loadingCount = 0;
+function showLoading() {
+  _loadingCount++;
+  document.getElementById('global-loading-bar').classList.add('active');
+}
+function hideLoading() {
+  _loadingCount = Math.max(0, _loadingCount - 1);
+  if (_loadingCount === 0) document.getElementById('global-loading-bar').classList.remove('active');
+}
 
 async function openOrderList() {
   lockScroll();
@@ -2735,15 +2749,18 @@ function filterOrders() {
 }
 
 async function loadOrderList() {
-  const token = localStorage.getItem('authToken') || '';
-  const [orders, logsRes] = await Promise.all([
-    fetch('/api/orders', {headers:{'X-Token':token}}).then(r=>r.json()),
-    fetch('/api/orders/logs/all').then(r=>r.json()).catch(()=>({ok:false,logs:{}}))
-  ]);
-  window._orders = orders;
-  window._orderLogs = logsRes.ok ? logsRes.logs : {};
-  renderOrderList(orders);
-  orders.forEach(o => renderOrderLogs(o.id, window._orderLogs[o.id] || []));
+  showLoading();
+  try {
+    const token = localStorage.getItem('authToken') || '';
+    const [orders, logsRes] = await Promise.all([
+      fetch('/api/orders', {headers:{'X-Token':token}}).then(r=>r.json()),
+      fetch('/api/orders/logs/all').then(r=>r.json()).catch(()=>({ok:false,logs:{}}))
+    ]);
+    window._orders = orders;
+    window._orderLogs = logsRes.ok ? logsRes.logs : {};
+    renderOrderList(orders);
+    orders.forEach(o => renderOrderLogs(o.id, window._orderLogs[o.id] || []));
+  } finally { hideLoading(); }
 }
 
 function getSmsTemplates(type) {
@@ -2932,12 +2949,11 @@ function openAsForm(as=null) {
   document.getElementById('as-note').value = as ? as.note : '';
   setAsDelivery(as ? as.delivery : '없음');
   setAsType(as ? (as.request_type || 'AS') : 'AS');
+  document.getElementById('as-form-overlay').classList.add('open');
   if (as && as.id) {
     acquireEditLock('as', as.id).then(ok => {
-      if (ok) document.getElementById('as-form-overlay').classList.add('open');
+      if (!ok) document.getElementById('as-form-overlay').classList.remove('open');
     });
-  } else {
-    document.getElementById('as-form-overlay').classList.add('open');
   }
 }
 function closeAsForm() { releaseEditLock(); document.getElementById('as-form-overlay').classList.remove('open'); }
@@ -3015,15 +3031,18 @@ function loadAsList_render(list) {
   `).join('');
 }
 async function loadAsList() {
-  const token = localStorage.getItem('authToken') || '';
-  const [list, logsRes] = await Promise.all([
-    fetch('/api/as', {headers:{'X-Token':token}}).then(r=>r.json()),
-    fetch('/api/as/logs/all').then(r=>r.json())
-  ]);
-  window._asRequests = list;
-  window._asLogs = logsRes.ok ? logsRes.logs : {};
-  loadAsList_render(list);
-  list.forEach(a => renderAsLogs(a.id, window._asLogs[a.id] || []));
+  showLoading();
+  try {
+    const token = localStorage.getItem('authToken') || '';
+    const [list, logsRes] = await Promise.all([
+      fetch('/api/as', {headers:{'X-Token':token}}).then(r=>r.json()),
+      fetch('/api/as/logs/all').then(r=>r.json())
+    ]);
+    window._asRequests = list;
+    window._asLogs = logsRes.ok ? logsRes.logs : {};
+    loadAsList_render(list);
+    list.forEach(a => renderAsLogs(a.id, window._asLogs[a.id] || []));
+  } finally { hideLoading(); }
 }
 
 async function setAsStatus(id, status) {
@@ -3196,8 +3215,11 @@ function renderSuggestionList(list) {
 }
 
 async function loadSuggestionList() {
-  const list = await fetch('/api/suggestions').then(r => r.json());
-  renderSuggestionList(list);
+  showLoading();
+  try {
+    const list = await fetch('/api/suggestions').then(r => r.json());
+    renderSuggestionList(list);
+  } finally { hideLoading(); }
 }
 
 async function toggleSuggestionComments(id) {
@@ -3286,12 +3308,11 @@ function openIssueForm(issue=null) {
   setDateValue('if-date', issue ? issue.occurred_at : todayStr, '발생일');
   setDateValue('if-end-date', issue ? (issue.ended_at || '') : '', '종료일');
   selectIssueColor(issue ? (issue.color || '#e03131') : '#e03131');
+  document.getElementById('issue-form-overlay').classList.add('open');
   if (issue && issue.id) {
     acquireEditLock('issue', issue.id).then(ok => {
-      if (ok) document.getElementById('issue-form-overlay').classList.add('open');
+      if (!ok) document.getElementById('issue-form-overlay').classList.remove('open');
     });
-  } else {
-    document.getElementById('issue-form-overlay').classList.add('open');
   }
 }
 function closeIssueForm() { releaseEditLock(); document.getElementById('issue-form-overlay').classList.remove('open'); }
@@ -3377,13 +3398,15 @@ function loadIssueList_render(issues) {
 }
 
 async function loadIssueList() {
-  const token = localStorage.getItem('authToken') || '';
-  const issues = await fetch('/api/issues', {headers:{'X-Token':token}}).then(r => r.json());
-  window._issues = issues;
-  loadIssueList_render(issues);
-  // 진행중 이슈 읽음 처리
-  const activeIds = issues.filter(i => i.status === '진행중').map(i => String(i.id));
-  if (activeIds.length) { markIssuesViewed(activeIds); checkActiveIssues(); }
+  showLoading();
+  try {
+    const token = localStorage.getItem('authToken') || '';
+    const issues = await fetch('/api/issues', {headers:{'X-Token':token}}).then(r => r.json());
+    window._issues = issues;
+    loadIssueList_render(issues);
+    const activeIds = issues.filter(i => i.status === '진행중').map(i => String(i.id));
+    if (activeIds.length) { markIssuesViewed(activeIds); checkActiveIssues(); }
+  } finally { hideLoading(); }
 }
 
 function openIssueFormById(id) {
