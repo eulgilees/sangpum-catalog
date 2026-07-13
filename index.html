@@ -539,62 +539,11 @@
       <div style="font-size:15px;font-weight:700;color:#222;">매출</div>
       <div style="width:32px;"></div>
     </div>
-    <!-- 안내 배너 -->
-    <div style="margin:16px 16px 0;background:#fff;border:1px solid #d8e6ff;border-radius:12px;padding:16px;display:flex;gap:12px;align-items:flex-start;flex-shrink:0;">
-      <i class="ti ti-info-circle" style="font-size:20px;color:#185fa5;flex-shrink:0;margin-top:1px;"></i>
-      <div>
-        <div style="font-size:13px;font-weight:700;color:#185fa5;margin-bottom:4px;">데이터 연동 준비 중</div>
-        <div style="font-size:13px;color:#555;line-height:1.5;">회사에서 매출 데이터를 제공하면 자동으로 이 화면에 업데이트됩니다.</div>
-      </div>
-    </div>
-    <!-- 기간 필터 -->
-    <div style="display:flex;gap:8px;padding:12px 16px;flex-shrink:0;overflow-x:auto;">
-      <button id="sales-filter-today" onclick="setSalesFilter('today')" style="background:#185fa5;color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">오늘</button>
-      <button id="sales-filter-week" onclick="setSalesFilter('week')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">이번 주</button>
-      <button id="sales-filter-month" onclick="setSalesFilter('month')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">이번 달</button>
-    </div>
-    <!-- 요약 카드 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 12px;flex-shrink:0;">
-      <div style="background:#fff;border-radius:12px;padding:14px 16px;border:1px solid #ebebeb;">
-        <div style="font-size:12px;color:#888;margin-bottom:4px;">총 매출</div>
-        <div style="font-size:20px;font-weight:700;color:#222;">—</div>
-      </div>
-      <div style="background:#fff;border-radius:12px;padding:14px 16px;border:1px solid #ebebeb;">
-        <div style="font-size:12px;color:#888;margin-bottom:4px;">판매 수량</div>
-        <div style="font-size:20px;font-weight:700;color:#222;">—</div>
-      </div>
-    </div>
-    <!-- 검색 -->
-    <div style="padding:0 16px 10px;flex-shrink:0;">
-      <input type="text" placeholder="상품명 또는 바코드 검색..." style="width:100%;padding:10px 14px;border:1px solid #d4d4ce;border-radius:20px;font-size:14px;outline:none;background:#fff;box-sizing:border-box;">
-    </div>
-    <!-- 테이블 헤더 -->
-    <div style="display:grid;grid-template-columns:2fr 1.2fr 1.2fr 0.8fr 0.8fr 0.8fr;gap:4px;padding:8px 16px;background:#f0f0ec;font-size:11px;font-weight:700;color:#888;flex-shrink:0;">
-      <div>상품명</div>
-      <div>바코드</div>
-      <div>업체명</div>
-      <div style="text-align:right;">가격</div>
-      <div style="text-align:right;">판매</div>
-      <div style="text-align:right;">재고</div>
-    </div>
-    <!-- 목록 -->
-    <div id="sales-list" style="flex:1;overflow-y:auto;padding:0 16px 16px;">
-      <!-- 샘플 카드 (연동 전 예시) -->
-      <div style="opacity:0.35;pointer-events:none;">
-        ${['어린 왕자 (양장)','데미안','채식주의자','82년생 김지영','파친코 1'].map((name,i) => `
-        <div style="display:grid;grid-template-columns:2fr 1.2fr 1.2fr 0.8fr 0.8fr 0.8fr;gap:4px;padding:13px 0;border-bottom:1px solid #f0f0ec;align-items:center;font-size:13px;">
-          <div style="font-weight:600;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</div>
-          <div style="color:#888;font-family:monospace;font-size:12px;">978012345${i}</div>
-          <div style="color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">교보문고</div>
-          <div style="text-align:right;color:#222;font-weight:600;">${(12000+i*3500).toLocaleString()}</div>
-          <div style="text-align:right;color:#185fa5;font-weight:700;">${5+i*3}</div>
-          <div style="text-align:right;color:${i===2?'#e03131':'#444'};font-weight:600;">${i===2?2:15-i*2}</div>
-        </div>`).join('')}
-      </div>
-      <div style="text-align:center;padding:32px 16px;color:#bbb;font-size:14px;">
-        <i class="ti ti-chart-bar" style="font-size:36px;display:block;margin-bottom:8px;"></i>
-        데이터 연동 후 매출 정보가 표시됩니다
-      </div>
+    <!-- 수리중 -->
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:40px 24px;text-align:center;">
+      <i class="ti ti-tools" style="font-size:48px;color:#d4d4ce;"></i>
+      <div style="font-size:16px;font-weight:700;color:#888;">수리중입니다</div>
+      <div style="font-size:13px;color:#bbb;line-height:1.6;">준비가 완료되면 자동으로 업데이트됩니다.</div>
     </div>
   </div>
 </div>
@@ -608,51 +557,11 @@
       <div style="font-size:15px;font-weight:700;color:#222;">신제품 목록</div>
       <div style="width:32px;"></div>
     </div>
-    <!-- 안내 배너 -->
-    <div style="margin:16px 16px 0;background:#fff;border:1px solid #d8e6ff;border-radius:12px;padding:16px;display:flex;gap:12px;align-items:flex-start;flex-shrink:0;">
-      <i class="ti ti-info-circle" style="font-size:20px;color:#185fa5;flex-shrink:0;margin-top:1px;"></i>
-      <div>
-        <div style="font-size:13px;font-weight:700;color:#185fa5;margin-bottom:4px;">회사 코드 연동 준비 중</div>
-        <div style="font-size:13px;color:#555;line-height:1.5;">회사 승인 후 코드를 연동하면 신제품이 자동으로 이 목록에 업데이트됩니다.</div>
-      </div>
-    </div>
-    <!-- 필터/정렬 바 -->
-    <div style="display:flex;gap:8px;padding:12px 16px;flex-shrink:0;overflow-x:auto;">
-      <button id="np-filter-all" onclick="setNpFilter('all')" style="background:#185fa5;color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">전체</button>
-      <button id="np-filter-new" onclick="setNpFilter('new')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">신규</button>
-      <button id="np-filter-restock" onclick="setNpFilter('restock')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">재입고</button>
-      <button id="np-filter-limited" onclick="setNpFilter('limited')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">한정판</button>
-    </div>
-    <!-- 목록 -->
-    <div id="new-products-list" style="flex:1;overflow-y:auto;padding:0 16px 16px;">
-      <!-- 샘플 카드 (연동 전 예시) -->
-      <div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid #ebebeb;opacity:0.4;pointer-events:none;">
-        <div style="display:flex;gap:12px;align-items:flex-start;">
-          <div style="width:56px;height:56px;background:#e8e8e8;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><i class="ti ti-photo" style="font-size:22px;color:#bbb;"></i></div>
-          <div style="flex:1;min-width:0;">
-            <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
-              <span style="font-size:11px;background:#e03131;color:#fff;border-radius:4px;padding:1px 6px;font-weight:700;">NEW</span>
-              <span style="font-size:12px;color:#888;">2025.07.01</span>
-            </div>
-            <div style="font-size:14px;font-weight:700;color:#222;margin-bottom:2px;">상품명 예시</div>
-            <div style="font-size:13px;color:#888;">바코드: 1234567890</div>
-          </div>
-        </div>
-      </div>
-      <div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid #ebebeb;opacity:0.4;pointer-events:none;">
-        <div style="display:flex;gap:12px;align-items:flex-start;">
-          <div style="width:56px;height:56px;background:#e8e8e8;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><i class="ti ti-photo" style="font-size:22px;color:#bbb;"></i></div>
-          <div style="flex:1;min-width:0;">
-            <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
-              <span style="font-size:11px;background:#185fa5;color:#fff;border-radius:4px;padding:1px 6px;font-weight:700;">재입고</span>
-              <span style="font-size:12px;color:#888;">2025.07.01</span>
-            </div>
-            <div style="font-size:14px;font-weight:700;color:#222;margin-bottom:2px;">재입고 상품 예시</div>
-            <div style="font-size:13px;color:#888;">바코드: 9876543210</div>
-          </div>
-        </div>
-      </div>
-      <div style="text-align:center;padding:24px 0 8px;color:#bbb;font-size:13px;">연동 후 실제 데이터가 표시됩니다</div>
+    <!-- 수리중 -->
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:40px 24px;text-align:center;">
+      <i class="ti ti-tools" style="font-size:48px;color:#d4d4ce;"></i>
+      <div style="font-size:16px;font-weight:700;color:#888;">수리중입니다</div>
+      <div style="font-size:13px;color:#bbb;line-height:1.6;">준비가 완료되면 자동으로 업데이트됩니다.</div>
     </div>
   </div>
 </div>
