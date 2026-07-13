@@ -1620,20 +1620,22 @@ function renderSalesList(list) {
 
 /* ── 신제품 (샘플 데이터 — 실제 연동 전 미리보기용) ── */
 const MOCK_NEW_PRODUCTS = [
-  {name:'곰돌이 푸 다이어리 세트', barcode:'8801234567890', badge:'new', daysAgo:0},
-  {name:'스타벅스 텀블러 콜라보', barcode:'8809876543210', badge:'restock', daysAgo:0},
-  {name:'산리오 캐릭터 편지지 세트', barcode:'8801122334455', badge:'limited', daysAgo:1},
-  {name:'몰스킨 클래식 노트 라지', barcode:'8805566778899', badge:'new', daysAgo:2},
-  {name:'지브리 스튜디오 포스트카드북', barcode:'8802233445566', badge:'restock', daysAgo:3},
-  {name:'무민 캐릭터 파우치', barcode:'8807788990011', badge:'new', daysAgo:4},
-  {name:'여름 시즌 굿즈 세트', barcode:'8803344556677', badge:'limited', daysAgo:5},
-  {name:'브로콜리너마저 콜라보 문구세트', barcode:'8809900112233', badge:'new', daysAgo:6},
+  {name:'곰돌이 푸 다이어리 세트', barcode:'8801234567890', badge:'new', vendor:'다우기획', date:'2026.07.13'},
+  {name:'스타벅스 텀블러 콜라보', barcode:'8809876543210', badge:'restock', vendor:'스타벅스코리아', date:'2026.07.13'},
+  {name:'산리오 캐릭터 편지지 세트', barcode:'8801122334455', badge:'limited', vendor:'산리오코리아', date:'2026.07.12'},
+  {name:'몰스킨 클래식 노트 라지', barcode:'8805566778899', badge:'new', vendor:'몰스킨코리아', date:'2026.07.11'},
+  {name:'지브리 스튜디오 포스트카드북', barcode:'8802233445566', badge:'restock', vendor:'스튜디오지브리', date:'2026.07.10'},
+  {name:'무민 캐릭터 파우치', barcode:'8807788990011', badge:'new', vendor:'무민컴퍼니', date:'2026.07.09'},
+  {name:'여름 시즌 굿즈 세트', barcode:'8803344556677', badge:'limited', vendor:'다우기획', date:'2026.07.08'},
+  {name:'브로콜리너마저 콜라보 문구세트', barcode:'8809900112233', badge:'new', vendor:'브로콜리너마저', date:'2026.07.07'},
 ];
 const NP_BADGE_STYLE = {
   new: {label:'NEW', bg:'#e03131'},
   restock: {label:'재입고', bg:'#185fa5'},
   limited: {label:'한정판', bg:'#9c36b5'},
 };
+let _npCategoryFilter = 'all';
+let _npVendorFilter = null;
 
 function openNewProducts() {
   lockScroll();
@@ -1645,21 +1647,37 @@ function closeNewProducts() {
   document.getElementById('new-products-overlay').style.display = 'none';
 }
 function setNpFilter(f) {
+  _npCategoryFilter = f;
+  _npVendorFilter = null;
   ['all','new','restock','limited'].forEach(k => {
     const btn = document.getElementById(`np-filter-${k}`);
     const active = k === f;
     btn.style.background = active ? '#185fa5' : '#f0f0ec';
     btn.style.color = active ? '#fff' : '#555';
   });
-  const filtered = f === 'all' ? MOCK_NEW_PRODUCTS : MOCK_NEW_PRODUCTS.filter(p => p.badge === f);
-  renderNewProductsList(filtered);
+  renderNpList();
 }
-function renderNewProductsList(list) {
+function filterNpByVendor(vendor) {
+  _npVendorFilter = vendor;
+  renderNpList();
+}
+function clearNpVendorFilter() {
+  _npVendorFilter = null;
+  renderNpList();
+}
+function renderNpList() {
   const container = document.getElementById('new-products-list');
-  if (!list.length) { container.innerHTML = '<div class="order-empty">해당하는 상품이 없습니다</div>'; return; }
-  container.innerHTML = list.map(p => {
+  const list = _npVendorFilter
+    ? MOCK_NEW_PRODUCTS.filter(p => p.vendor === _npVendorFilter)
+    : (_npCategoryFilter === 'all' ? MOCK_NEW_PRODUCTS : MOCK_NEW_PRODUCTS.filter(p => p.badge === _npCategoryFilter));
+  const vendorBar = _npVendorFilter ? `
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 2px 12px;">
+      <button onclick="clearNpVendorFilter()" style="background:none;border:none;color:#185fa5;font-size:14px;font-weight:600;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px;"><i class="ti ti-arrow-left"></i> 전체 보기로</button>
+      <span style="font-size:13px;color:#888;">${esc(_npVendorFilter)} 상품 ${list.length}개</span>
+    </div>` : '';
+  if (!list.length) { container.innerHTML = vendorBar + '<div class="order-empty">해당하는 상품이 없습니다</div>'; return; }
+  container.innerHTML = vendorBar + list.map(p => {
     const b = NP_BADGE_STYLE[p.badge];
-    const dateLabel = p.daysAgo === 0 ? '오늘' : `${p.daysAgo}일 전`;
     return `
     <div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid #ebebeb;">
       <div style="display:flex;gap:12px;align-items:flex-start;">
@@ -1667,10 +1685,11 @@ function renderNewProductsList(list) {
         <div style="flex:1;min-width:0;">
           <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
             <span style="font-size:11px;background:${b.bg};color:#fff;border-radius:4px;padding:1px 6px;font-weight:700;">${b.label}</span>
-            <span style="font-size:12px;color:#888;">${esc(dateLabel)}</span>
+            <span style="font-size:12px;color:#888;">${esc(p.date)}</span>
           </div>
           <div style="font-size:14px;font-weight:700;color:#222;margin-bottom:2px;">${esc(p.name)}</div>
-          <div style="font-size:13px;color:#888;">바코드: ${esc(p.barcode)}</div>
+          <div style="font-size:13px;color:#888;margin-bottom:2px;">바코드: ${esc(p.barcode)}</div>
+          <div style="font-size:13px;color:#185fa5;cursor:pointer;text-decoration:underline;text-underline-offset:3px;" onclick="filterNpByVendor('${esc(p.vendor)}')">${esc(p.vendor)}</div>
         </div>
       </div>
     </div>`;
