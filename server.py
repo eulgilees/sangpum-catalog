@@ -190,6 +190,13 @@ def init_tables():
         created_at TEXT DEFAULT '',
         updated_at TEXT DEFAULT ''
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS memo_comments (
+        id SERIAL PRIMARY KEY,
+        memo_id INTEGER NOT NULL,
+        display_name TEXT DEFAULT '',
+        content TEXT DEFAULT '',
+        created_at TEXT DEFAULT ''
+    )''')
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
@@ -790,6 +797,22 @@ def delete_memo(memo_id, user_id):
     c.execute('DELETE FROM memos WHERE id=%s AND user_id=%s', (memo_id, user_id))
     conn.commit(); release_db(conn)
 
+def get_memo_comments(memo_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('SELECT * FROM memo_comments WHERE memo_id=%s ORDER BY id', (memo_id,))
+    rows = rows_to_dicts(c); release_db(conn); return rows
+
+def add_memo_comment(data):
+    conn = data_db(); c = conn.cursor()
+    c.execute('INSERT INTO memo_comments(memo_id,display_name,content,created_at) VALUES(%s,%s,%s,%s) RETURNING id',
+              (data.get('memo_id'), data.get('display_name',''), data.get('content',''), data.get('created_at','')))
+    new_id = c.fetchone()[0]; conn.commit(); release_db(conn); return new_id
+
+def delete_memo_comment(cid):
+    conn = data_db(); c = conn.cursor()
+    c.execute('DELETE FROM memo_comments WHERE id=%s', (cid,))
+    conn.commit(); release_db(conn)
+
 def delete_suggestion_comment(cid):
     conn = data_db(); c = conn.cursor()
     c.execute('DELETE FROM suggestion_comments WHERE id=%s', (cid,))
@@ -1062,6 +1085,10 @@ class Handler(BaseHTTPRequestHandler):
             user = verify_session(self.headers.get('X-Token',''))
             if not user: self.send_json({'ok': False}); return
             self.send_json({'ok': True, 'memos': get_memos(user['id'], user['store'])})
+        elif parsed.path == '/api/memos/comments':
+            mid = parsed.query.split('memo_id=')[-1].split('&')[0] if 'memo_id=' in parsed.query else None
+            if mid: self.send_json(get_memo_comments(int(mid)))
+            else: self.send_json([])
         elif parsed.path == '/api/auth/me':
             token = self.headers.get('X-Token','')
             user = verify_session(token)
@@ -1474,6 +1501,10 @@ class Handler(BaseHTTPRequestHandler):
             if not user: self.send_json({'ok': False}); return
             delete_memo(body['id'], user['id'])
             self.send_json({'ok': True})
+        elif self.path == '/api/memos/comment':
+            self.send_json({'ok': True, 'id': add_memo_comment(body)})
+        elif self.path == '/api/memos/comment/delete':
+            delete_memo_comment(body['id']); self.send_json({'ok': True})
         elif self.path == '/api/issues':
             user = verify_session(self.headers.get('X-Token',''))
             body['store'] = user['store'] if user else ''

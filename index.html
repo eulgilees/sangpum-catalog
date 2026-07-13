@@ -3255,6 +3255,8 @@ async function submitMemo() {
   await loadMemoList();
 }
 
+let _editingMemoId = null;
+
 function renderMemoList(list) {
   window._memos = list;
   const container = document.getElementById('memo-list-container');
@@ -3262,6 +3264,25 @@ function renderMemoList(list) {
   container.innerHTML = list.map(m => {
     const isShared = m.visibility === 'store';
     const dateStr = (m.created_at || '').slice(0, 10);
+    const isMine = currentUser && currentUser.id === m.user_id;
+    if (_editingMemoId === m.id) {
+      return `
+      <div class="order-list-item">
+        <textarea id="memo-edit-content-${m.id}" class="order-input" rows="4" style="resize:none;margin-bottom:10px;">${esc(m.content)}</textarea>
+        <div style="display:flex;gap:16px;align-items:center;margin-bottom:10px;font-size:14px;color:#444;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="radio" name="memo-edit-visibility-${m.id}" value="private" ${!isShared ? 'checked' : ''}> 나만보기
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="radio" name="memo-edit-visibility-${m.id}" value="store" ${isShared ? 'checked' : ''}> 같은 매장 공유
+          </label>
+        </div>
+        <div class="order-item-actions">
+          <button class="order-complete-btn" onclick="saveEditMemo(${m.id})">저장</button>
+          <button class="order-edit-btn" onclick="cancelEditMemo()">취소</button>
+        </div>
+      </div>`;
+    }
     return `
     <div class="order-list-item">
       <div class="uc-head">
@@ -3269,13 +3290,38 @@ function renderMemoList(list) {
         <span class="order-badge ${isShared ? 'badge-unpaid' : 'badge-pending'}">${isShared ? '매장 공유' : '나만보기'}</span>
       </div>
       <div class="uc-text" style="margin-bottom:10px;white-space:pre-wrap;">${esc(m.content)}</div>
-      ${(currentUser && currentUser.id === m.user_id) ? `
       <hr class="uc-divider">
-      <div class="order-item-actions">
-        <button class="order-del-btn" onclick="deleteMemo(${m.id})">삭제</button>
-      </div>` : ''}
+      <div class="order-item-actions" style="flex-wrap:wrap;">
+        ${isMine ? `
+        <button class="order-edit-btn" onclick="startEditMemo(${m.id})">수정</button>
+        <button class="order-del-btn" onclick="deleteMemo(${m.id})">삭제</button>` : ''}
+        <button class="order-edit-btn" style="margin-left:auto;" onclick="toggleMemoComments(${m.id})">💬 댓글</button>
+      </div>
+      <div id="memo-comments-${m.id}" style="display:none;margin-top:12px;border-top:1px solid #f0f0ec;padding-top:12px;">
+        <div id="memo-comment-list-${m.id}" style="margin-bottom:8px;"></div>
+        <div style="display:flex;gap:6px;">
+          <input id="memo-comment-input-${m.id}" type="text" placeholder="댓글 입력..." style="flex:1;border:1px solid #d4d4ce;border-radius:8px;padding:8px 10px;font-size:14px;outline:none;background:#f8f8f6;">
+          <button onclick="addMemoComment(${m.id})" style="background:#185fa5;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;">등록</button>
+        </div>
+      </div>
     </div>`;
   }).join('');
+}
+
+function startEditMemo(id) { _editingMemoId = id; renderMemoList(window._memos); }
+function cancelEditMemo() { _editingMemoId = null; renderMemoList(window._memos); }
+
+async function saveEditMemo(id) {
+  const content = document.getElementById(`memo-edit-content-${id}`).value.trim();
+  if (!content) { alert('내용을 입력해주세요.'); return; }
+  const visibility = document.querySelector(`input[name="memo-edit-visibility-${id}"]:checked`).value;
+  const token = localStorage.getItem('authToken') || '';
+  await fetch('/api/memos/update', {
+    method: 'POST', headers: {'Content-Type':'application/json', 'X-Token': token},
+    body: JSON.stringify({ id, content, visibility, updated_at: new Date().toISOString() })
+  });
+  _editingMemoId = null;
+  await loadMemoList();
 }
 
 async function deleteMemo(id) {
@@ -3283,6 +3329,48 @@ async function deleteMemo(id) {
   const token = localStorage.getItem('authToken') || '';
   await fetch('/api/memos/delete', {method:'POST', headers:{'Content-Type':'application/json', 'X-Token': token}, body: JSON.stringify({id})});
   loadMemoList();
+}
+
+async function toggleMemoComments(id) {
+  const box = document.getElementById(`memo-comments-${id}`);
+  if (box.style.display === 'none') {
+    box.style.display = 'block';
+    await loadMemoComments(id);
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+async function loadMemoComments(id) {
+  const comments = await fetch(`/api/memos/comments?memo_id=${id}`).then(r => r.json());
+  const el = document.getElementById(`memo-comment-list-${id}`);
+  if (!el) return;
+  if (!comments.length) { el.innerHTML = '<div style="font-size:14px;color:#aaa;margin-bottom:6px;">댓글이 없습니다</div>'; return; }
+  el.innerHTML = comments.map(c => `
+    <div style="background:#f8f8f6;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:14px;">
+      <div style="font-weight:600;color:#333;margin-bottom:2px;">${esc(c.display_name)} <span style="font-weight:400;color:#aaa;font-size:14px;">${esc(c.created_at)}</span></div>
+      <div style="color:#444;">${esc(c.content)}</div>
+      <button onclick="deleteMemoComment(${c.id},${id})" style="background:none;border:none;color:#bbb;font-size:14px;cursor:pointer;padding:0;margin-top:2px;">삭제</button>
+    </div>
+  `).join('');
+}
+
+async function addMemoComment(id) {
+  const input = document.getElementById(`memo-comment-input-${id}`);
+  const content = input.value.trim();
+  if (!content) return;
+  const now = new Date();
+  const created_at = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  await fetch('/api/memos/comment', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({memo_id: id, display_name: currentUser?.display_name || '관리자', content, created_at})});
+  input.value = '';
+  await loadMemoComments(id);
+}
+
+async function deleteMemoComment(cid, mid) {
+  if (!confirm('댓글을 삭제할까요?')) return;
+  await fetch('/api/memos/comment/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: cid})});
+  await loadMemoComments(mid);
 }
 
 /* ── 이슈사항 ──────────────────────────────── */
