@@ -180,6 +180,16 @@ def init_tables():
         content TEXT DEFAULT '',
         created_at TEXT DEFAULT ''
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS memos (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        author_name TEXT DEFAULT '',
+        content TEXT DEFAULT '',
+        visibility TEXT DEFAULT 'private',
+        store TEXT DEFAULT '',
+        created_at TEXT DEFAULT '',
+        updated_at TEXT DEFAULT ''
+    )''')
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
@@ -755,6 +765,31 @@ def add_suggestion_comment(data):
               (data.get('suggestion_id'), data.get('display_name',''), data.get('content',''), data.get('created_at','')))
     new_id = c.fetchone()[0]; conn.commit(); release_db(conn); return new_id
 
+def get_memos(user_id, store):
+    conn = data_db(); c = conn.cursor()
+    c.execute("""SELECT * FROM memos WHERE (visibility='private' AND user_id=%s)
+                 OR (visibility='store' AND store=%s) ORDER BY id DESC""", (user_id, store))
+    rows = rows_to_dicts(c); release_db(conn); return rows
+
+def add_memo(data):
+    conn = data_db(); c = conn.cursor()
+    c.execute('''INSERT INTO memos(user_id,author_name,content,visibility,store,created_at,updated_at)
+                 VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+              (data.get('user_id'), data.get('author_name',''), data.get('content',''),
+               data.get('visibility','private'), data.get('store',''), data.get('created_at',''), data.get('created_at','')))
+    new_id = c.fetchone()[0]; conn.commit(); release_db(conn); return new_id
+
+def update_memo(data):
+    conn = data_db(); c = conn.cursor()
+    c.execute('UPDATE memos SET content=%s,visibility=%s,updated_at=%s WHERE id=%s AND user_id=%s',
+              (data.get('content',''), data.get('visibility','private'), data.get('updated_at',''), data['id'], data['user_id']))
+    conn.commit(); release_db(conn)
+
+def delete_memo(memo_id, user_id):
+    conn = data_db(); c = conn.cursor()
+    c.execute('DELETE FROM memos WHERE id=%s AND user_id=%s', (memo_id, user_id))
+    conn.commit(); release_db(conn)
+
 def delete_suggestion_comment(cid):
     conn = data_db(); c = conn.cursor()
     c.execute('DELETE FROM suggestion_comments WHERE id=%s', (cid,))
@@ -1023,6 +1058,10 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/issues':
             user = verify_session(self.headers.get('X-Token',''))
             self.send_json(get_issues(user['store'] if user else ''))
+        elif parsed.path == '/api/memos':
+            user = verify_session(self.headers.get('X-Token',''))
+            if not user: self.send_json({'ok': False}); return
+            self.send_json({'ok': True, 'memos': get_memos(user['id'], user['store'])})
         elif parsed.path == '/api/auth/me':
             token = self.headers.get('X-Token','')
             user = verify_session(token)
@@ -1416,6 +1455,25 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'ok': True, 'id': add_suggestion_comment(body)})
         elif self.path == '/api/suggestions/comment/delete':
             delete_suggestion_comment(body['id']); self.send_json({'ok': True})
+        elif self.path == '/api/memos':
+            user = verify_session(self.headers.get('X-Token',''))
+            if not user: self.send_json({'ok': False}); return
+            body['user_id'] = user['id']
+            body['author_name'] = user.get('display_name', '')
+            body['store'] = user.get('store', '')
+            new_memo_id = add_memo(body)
+            self.send_json({'ok': True, 'id': new_memo_id})
+        elif self.path == '/api/memos/update':
+            user = verify_session(self.headers.get('X-Token',''))
+            if not user: self.send_json({'ok': False}); return
+            body['user_id'] = user['id']
+            update_memo(body)
+            self.send_json({'ok': True})
+        elif self.path == '/api/memos/delete':
+            user = verify_session(self.headers.get('X-Token',''))
+            if not user: self.send_json({'ok': False}); return
+            delete_memo(body['id'], user['id'])
+            self.send_json({'ok': True})
         elif self.path == '/api/issues':
             user = verify_session(self.headers.get('X-Token',''))
             body['store'] = user['store'] if user else ''

@@ -466,7 +466,7 @@
 
 <div class="header-top" style="position:fixed;top:0;left:0;right:0;z-index:9000;background:#fff;border-bottom:1px solid #e5e5e0;padding:0 20px;">
     <div style="display:flex;align-items:center;gap:6px;">
-      <div class="header-logo" onclick="unlockScroll();closeOrderForm();closeOrderList();closeIssueList();closeIssueForm();closeAsList();closeAsForm();closeSuggestionList();closeSchedule();closeGuide();closeChat();closeSales();closeNewProducts();window.scrollTo({top:0,behavior:'smooth'});" style="cursor:pointer;">
+      <div class="header-logo" onclick="unlockScroll();closeOrderForm();closeOrderList();closeIssueList();closeIssueForm();closeAsList();closeAsForm();closeSuggestionList();closeSchedule();closeGuide();closeChat();closeSales();closeNewProducts();closeMemoList();window.scrollTo({top:0,behavior:'smooth'});" style="cursor:pointer;">
         <i class="ti ti-barcode"></i>
         <span>상품 조회</span>
       </div>
@@ -521,6 +521,10 @@
     <button class="header-nav-btn" onclick="openSales()">
       <i class="ti ti-chart-bar"></i>
       매출
+    </button>
+    <button class="header-nav-btn" onclick="openMemoList()">
+      <i class="ti ti-notes"></i>
+      메모장
     </button>
     <button class="header-nav-btn" onclick="window.open('https://sts.kyobobook.co.kr/po/home', '_blank')">
       <i class="ti ti-external-link"></i>
@@ -853,6 +857,32 @@
       <button class="order-submit-btn" onclick="submitSuggestion()">등록</button>
     </div>
     <div id="suggestion-list-container" style="flex:1;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- 메모장 모달 -->
+<div class="order-overlay" id="memo-overlay" onclick="if(event.target===this)closeMemoList()">
+  <div class="order-box" style="min-height:67vh; display:flex; flex-direction:column;">
+    <div class="order-header">
+      <h2>메모장</h2>
+      <button class="order-close" onclick="closeMemoList()"><i class="ti ti-x"></i></button>
+    </div>
+    <div style="background:#f5f5f3;border-radius:12px;padding:16px;margin-bottom:16px;">
+      <div class="order-field">
+        <div class="order-label">메모 내용</div>
+        <textarea id="memo-content" class="order-input" rows="4" placeholder="업무 중 기록할 내용을 적어주세요..." style="resize:none;"></textarea>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;margin:10px 0 14px;font-size:14px;color:#444;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="radio" name="memo-visibility" value="private" checked onchange="setMemoVisibility('private')"> 나만보기
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="radio" name="memo-visibility" value="store" onchange="setMemoVisibility('store')"> 같은 매장 공유
+        </label>
+      </div>
+      <button class="order-submit-btn" onclick="submitMemo()">등록</button>
+    </div>
+    <div id="memo-list-container" style="flex:1;overflow-y:auto;"></div>
   </div>
 </div>
 
@@ -2349,7 +2379,7 @@ function urlBase64ToUint8Array(base64String) {
 
   function isOverlayOpen() {
     const ids = ['chat-overlay', 'schedule-overlay', 'order-list-overlay',
-                 'issue-list-overlay', 'as-list-overlay', 'suggestion-overlay',
+                 'issue-list-overlay', 'as-list-overlay', 'suggestion-overlay', 'memo-overlay',
                  'order-form-overlay', 'issue-form-overlay', 'as-form-overlay',
                  'guide-overlay', 'scanner-overlay', 'datepicker-overlay'];
     return ids.some(id => {
@@ -3187,6 +3217,74 @@ async function deleteSuggestion(id) {
   loadSuggestionList();
 }
 
+/* ── 메모장 ──────────────────────────────── */
+let _memoVisibility = 'private';
+function setMemoVisibility(v) { _memoVisibility = v; }
+
+async function openMemoList() {
+  lockScroll();
+  document.getElementById('memo-content').value = '';
+  document.querySelector('input[name="memo-visibility"][value="private"]').checked = true;
+  _memoVisibility = 'private';
+  document.getElementById('memo-overlay').classList.add('open');
+  if (window._memos) renderMemoList(window._memos);
+  else document.getElementById('memo-list-container').innerHTML = LOADING_HTML;
+  await loadMemoList();
+}
+function closeMemoList() { unlockScroll(); document.getElementById('memo-overlay').classList.remove('open'); }
+
+async function loadMemoList() {
+  showLoading();
+  try {
+    const token = localStorage.getItem('authToken') || '';
+    const data = await fetch('/api/memos', {headers:{'X-Token':token}}).then(r => r.json());
+    if (data.ok) renderMemoList(data.memos);
+  } finally { hideLoading(); }
+}
+
+async function submitMemo() {
+  const content = document.getElementById('memo-content').value.trim();
+  if (!content) { alert('내용을 입력해주세요.'); return; }
+  const token = localStorage.getItem('authToken') || '';
+  const today = new Date().toISOString();
+  await fetch('/api/memos', {
+    method: 'POST', headers: {'Content-Type':'application/json', 'X-Token': token},
+    body: JSON.stringify({ content, visibility: _memoVisibility, created_at: today })
+  });
+  document.getElementById('memo-content').value = '';
+  await loadMemoList();
+}
+
+function renderMemoList(list) {
+  window._memos = list;
+  const container = document.getElementById('memo-list-container');
+  if (!list.length) { container.innerHTML = '<div class="order-empty">메모가 없습니다</div>'; return; }
+  container.innerHTML = list.map(m => {
+    const isShared = m.visibility === 'store';
+    const dateStr = (m.created_at || '').slice(0, 10);
+    return `
+    <div class="order-list-item">
+      <div class="uc-head">
+        <span class="uc-lbl" style="font-size:13px;">${esc(dateStr)}${isShared ? ` · ${esc(m.author_name||'')}` : ''}</span>
+        <span class="order-badge ${isShared ? 'badge-unpaid' : 'badge-pending'}">${isShared ? '매장 공유' : '나만보기'}</span>
+      </div>
+      <div class="uc-text" style="margin-bottom:10px;white-space:pre-wrap;">${esc(m.content)}</div>
+      ${(currentUser && currentUser.id === m.user_id) ? `
+      <hr class="uc-divider">
+      <div class="order-item-actions">
+        <button class="order-del-btn" onclick="deleteMemo(${m.id})">삭제</button>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function deleteMemo(id) {
+  if (!confirm('삭제할까요?')) return;
+  const token = localStorage.getItem('authToken') || '';
+  await fetch('/api/memos/delete', {method:'POST', headers:{'Content-Type':'application/json', 'X-Token': token}, body: JSON.stringify({id})});
+  loadMemoList();
+}
+
 /* ── 이슈사항 ──────────────────────────────── */
 let issueFormId = null;
 
@@ -3451,17 +3549,19 @@ async function initAuth() {
 async function prefetchAllLists() {
   const token = localStorage.getItem('authToken') || '';
   try {
-    const [orders, logsRes, asRes, issueRes, suggRes] = await Promise.all([
+    const [orders, logsRes, asRes, issueRes, suggRes, memoRes] = await Promise.all([
       fetch('/api/orders', {headers:{'X-Token':token}}).then(r=>r.json()).catch(()=>null),
       fetch('/api/orders/logs/all').then(r=>r.json()).catch(()=>({ok:false,logs:{}})),
       fetch('/api/as', {headers:{'X-Token':token}}).then(r=>r.json()).catch(()=>null),
       fetch('/api/issues', {headers:{'X-Token':token}}).then(r=>r.json()).catch(()=>null),
       fetch('/api/suggestions', {headers:{'X-Token':token}}).then(r=>r.json()).catch(()=>null),
+      fetch('/api/memos', {headers:{'X-Token':token}}).then(r=>r.json()).catch(()=>null),
     ]);
     if (orders) { window._orders = orders; window._orderLogs = logsRes.ok ? logsRes.logs : {}; }
     if (asRes) window._asRequests = asRes;
     if (issueRes) window._issues = issueRes;
     if (suggRes) window._suggestions = suggRes;
+    if (memoRes && memoRes.ok) window._memos = memoRes.memos;
   } catch(e) {}
 }
 
