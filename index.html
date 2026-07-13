@@ -882,6 +882,11 @@
       </div>
       <button class="order-submit-btn" onclick="submitMemo()">등록</button>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button id="memo-filter-all" onclick="setMemoFilter('all')" style="background:#185fa5;color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;">전체</button>
+      <button id="memo-filter-private" onclick="setMemoFilter('private')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;">나만보기</button>
+      <button id="memo-filter-store" onclick="setMemoFilter('store')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;">매장 공유</button>
+    </div>
     <div id="memo-list-container" style="flex:1;overflow-y:auto;"></div>
   </div>
 </div>
@@ -3226,6 +3231,7 @@ async function openMemoList() {
   document.getElementById('memo-content').value = '';
   document.querySelector('input[name="memo-visibility"][value="private"]').checked = true;
   _memoVisibility = 'private';
+  setMemoFilter('all');
   document.getElementById('memo-overlay').classList.add('open');
   if (window._memos) renderMemoList(window._memos);
   else document.getElementById('memo-list-container').innerHTML = LOADING_HTML;
@@ -3256,12 +3262,23 @@ async function submitMemo() {
 }
 
 let _editingMemoId = null;
+let _memoFilter = 'all';
+
+function setMemoFilter(f) {
+  _memoFilter = f;
+  ['all','private','store'].forEach(k => {
+    const btn = document.getElementById('memo-filter-' + k);
+    if (btn) { btn.style.background = k===f ? '#185fa5' : '#f0f0ec'; btn.style.color = k===f ? '#fff' : '#555'; }
+  });
+  renderMemoList(window._memos || []);
+}
 
 function renderMemoList(list) {
   window._memos = list;
   const container = document.getElementById('memo-list-container');
-  if (!list.length) { container.innerHTML = '<div class="order-empty">메모가 없습니다</div>'; return; }
-  container.innerHTML = list.map(m => {
+  const filtered = _memoFilter === 'all' ? list : list.filter(m => m.visibility === _memoFilter);
+  if (!filtered.length) { container.innerHTML = `<div class="order-empty">${_memoFilter === 'all' ? '메모가 없습니다' : '해당하는 메모가 없습니다'}</div>`; return; }
+  container.innerHTML = filtered.map(m => {
     const isShared = m.visibility === 'store';
     const dateStr = (m.created_at || '').slice(0, 10);
     const isMine = currentUser && currentUser.id === m.user_id;
