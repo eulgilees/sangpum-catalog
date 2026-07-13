@@ -570,10 +570,10 @@
       <input type="text" id="sales-search-input" oninput="filterSalesList()" placeholder="상품명 또는 바코드 검색..." style="width:100%;padding:10px 14px;border:1px solid #d4d4ce;border-radius:20px;font-size:14px;outline:none;background:#fff;box-sizing:border-box;">
     </div>
     <!-- 테이블 헤더 -->
-    <div style="display:grid;grid-template-columns:2fr 1.2fr 1.2fr 0.8fr 0.8fr 0.8fr;gap:4px;padding:8px 16px;background:#f0f0ec;font-size:11px;font-weight:700;color:#888;flex-shrink:0;">
-      <div>상품명</div>
+    <div style="display:grid;grid-template-columns:1.2fr 1.2fr 2fr 0.8fr 0.8fr 0.8fr;gap:4px;padding:8px 16px;background:#f0f0ec;font-size:11px;font-weight:700;color:#888;flex-shrink:0;">
       <div>바코드</div>
-      <div>업체명</div>
+      <div>업체</div>
+      <div>상품명</div>
       <div style="text-align:right;">가격</div>
       <div style="text-align:right;">판매</div>
       <div style="text-align:right;">재고</div>
@@ -1608,10 +1608,10 @@ function renderSalesList(list) {
   const container = document.getElementById('sales-list');
   if (!list.length) { container.innerHTML = '<div class="order-empty">해당 기간의 판매 내역이 없습니다</div>'; return; }
   container.innerHTML = list.map(s => `
-    <div style="display:grid;grid-template-columns:2fr 1.2fr 1.2fr 0.8fr 0.8fr 0.8fr;gap:4px;padding:13px 0;border-bottom:1px solid #f0f0ec;align-items:center;font-size:13px;">
-      <div style="font-weight:600;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.name)}</div>
+    <div style="display:grid;grid-template-columns:1.2fr 1.2fr 2fr 0.8fr 0.8fr 0.8fr;gap:4px;padding:13px 0;border-bottom:1px solid #f0f0ec;align-items:center;font-size:13px;">
       <div style="color:#888;font-family:monospace;font-size:12px;">${esc(s.barcode)}</div>
       <div style="color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.vendor)}</div>
+      <div style="font-weight:600;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.name)}</div>
       <div style="text-align:right;color:#222;font-weight:600;">${s.price.toLocaleString()}</div>
       <div style="text-align:right;color:#185fa5;font-weight:700;">${s.qty}</div>
       <div style="text-align:right;color:${s.stock<=3?'#e03131':'#444'};font-weight:600;">${s.stock}</div>
