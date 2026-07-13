@@ -543,12 +543,43 @@
       <div style="font-size:15px;font-weight:700;color:#222;">매출</div>
       <div style="width:32px;"></div>
     </div>
-    <!-- 수리중 -->
-    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:40px 24px;text-align:center;">
-      <i class="ti ti-tools" style="font-size:48px;color:#d4d4ce;"></i>
-      <div style="font-size:16px;font-weight:700;color:#888;">수리중입니다</div>
-      <div style="font-size:13px;color:#bbb;line-height:1.6;">준비가 완료되면 자동으로 업데이트됩니다.</div>
+    <!-- 샘플 데이터 안내 -->
+    <div style="margin:12px 16px 0;background:#fff8e6;border:1px solid #ffe1a8;border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:center;flex-shrink:0;">
+      <i class="ti ti-alert-triangle" style="font-size:18px;color:#d9860c;flex-shrink:0;"></i>
+      <div style="font-size:12px;color:#8a5a06;font-weight:600;">미리보기용 샘플 데이터입니다. 실제 매출이 아닙니다.</div>
     </div>
+    <!-- 기간 필터 -->
+    <div style="display:flex;gap:8px;padding:12px 16px;flex-shrink:0;overflow-x:auto;">
+      <button id="sales-filter-today" onclick="setSalesFilter('today')" style="background:#185fa5;color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">오늘</button>
+      <button id="sales-filter-week" onclick="setSalesFilter('week')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">이번 주</button>
+      <button id="sales-filter-month" onclick="setSalesFilter('month')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">이번 달</button>
+    </div>
+    <!-- 요약 카드 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 12px;flex-shrink:0;">
+      <div style="background:#fff;border-radius:12px;padding:14px 16px;border:1px solid #ebebeb;">
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">총 매출</div>
+        <div id="sales-total-amount" style="font-size:20px;font-weight:700;color:#222;">—</div>
+      </div>
+      <div style="background:#fff;border-radius:12px;padding:14px 16px;border:1px solid #ebebeb;">
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">판매 수량</div>
+        <div id="sales-total-qty" style="font-size:20px;font-weight:700;color:#222;">—</div>
+      </div>
+    </div>
+    <!-- 검색 -->
+    <div style="padding:0 16px 10px;flex-shrink:0;">
+      <input type="text" id="sales-search-input" oninput="filterSalesList()" placeholder="상품명 또는 바코드 검색..." style="width:100%;padding:10px 14px;border:1px solid #d4d4ce;border-radius:20px;font-size:14px;outline:none;background:#fff;box-sizing:border-box;">
+    </div>
+    <!-- 테이블 헤더 -->
+    <div style="display:grid;grid-template-columns:2fr 1.2fr 1.2fr 0.8fr 0.8fr 0.8fr;gap:4px;padding:8px 16px;background:#f0f0ec;font-size:11px;font-weight:700;color:#888;flex-shrink:0;">
+      <div>상품명</div>
+      <div>바코드</div>
+      <div>업체명</div>
+      <div style="text-align:right;">가격</div>
+      <div style="text-align:right;">판매</div>
+      <div style="text-align:right;">재고</div>
+    </div>
+    <!-- 목록 -->
+    <div id="sales-list" style="flex:1;overflow-y:auto;padding:0 16px 16px;"></div>
   </div>
 </div>
 
@@ -561,12 +592,20 @@
       <div style="font-size:15px;font-weight:700;color:#222;">신제품 목록</div>
       <div style="width:32px;"></div>
     </div>
-    <!-- 수리중 -->
-    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:40px 24px;text-align:center;">
-      <i class="ti ti-tools" style="font-size:48px;color:#d4d4ce;"></i>
-      <div style="font-size:16px;font-weight:700;color:#888;">수리중입니다</div>
-      <div style="font-size:13px;color:#bbb;line-height:1.6;">준비가 완료되면 자동으로 업데이트됩니다.</div>
+    <!-- 샘플 데이터 안내 -->
+    <div style="margin:12px 16px 0;background:#fff8e6;border:1px solid #ffe1a8;border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:center;flex-shrink:0;">
+      <i class="ti ti-alert-triangle" style="font-size:18px;color:#d9860c;flex-shrink:0;"></i>
+      <div style="font-size:12px;color:#8a5a06;font-weight:600;">미리보기용 샘플 데이터입니다. 실제 신제품이 아닙니다.</div>
     </div>
+    <!-- 필터/정렬 바 -->
+    <div style="display:flex;gap:8px;padding:12px 16px;flex-shrink:0;overflow-x:auto;">
+      <button id="np-filter-all" onclick="setNpFilter('all')" style="background:#185fa5;color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">전체</button>
+      <button id="np-filter-new" onclick="setNpFilter('new')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">신규</button>
+      <button id="np-filter-restock" onclick="setNpFilter('restock')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">재입고</button>
+      <button id="np-filter-limited" onclick="setNpFilter('limited')" style="background:#f0f0ec;color:#555;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">한정판</button>
+    </div>
+    <!-- 목록 -->
+    <div id="new-products-list" style="flex:1;overflow-y:auto;padding:0 16px 16px;"></div>
   </div>
 </div>
 
@@ -1521,23 +1560,85 @@ let scheduleYear = 0;
 let scheduleMonth = 0;
 let scheduleTab = 'list';
 
+/* ── 매출 (샘플 데이터 — 실제 연동 전 미리보기용) ── */
+const MOCK_SALES = [
+  {name:'아몬드', barcode:'9788936434267', vendor:'창비', price:12000, qty:23, stock:15, daysAgo:0},
+  {name:'불편한 편의점', barcode:'9791165341909', vendor:'나무옆의자', price:14000, qty:31, stock:8, daysAgo:0},
+  {name:'세이노의 가르침', barcode:'9791198157506', vendor:'데이원', price:16000, qty:45, stock:22, daysAgo:1},
+  {name:'미드나잇 라이브러리', barcode:'9791165341916', vendor:'인플루엔셜', price:15800, qty:18, stock:11, daysAgo:2},
+  {name:'트렌드 코리아 2025', barcode:'9788959139527', vendor:'미래의창', price:19800, qty:27, stock:9, daysAgo:3},
+  {name:'저녁의 슬픔', barcode:'9788954682133', vendor:'문학동네', price:13500, qty:9, stock:30, daysAgo:5},
+  {name:'나는 나로 살기로 했다', barcode:'9791188613611', vendor:'마음의숲', price:13800, qty:40, stock:2, daysAgo:6},
+  {name:'채식주의자', barcode:'9788936433598', vendor:'창비', price:12000, qty:12, stock:5, daysAgo:12},
+  {name:'파친코 1', barcode:'9791190090018', vendor:'문학사상', price:16800, qty:19, stock:14, daysAgo:18},
+  {name:'82년생 김지영', barcode:'9788954652431', vendor:'민음사', price:13000, qty:24, stock:6, daysAgo:27},
+];
+let _salesPeriod = 'today';
+
 function openSales() {
   lockScroll();
   document.getElementById('sales-overlay').style.display = 'flex';
+  document.getElementById('sales-search-input').value = '';
+  setSalesFilter('today');
 }
 function closeSales() {
   unlockScroll();
   document.getElementById('sales-overlay').style.display = 'none';
 }
 function setSalesFilter(f) {
+  _salesPeriod = f;
   ['today','week','month'].forEach(k => {
     const btn = document.getElementById('sales-filter-' + k);
     if (btn) { btn.style.background = k===f ? '#185fa5' : '#f0f0ec'; btn.style.color = k===f ? '#fff' : '#555'; }
   });
+  filterSalesList();
 }
+function filterSalesList() {
+  const maxDays = _salesPeriod === 'today' ? 0 : _salesPeriod === 'week' ? 6 : 29;
+  const q = (document.getElementById('sales-search-input').value || '').trim().toLowerCase();
+  const filtered = MOCK_SALES.filter(s => s.daysAgo <= maxDays &&
+    (!q || s.name.toLowerCase().includes(q) || s.barcode.includes(q)));
+  renderSalesList(filtered);
+}
+function renderSalesList(list) {
+  const totalAmount = list.reduce((sum, s) => sum + s.price * s.qty, 0);
+  const totalQty = list.reduce((sum, s) => sum + s.qty, 0);
+  document.getElementById('sales-total-amount').textContent = totalAmount.toLocaleString() + '원';
+  document.getElementById('sales-total-qty').textContent = totalQty.toLocaleString() + '개';
+  const container = document.getElementById('sales-list');
+  if (!list.length) { container.innerHTML = '<div class="order-empty">해당 기간의 판매 내역이 없습니다</div>'; return; }
+  container.innerHTML = list.map(s => `
+    <div style="display:grid;grid-template-columns:2fr 1.2fr 1.2fr 0.8fr 0.8fr 0.8fr;gap:4px;padding:13px 0;border-bottom:1px solid #f0f0ec;align-items:center;font-size:13px;">
+      <div style="font-weight:600;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.name)}</div>
+      <div style="color:#888;font-family:monospace;font-size:12px;">${esc(s.barcode)}</div>
+      <div style="color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.vendor)}</div>
+      <div style="text-align:right;color:#222;font-weight:600;">${s.price.toLocaleString()}</div>
+      <div style="text-align:right;color:#185fa5;font-weight:700;">${s.qty}</div>
+      <div style="text-align:right;color:${s.stock<=3?'#e03131':'#444'};font-weight:600;">${s.stock}</div>
+    </div>`).join('');
+}
+
+/* ── 신제품 (샘플 데이터 — 실제 연동 전 미리보기용) ── */
+const MOCK_NEW_PRODUCTS = [
+  {name:'곰돌이 푸 다이어리 세트', barcode:'8801234567890', badge:'new', daysAgo:0},
+  {name:'스타벅스 텀블러 콜라보', barcode:'8809876543210', badge:'restock', daysAgo:0},
+  {name:'산리오 캐릭터 편지지 세트', barcode:'8801122334455', badge:'limited', daysAgo:1},
+  {name:'몰스킨 클래식 노트 라지', barcode:'8805566778899', badge:'new', daysAgo:2},
+  {name:'지브리 스튜디오 포스트카드북', barcode:'8802233445566', badge:'restock', daysAgo:3},
+  {name:'무민 캐릭터 파우치', barcode:'8807788990011', badge:'new', daysAgo:4},
+  {name:'여름 시즌 굿즈 세트', barcode:'8803344556677', badge:'limited', daysAgo:5},
+  {name:'브로콜리너마저 콜라보 문구세트', barcode:'8809900112233', badge:'new', daysAgo:6},
+];
+const NP_BADGE_STYLE = {
+  new: {label:'NEW', bg:'#e03131'},
+  restock: {label:'재입고', bg:'#185fa5'},
+  limited: {label:'한정판', bg:'#9c36b5'},
+};
+
 function openNewProducts() {
   lockScroll();
   document.getElementById('new-products-overlay').style.display = 'flex';
+  setNpFilter('all');
 }
 function closeNewProducts() {
   unlockScroll();
@@ -1550,6 +1651,30 @@ function setNpFilter(f) {
     btn.style.background = active ? '#185fa5' : '#f0f0ec';
     btn.style.color = active ? '#fff' : '#555';
   });
+  const filtered = f === 'all' ? MOCK_NEW_PRODUCTS : MOCK_NEW_PRODUCTS.filter(p => p.badge === f);
+  renderNewProductsList(filtered);
+}
+function renderNewProductsList(list) {
+  const container = document.getElementById('new-products-list');
+  if (!list.length) { container.innerHTML = '<div class="order-empty">해당하는 상품이 없습니다</div>'; return; }
+  container.innerHTML = list.map(p => {
+    const b = NP_BADGE_STYLE[p.badge];
+    const dateLabel = p.daysAgo === 0 ? '오늘' : `${p.daysAgo}일 전`;
+    return `
+    <div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid #ebebeb;">
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div style="width:56px;height:56px;background:#e8e8e8;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><i class="ti ti-photo" style="font-size:22px;color:#bbb;"></i></div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
+            <span style="font-size:11px;background:${b.bg};color:#fff;border-radius:4px;padding:1px 6px;font-weight:700;">${b.label}</span>
+            <span style="font-size:12px;color:#888;">${esc(dateLabel)}</span>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:#222;margin-bottom:2px;">${esc(p.name)}</div>
+          <div style="font-size:13px;color:#888;">바코드: ${esc(p.barcode)}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 function openSchedule() {
   lockScroll();
