@@ -570,13 +570,13 @@
       <input type="text" id="sales-search-input" oninput="filterSalesList()" placeholder="상품명 또는 바코드 검색..." style="width:100%;padding:10px 14px;border:1px solid #d4d4ce;border-radius:20px;font-size:14px;outline:none;background:#fff;box-sizing:border-box;">
     </div>
     <!-- 테이블 헤더 -->
-    <div style="display:grid;grid-template-columns:1.2fr 1.2fr 2fr 0.8fr 0.8fr 0.8fr;gap:4px;padding:8px 16px;background:#f0f0ec;font-size:11px;font-weight:700;color:#888;flex-shrink:0;">
-      <div id="sales-th-barcode" onclick="setSalesSort('barcode')" style="cursor:pointer;user-select:none;">바코드</div>
-      <div id="sales-th-vendor" onclick="setSalesSort('vendor')" style="cursor:pointer;user-select:none;">업체</div>
-      <div id="sales-th-name" onclick="setSalesSort('name')" style="cursor:pointer;user-select:none;">상품명</div>
-      <div id="sales-th-price" onclick="setSalesSort('price')" style="text-align:right;cursor:pointer;user-select:none;">가격</div>
-      <div id="sales-th-qty" onclick="setSalesSort('qty')" style="text-align:right;cursor:pointer;user-select:none;">판매</div>
-      <div id="sales-th-stock" onclick="setSalesSort('stock')" style="text-align:right;cursor:pointer;user-select:none;">재고</div>
+    <div style="display:grid;grid-template-columns:1.2fr 1.2fr 2fr 0.8fr 0.8fr 0.8fr;gap:4px;padding:0 16px;background:#f0f0ec;font-size:11px;font-weight:700;color:#888;flex-shrink:0;">
+      <div id="sales-th-barcode" onclick="setSalesSort('barcode')" style="cursor:pointer;user-select:none;padding:12px 4px;margin:-1px;" onmouseover="this.style.background='#e5e5e0'" onmouseout="this.style.background=''">바코드</div>
+      <div id="sales-th-vendor" onclick="setSalesSort('vendor')" style="cursor:pointer;user-select:none;padding:12px 4px;margin:-1px;" onmouseover="this.style.background='#e5e5e0'" onmouseout="this.style.background=''">업체</div>
+      <div id="sales-th-name" onclick="setSalesSort('name')" style="cursor:pointer;user-select:none;padding:12px 4px;margin:-1px;" onmouseover="this.style.background='#e5e5e0'" onmouseout="this.style.background=''">상품명</div>
+      <div id="sales-th-price" onclick="setSalesSort('price')" style="text-align:right;cursor:pointer;user-select:none;padding:12px 4px;margin:-1px;" onmouseover="this.style.background='#e5e5e0'" onmouseout="this.style.background=''">가격</div>
+      <div id="sales-th-qty" onclick="setSalesSort('qty')" style="text-align:right;cursor:pointer;user-select:none;padding:12px 4px;margin:-1px;" onmouseover="this.style.background='#e5e5e0'" onmouseout="this.style.background=''">판매</div>
+      <div id="sales-th-stock" onclick="setSalesSort('stock')" style="text-align:right;cursor:pointer;user-select:none;padding:12px 4px;margin:-1px;" onmouseover="this.style.background='#e5e5e0'" onmouseout="this.style.background=''">재고</div>
     </div>
     <!-- 목록 -->
     <div id="sales-list" style="flex:1;overflow-y:auto;padding:0 16px 16px;"></div>
